@@ -1,13 +1,19 @@
 /* ========================================================================= */
-/* PakCLI Master-Detail Settings Hub - Compact 2px Margin & Sandbox Theme   */
+/* PakCLI Master-Detail Settings Hub - Full Width & 2px Outer Margin        */
 /* ========================================================================= */
+
+/* Override Obsidian's default spacious modal container padding */
+.vertical-tab-content:has(.pakcli-master-detail-root),
+.vertical-tab-content.pakcli-settings-hub {
+  padding: 4px 6px !important;
+}
 
 .pakcli-master-detail-root {
   display: flex !important;
   flex-direction: column !important;
   width: calc(100% - 4px) !important;
   max-width: calc(100% - 4px) !important;
-  margin: 0 2px !important;
+  margin: 2px !important;
   gap: 10px !important;
   box-sizing: border-box !important;
   padding: 0 !important;
@@ -30,6 +36,7 @@
     padding: 0 !important;
     margin: 0 !important;
     background: transparent !important;
+    width: auto !important;
 
     .setting-item-info {
       .setting-item-name {
@@ -76,7 +83,7 @@
   }
 }
 
-/* 2. Master-Detail Layout (Compact 2-Column Flexbox with 2px Side Margin) */
+/* 2. Master-Detail Layout (2-Column Flexbox with 2px Outer Margin) */
 .pakcli-master-detail-layout {
   display: flex !important;
   flex-direction: row !important;
@@ -89,10 +96,10 @@
 
   /* Left Master Sidebar */
   .pakcli-sidebar {
-    width: 215px !important;
-    min-width: 200px !important;
-    max-width: 225px !important;
-    flex: 0 0 215px !important;
+    width: 220px !important;
+    min-width: 210px !important;
+    max-width: 230px !important;
+    flex: 0 0 220px !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 8px !important;
@@ -244,9 +251,10 @@
     }
   }
 
-  /* Right Detail Content Pane */
+  /* Right Detail Content Pane (Full Stretching Width) */
   .pakcli-content-pane {
-    flex: 1 1 0 !important;
+    flex: 1 1 auto !important;
+    width: calc(100% - 232px) !important;
     min-width: 0 !important;
     display: flex !important;
     flex-direction: column !important;
@@ -254,11 +262,13 @@
     box-sizing: border-box !important;
 
     .setting-item {
+      width: 100% !important;
       background: var(--background-secondary) !important;
       border: 1px solid var(--background-modifier-border) !important;
       border-radius: var(--radius-s) !important;
-      padding: 8px 12px !important;
+      padding: 10px 14px !important;
       margin-bottom: 6px !important;
+      box-sizing: border-box !important;
       transition: border-color 0.15s ease !important;
 
       &:hover {
@@ -266,6 +276,8 @@
       }
 
       .setting-item-info {
+        flex: 1 1 auto !important;
+
         .setting-item-name {
           font-size: 0.88rem !important;
           font-weight: 600 !important;
@@ -296,10 +308,12 @@
 
     /* Diagnostics Banner Card */
     .pakcli-wizard-banner {
-      padding: 10px 12px !important;
+      width: 100% !important;
+      padding: 10px 14px !important;
       background: var(--background-secondary) !important;
       border: 1px solid var(--background-modifier-border) !important;
       border-radius: var(--radius-s) !important;
+      box-sizing: border-box !important;
       display: flex !important;
       flex-direction: column !important;
       gap: 6px !important;
@@ -334,7 +348,7 @@
         display: flex !important;
         align-items: center !important;
         gap: 8px !important;
-        padding: 6px 10px !important;
+        padding: 8px 12px !important;
         background: var(--background-secondary) !important;
         border: 1px solid var(--background-modifier-border) !important;
         border-radius: var(--radius-s) !important;
@@ -364,15 +378,18 @@
 
     /* Add-on Preview Mockup Card & Live Sandbox */
     .pakcli-blueprint-box {
+      width: 100% !important;
       display: flex !important;
       flex-direction: column !important;
       gap: 8px !important;
+      box-sizing: border-box !important;
 
       .pakcli-store-banner {
-        padding: 10px 12px !important;
+        padding: 10px 14px !important;
         background: rgba(var(--color-blue-rgb), 0.08) !important;
         border: 1px solid rgba(var(--color-blue-rgb), 0.25) !important;
         border-radius: var(--radius-s) !important;
+        box-sizing: border-box !important;
         display: flex !important;
         flex-direction: column !important;
         gap: 6px !important;
