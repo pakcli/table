@@ -113,11 +113,19 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   private simulatedState: Record<string, Record<string, any>> = {};
   private unsubscribeBus: (() => void) | null = null;
 
+  // Session Undo/Redo Stacks
+  private settingsHistory: Array<string> = [];
+  private historyIndex = -1;
+
   constructor(app: App, plugin: Plugin) {
     super(app, plugin);
     this.plugin = plugin;
-    // Default to first item based on category: Table first, then Local
     this.activeSectionId = plugin.manifest.id === "pakcli-table" ? "table-csv" : "table-csv";
+    
+    // Seed initial history
+    const initial = JSON.stringify((plugin as any).settings || {});
+    this.settingsHistory.push(initial);
+    this.historyIndex = 0;
   }
 
   registerLocalSection(handler: SettingsSectionHandler) {
@@ -144,6 +152,65 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     if (this.plugin.manifest.id === pluginId) return this.plugin;
     const plugins = (this.app as any).plugins;
     return (plugins && plugins.plugins) ? plugins.plugins[pluginId] : null;
+  }
+
+  // Push new state into history stack
+  private recordHistory(): void {
+    const current = JSON.stringify((this.plugin as any).settings || {});
+    if (this.historyIndex >= 0 && this.settingsHistory[this.historyIndex] === current) {
+      return;
+    }
+    // Drop future if branched
+    if (this.historyIndex < this.settingsHistory.length - 1) {
+      this.settingsHistory = this.settingsHistory.slice(0, this.historyIndex + 1);
+    }
+    this.settingsHistory.push(current);
+    this.historyIndex = this.settingsHistory.length - 1;
+    // Cap history length at 50
+    if (this.settingsHistory.length > 50) {
+      this.settingsHistory.shift();
+      this.historyIndex--;
+    }
+  }
+
+  private async performUndo(): Promise<void> {
+    if (this.historyIndex > 0) {
+      this.historyIndex--;
+      const snapshot = JSON.parse(this.settingsHistory[this.historyIndex]);
+      Object.assign((this.plugin as any).settings, snapshot);
+      if (typeof (this.plugin as any).saveSettings === "function") {
+        await (this.plugin as any).saveSettings();
+      }
+      if (typeof (this.plugin as any).applyCodeblockStyle === "function") {
+        (this.plugin as any).applyCodeblockStyle();
+      }
+      if (typeof (this.plugin as any).applyBadgeSetting === "function") {
+        (this.plugin as any).applyBadgeSetting();
+      }
+      eventBus.emit("settings:updated", { pluginId: this.plugin.manifest.id });
+      new Notice("↶ Undone settings change");
+      this.display();
+    }
+  }
+
+  private async performRedo(): Promise<void> {
+    if (this.historyIndex < this.settingsHistory.length - 1) {
+      this.historyIndex++;
+      const snapshot = JSON.parse(this.settingsHistory[this.historyIndex]);
+      Object.assign((this.plugin as any).settings, snapshot);
+      if (typeof (this.plugin as any).saveSettings === "function") {
+        await (this.plugin as any).saveSettings();
+      }
+      if (typeof (this.plugin as any).applyCodeblockStyle === "function") {
+        (this.plugin as any).applyCodeblockStyle();
+      }
+      if (typeof (this.plugin as any).applyBadgeSetting === "function") {
+        (this.plugin as any).applyBadgeSetting();
+      }
+      eventBus.emit("settings:updated", { pluginId: this.plugin.manifest.id });
+      new Notice("↷ Redone settings change");
+      this.display();
+    }
   }
 
   async display(): Promise<void> {
@@ -173,7 +240,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
     const topActions = topBar.createDiv({ cls: "pakcli-topbar-actions" });
 
-    // 1-Click Vault Config Save Button (Enabled only when Local is active)
+    // 1-Click Vault Config Save Button
     const exportBtn = topActions.createEl("button", {
       text: "💾 Save Config",
       cls: `pakcli-action-btn ${!isLocalActive ? "is-disabled-offline" : ""}`
@@ -193,7 +260,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       };
     }
 
-    // Dropdown Restore / Snapshot Manager (Enabled only when Local is active)
+    // Dropdown Restore / Snapshot Manager
     const dropdownWrap = topActions.createDiv({ cls: "pakcli-snapshot-dropdown-wrap" });
     const selectEl = dropdownWrap.createEl("select", {
       cls: `pakcli-snapshot-select dropdown ${!isLocalActive ? "is-disabled-offline" : ""}`
@@ -223,6 +290,25 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     } else {
       selectEl.setAttribute("disabled", "true");
     }
+
+    // Undo / Redo Buttons beside Dropdown
+    const historyWrap = topActions.createDiv({ cls: "pakcli-history-btn-wrap" });
+    
+    const canUndo = this.historyIndex > 0;
+    const undoBtn = historyWrap.createEl("button", {
+      text: "↶ Undo",
+      cls: `pakcli-history-btn pakcli-undo-btn ${!canUndo ? "is-disabled" : ""}`,
+    });
+    undoBtn.title = "Undo last settings change";
+    undoBtn.onclick = () => this.performUndo();
+
+    const canRedo = this.historyIndex < this.settingsHistory.length - 1;
+    const redoBtn = historyWrap.createEl("button", {
+      text: "↷ Redo",
+      cls: `pakcli-history-btn pakcli-redo-btn ${!canRedo ? "is-disabled" : ""}`,
+    });
+    redoBtn.title = "Redo settings change";
+    redoBtn.onclick = () => this.performRedo();
 
     const layoutContainer = containerEl.createDiv({ cls: "pakcli-master-detail-layout" });
 
@@ -376,7 +462,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       return;
     }
 
-    // Fallback to first module
+    // Fallback
     const firstMod = ECOSYSTEM_MODULES[0];
     if (firstMod) {
       this.activeSectionId = firstMod.id;
@@ -406,6 +492,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       if (field.type === "toggle") {
         s.addToggle((t) => {
           t.setValue(Boolean(currentVal)).onChange(async (newVal) => {
+            this.recordHistory();
             settingsObj[field.key] = newVal;
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
@@ -416,6 +503,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
             if (typeof targetPlugin.applyBadgeSetting === "function") {
               targetPlugin.applyBadgeSetting();
             }
+            this.recordHistory();
             eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
             new Notice(`✅ Saved ${field.name}`);
           });
@@ -424,6 +512,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
         s.addDropdown((d) => {
           field.options?.forEach((opt) => d.addOption(opt, opt));
           d.setValue(String(currentVal)).onChange(async (newVal) => {
+            this.recordHistory();
             settingsObj[field.key] = newVal;
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
@@ -431,6 +520,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
             if (typeof targetPlugin.applyCodeblockStyle === "function") {
               targetPlugin.applyCodeblockStyle();
             }
+            this.recordHistory();
             eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
             new Notice(`✅ Saved ${field.name}`);
           });
@@ -438,10 +528,12 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       } else {
         s.addText((t) => {
           t.setValue(String(currentVal || "")).onChange(async (newVal) => {
+            this.recordHistory();
             settingsObj[field.key] = newVal.trim();
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
             }
+            this.recordHistory();
             eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
           });
         });

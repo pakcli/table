@@ -614,3 +614,36 @@
   cursor: not-allowed !important;
   pointer-events: auto !important;
 }
+
+
+/* History Undo/Redo Buttons beside Dropdown */
+.pakcli-history-btn-wrap {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+
+  .pakcli-history-btn {
+    padding: 4px 8px !important;
+    font-size: 0.74rem !important;
+    font-weight: 600 !important;
+    border-radius: 4px !important;
+    background: var(--background-primary) !important;
+    border: 1px solid var(--background-modifier-border) !important;
+    color: var(--text-normal) !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+
+    &:hover:not(.is-disabled) {
+      background: var(--background-modifier-hover) !important;
+      border-color: var(--interactive-accent) !important;
+      color: var(--interactive-accent) !important;
+      transform: translateY(-1px) !important;
+    }
+
+    &.is-disabled {
+      opacity: 0.4 !important;
+      cursor: not-allowed !important;
+      pointer-events: none !important;
+    }
+  }
+}

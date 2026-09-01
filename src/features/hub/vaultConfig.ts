@@ -57,7 +57,9 @@ export async function listVaultSnapshots(
 
   try {
     const files = await app.vault.adapter.list(SNAPSHOTS_DIR);
-    for (const f of files.files) {
+    // Sort reverse chronological
+    const sortedFiles = files.files.sort().reverse();
+    for (const f of sortedFiles) {
       if (f.includes(`/${prefix}-`) && f.endsWith('.json')) {
         const base = f.split('/').pop()?.replace('.json', '') || f;
         const stamp = base.replace(`${prefix}-`, '');
@@ -86,7 +88,7 @@ export async function listVaultSnapshots(
 }
 
 /**
- * Save settings snapshot to pakcli-vault-config
+ * Save settings snapshot to pakcli-vault-config (Rotates 1 snapshot per hour)
  */
 export async function saveVaultConfig(
   app: App,
@@ -109,11 +111,21 @@ export async function saveVaultConfig(
   const jsonStr = JSON.stringify(payload, null, 2);
 
   try {
+    // 1. Always write to latest
     await app.vault.adapter.write(latestPath, jsonStr);
 
+    // 2. Write to hourly snapshot file (1 new snapshot per 1 hour)
     const now = new Date();
-    const dateStamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
-    const snapPath = `${SNAPSHOTS_DIR}/${prefix}-${customName ? customName + '-' : ''}${dateStamp}.json`;
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hour = String(now.getHours()).padStart(2, "0");
+    const hourlyStamp = `${year}-${month}-${day}_${hour}h00`;
+
+    const snapPath = customName 
+      ? `${SNAPSHOTS_DIR}/${prefix}-${customName}-${hourlyStamp}_${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}.json`
+      : `${SNAPSHOTS_DIR}/${prefix}-${hourlyStamp}.json`;
+
     await app.vault.adapter.write(snapPath, jsonStr);
   } catch (err) {
     console.error(`[VaultConfig] Error writing config for ${pluginName}:`, err);
