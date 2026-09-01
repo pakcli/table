@@ -21,6 +21,16 @@ export interface BlueprintSection {
 export const ECOSYSTEM_MODULES: BlueprintSection[] = [
   // ⚙️ LOCAL MODULES
   {
+    id: "local-wizard",
+    category: "local",
+    title: "System & Ecosystem Diagnostics",
+    icon: "activity",
+    storeId: "pakcli-local",
+    repoUrl: "https://github.com/pakcli/local",
+    description: "Scan your environment for PowerShell engine, symlink privileges, yt-dlp media binaries, and active suite modules.",
+    fields: [],
+  },
+  {
     id: "local-symlink",
     category: "local",
     title: "Symlink & Junction Manager",

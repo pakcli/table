@@ -55,6 +55,7 @@ export class VaultConfigActionModal extends Modal {
         if (typeof (this.plugin as any).saveSettings === "function") {
           await (this.plugin as any).saveSettings();
         }
+        eventBus.emit("settings:updated", { pluginId });
         new Notice(`✅ Replaced active settings from ${this.selectedSnapshot.name}!`);
       } else {
         new Notice("ℹ️ Snapshot file was empty or could not be loaded.");
@@ -110,11 +111,11 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   healthStatus: SystemHealthStatus | null = null;
   localHandlers: Map<string, SettingsSectionHandler> = new Map();
   private simulatedState: Record<string, Record<string, any>> = {};
+  private unsubscribeBus: (() => void) | null = null;
 
   constructor(app: App, plugin: Plugin) {
     super(app, plugin);
     this.plugin = plugin;
-    // Set default active section
     this.activeSectionId = plugin.manifest.id === "pakcli-local" ? "local-wizard" : "table-csv";
   }
 
@@ -122,21 +123,18 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     this.localHandlers.set(handler.id, handler);
   }
 
-  // Check if a plugin is installed in vault
   private isPluginInstalled(pluginId: string): boolean {
     const plugins = (this.app as any).plugins;
     if (!plugins) return false;
     return !!(plugins.manifests && plugins.manifests[pluginId]);
   }
 
-  // Check if a plugin is enabled and active in vault
   private isPluginEnabled(pluginId: string): boolean {
     const plugins = (this.app as any).plugins;
     if (!plugins) return false;
     return !!(plugins.plugins && plugins.plugins[pluginId]);
   }
 
-  // Get active plugin instance from Obsidian runtime
   private getPluginInstance(pluginId: string): any | null {
     if (this.plugin.manifest.id === pluginId) return this.plugin;
     const plugins = (this.app as any).plugins;
@@ -147,6 +145,16 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("pakcli-master-detail-root");
+
+    // Live eventBus listener
+    if (!this.unsubscribeBus) {
+      this.unsubscribeBus = eventBus.on("settings:updated", () => {
+        const activePane = containerEl.querySelector(".pakcli-content-pane") as HTMLElement;
+        if (activePane) {
+          this.renderContent(activePane);
+        }
+      });
+    }
 
     const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
     const snapshots = await listVaultSnapshots(this.app, pluginId);
@@ -221,13 +229,13 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   private updateSidebarItems(navContainer: HTMLElement, layoutContainer: HTMLElement): void {
     navContainer.empty();
 
-    // Group 1: ⚙️ LOCAL (Always renders all local modules)
+    // Group 1: ⚙️ LOCAL (Always renders all 4 local modules including Diagnostics)
     this.renderCategoryGroup(navContainer, "local", "⚙️ LOCAL", "pakcli-local", layoutContainer);
 
-    // Group 2: 🌸 TABLE (Always renders all table modules)
+    // Group 2: 🌸 TABLE (Always renders all 6 table modules)
     this.renderCategoryGroup(navContainer, "table", "🌸 TABLE", "pakcli-table", layoutContainer);
 
-    // Group 3: 🤖 AGENT (Always renders all agent modules)
+    // Group 3: 🤖 AGENT (Always renders all 2 agent modules)
     this.renderCategoryGroup(navContainer, "agent", "🤖 AGENT", "pakcli-agent", layoutContainer);
   }
 
@@ -242,8 +250,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     const isEnabled = this.isPluginEnabled(targetPluginId);
     const isThisActive = this.plugin.manifest.id === targetPluginId;
 
-    const groupEl = container.createDiv({ cls: `pakcli-nav-group ${isEnabled ? "active" : "uninstalled"}` });
-    const headerEl = groupEl.createDiv({ cls: `pakcli-group-header ${isEnabled ? "active" : ""}` });
+    const groupEl = container.createDiv({ cls: `pakcli-nav-group ${(isThisActive || isEnabled) ? "active" : "uninstalled"}` });
+    const headerEl = groupEl.createDiv({ cls: `pakcli-group-header ${(isThisActive || isEnabled) ? "active" : ""}` });
     headerEl.createSpan({ text: label, cls: "pakcli-group-title" });
 
     if (isThisActive || isEnabled) {
@@ -268,20 +276,13 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       };
     }
 
-    // Diagnostics wizard for local category
-    if (category === "local" && (isThisActive || this.localHandlers.has("local-wizard"))) {
-      if (!this.searchQuery || "diagnostics wizard".includes(this.searchQuery)) {
-        this.renderNavItem(groupEl, "local-wizard", "System Diagnostics", "activity", true, layoutContainer);
-      }
-    }
-
-    // Render ALL standard modules in this category consistently across both plugins!
+    // Render every standard ecosystem module in category consistently across all plugin tabs!
     const modules = ECOSYSTEM_MODULES.filter((m) => m.category === category);
     modules.forEach((mod) => {
       if (this.searchQuery && !mod.title.toLowerCase().includes(this.searchQuery)) return;
 
       const hasLocalHandler = this.localHandlers.has(mod.id);
-      const isAvailable = hasLocalHandler || isEnabled;
+      const isAvailable = isThisActive || hasLocalHandler || isEnabled;
       const iconToUse = mod.icon || (isAvailable ? "check-circle" : "lock");
 
       this.renderNavItem(groupEl, mod.id, mod.title, iconToUse, isAvailable, layoutContainer);
@@ -322,7 +323,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   private renderContent(contentEl: HTMLElement): void {
     contentEl.empty();
 
-    // 1. Wizard section
+    // 1. Diagnostics Wizard
     if (this.activeSectionId === "local-wizard") {
       this.renderWizardSection(contentEl);
       return;
@@ -338,15 +339,13 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       return;
     }
 
-    // 3. Ecosystem Module (Check if target plugin is enabled in vault or preview)
+    // 3. Ecosystem Module (Check if target plugin is active in vault or preview)
     const mod = ECOSYSTEM_MODULES.find((m) => m.id === this.activeSectionId);
     if (mod) {
       const targetPluginInstance = this.getPluginInstance(mod.storeId);
       if (targetPluginInstance) {
-        // Plugin IS ACTIVE in vault: render live cross-plugin settings bound directly to real keys!
         this.renderLiveCrossPluginSettings(contentEl, mod, targetPluginInstance);
       } else {
-        // Plugin is not installed: render interactive sandbox preview
         this.renderBlueprintPreview(contentEl, mod);
       }
       return;
@@ -374,7 +373,6 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
     const form = contentEl.createDiv({ cls: "pakcli-preview-form is-live-active" });
 
-    // Render real settings bound directly to targetPlugin.settings using REAL PROPERTY KEYS!
     blueprint.fields.forEach((field) => {
       const s = new Setting(form).setName(field.name).setDesc(field.desc);
       const settingsObj = targetPlugin.settings || {};
@@ -393,6 +391,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
             if (typeof targetPlugin.applyBadgeSetting === "function") {
               targetPlugin.applyBadgeSetting();
             }
+            eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
             new Notice(`✅ Saved ${field.name}`);
           });
         });
@@ -407,6 +406,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
             if (typeof targetPlugin.applyCodeblockStyle === "function") {
               targetPlugin.applyCodeblockStyle();
             }
+            eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
             new Notice(`✅ Saved ${field.name}`);
           });
         });
@@ -417,6 +417,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
             }
+            eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
           });
         });
       }
@@ -430,16 +431,27 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
     const banner = contentEl.createDiv({ cls: "pakcli-wizard-banner" });
     banner.createEl("p", {
-      text: "Scan your environment for PowerShell, symlink privileges, YouTube media engines, and complementary modules.",
+      text: "Scan your environment for PowerShell engine, symlink privileges, yt-dlp media binaries, and active suite modules.",
     });
 
-    const runBtn = banner.createEl("button", { text: "🔍 Run Full Diagnostics", cls: "pakcli-btn-primary" });
-    runBtn.onclick = async () => {
-      runBtn.setText("Scanning system...");
-      runBtn.setAttribute("disabled", "true");
-      this.healthStatus = await runSystemDiagnostics();
-      this.renderWizardSection(contentEl);
-    };
+    const isLocalActive = this.plugin.manifest.id === "pakcli-local" || this.isPluginEnabled("pakcli-local");
+
+    if (isLocalActive) {
+      const runBtn = banner.createEl("button", { text: "🔍 Run Full Diagnostics", cls: "pakcli-btn-primary" });
+      runBtn.onclick = async () => {
+        runBtn.setText("Scanning system...");
+        runBtn.setAttribute("disabled", "true");
+        this.healthStatus = await runSystemDiagnostics();
+        this.renderWizardSection(contentEl);
+      };
+    } else {
+      banner.createEl("p", {
+        cls: "pakcli-diag-msg",
+        text: "ℹ️ Native system diagnostics (PowerShell, Symlinks, yt-dlp) require the PakCLI Local plugin.",
+      });
+      const getBtn = banner.createEl("button", { text: "+ Enable or Get PakCLI Local", cls: "pakcli-btn-install" });
+      getBtn.onclick = () => this.openObsidianStore("pakcli-local");
+    }
 
     if (this.healthStatus) {
       const resultsContainer = contentEl.createDiv({ cls: "pakcli-diagnostics-results" });
@@ -550,7 +562,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     new Notice(`Opening store for ${pluginId}...`);
     try {
       const setting = (this.app as any).setting;
-      if (setting) {
+      if (setting && typeof setting.open === "function") {
         setting.open();
         setting.openTabById("community-plugins");
       } else {
