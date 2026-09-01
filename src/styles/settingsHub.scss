@@ -604,3 +604,13 @@
     font-weight: 700 !important;
   }
 }
+
+
+/* Offline / Disabled Vault Config buttons when Local is not present */
+.pakcli-action-btn.is-disabled-offline,
+.pakcli-snapshot-select.is-disabled-offline {
+  opacity: 0.45 !important;
+  filter: grayscale(1) !important;
+  cursor: not-allowed !important;
+  pointer-events: auto !important;
+}

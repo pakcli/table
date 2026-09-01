@@ -116,7 +116,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   constructor(app: App, plugin: Plugin) {
     super(app, plugin);
     this.plugin = plugin;
-    this.activeSectionId = plugin.manifest.id === "pakcli-local" ? "local-wizard" : "table-csv";
+    // Default to first item based on category: Table first, then Local
+    this.activeSectionId = plugin.manifest.id === "pakcli-table" ? "table-csv" : "table-csv";
   }
 
   registerLocalSection(handler: SettingsSectionHandler) {
@@ -135,6 +136,10 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     return !!(plugins.plugins && plugins.plugins[pluginId]);
   }
 
+  private isLocalPresent(): boolean {
+    return this.plugin.manifest.id === "pakcli-local" || this.isPluginEnabled("pakcli-local");
+  }
+
   private getPluginInstance(pluginId: string): any | null {
     if (this.plugin.manifest.id === pluginId) return this.plugin;
     const plugins = (this.app as any).plugins;
@@ -146,7 +151,6 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     containerEl.empty();
     containerEl.addClass("pakcli-master-detail-root");
 
-    // Live eventBus listener
     if (!this.unsubscribeBus) {
       this.unsubscribeBus = eventBus.on("settings:updated", () => {
         const activePane = containerEl.querySelector(".pakcli-content-pane") as HTMLElement;
@@ -157,7 +161,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     }
 
     const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
-    const snapshots = await listVaultSnapshots(this.app, pluginId);
+    const isLocalActive = this.isLocalPresent();
+    const snapshots = isLocalActive ? await listVaultSnapshots(this.app, pluginId) : [];
 
     // Top Bar
     const topBar = containerEl.createDiv({ cls: "pakcli-topbar" });
@@ -168,36 +173,56 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
     const topActions = topBar.createDiv({ cls: "pakcli-topbar-actions" });
 
-    // 1-Click Vault Config Save Button
-    const exportBtn = topActions.createEl("button", { text: "💾 Save Config", cls: "pakcli-action-btn" });
-    exportBtn.onclick = async () => {
-      await saveVaultConfig(this.app, pluginId, (this.plugin as any).settings || {});
-      new Notice(`✅ ${this.plugin.manifest.name} settings saved to pakcli-vault-config!`);
-      eventBus.emit("pl:vault-config-saved", { plugin: this.plugin.manifest.id });
-      this.display();
-    };
-
-    // Dropdown Restore / Snapshot Manager
-    const dropdownWrap = topActions.createDiv({ cls: "pakcli-snapshot-dropdown-wrap" });
-    const selectEl = dropdownWrap.createEl("select", { cls: "pakcli-snapshot-select dropdown" });
+    // 1-Click Vault Config Save Button (Enabled only when Local is active)
+    const exportBtn = topActions.createEl("button", {
+      text: "💾 Save Config",
+      cls: `pakcli-action-btn ${!isLocalActive ? "is-disabled-offline" : ""}`
+    });
     
-    const placeholderOpt = selectEl.createEl("option", { text: "🔄 Restore Config ▼", value: "" });
-    placeholderOpt.selected = true;
-
-    for (const snap of snapshots) {
-      selectEl.createEl("option", { text: `📂 ${snap.name}`, value: snap.id });
+    if (isLocalActive) {
+      exportBtn.onclick = async () => {
+        await saveVaultConfig(this.app, pluginId, (this.plugin as any).settings || {});
+        new Notice(`✅ ${this.plugin.manifest.name} settings saved to pakcli-vault-config!`);
+        eventBus.emit("pl:vault-config-saved", { plugin: this.plugin.manifest.id });
+        this.display();
+      };
+    } else {
+      exportBtn.title = "Vault Config Snapshots require PakCLI Local plugin";
+      exportBtn.onclick = () => {
+        new Notice("ℹ️ Vault Config Snapshots require the PakCLI Local plugin.");
+      };
     }
 
-    selectEl.onchange = () => {
-      const selectedId = selectEl.value;
-      if (!selectedId) return;
-      const targetSnap = snapshots.find((s) => s.id === selectedId) || snapshots[0];
-      selectEl.value = "";
+    // Dropdown Restore / Snapshot Manager (Enabled only when Local is active)
+    const dropdownWrap = topActions.createDiv({ cls: "pakcli-snapshot-dropdown-wrap" });
+    const selectEl = dropdownWrap.createEl("select", {
+      cls: `pakcli-snapshot-select dropdown ${!isLocalActive ? "is-disabled-offline" : ""}`
+    });
+    
+    const placeholderOpt = selectEl.createEl("option", {
+      text: isLocalActive ? "🔄 Restore Config ▼" : "🔄 Restore Config (Requires Local)",
+      value: ""
+    });
+    placeholderOpt.selected = true;
 
-      new VaultConfigActionModal(this.app, this.plugin, targetSnap, () => {
-        this.display();
-      }).open();
-    };
+    if (isLocalActive) {
+      for (const snap of snapshots) {
+        selectEl.createEl("option", { text: `📂 ${snap.name}`, value: snap.id });
+      }
+
+      selectEl.onchange = () => {
+        const selectedId = selectEl.value;
+        if (!selectedId) return;
+        const targetSnap = snapshots.find((s) => s.id === selectedId) || snapshots[0];
+        selectEl.value = "";
+
+        new VaultConfigActionModal(this.app, this.plugin, targetSnap, () => {
+          this.display();
+        }).open();
+      };
+    } else {
+      selectEl.setAttribute("disabled", "true");
+    }
 
     const layoutContainer = containerEl.createDiv({ cls: "pakcli-master-detail-layout" });
 
@@ -229,13 +254,14 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   private updateSidebarItems(navContainer: HTMLElement, layoutContainer: HTMLElement): void {
     navContainer.empty();
 
-    // Group 1: ⚙️ LOCAL (Always renders all 4 local modules including Diagnostics)
-    this.renderCategoryGroup(navContainer, "local", "⚙️ LOCAL", "pakcli-local", layoutContainer);
-
-    // Group 2: 🌸 TABLE (Always renders all 6 table modules)
+    // SORT ORDER: 1. TABLE -> 2. LOCAL -> 3. AGENT
+    // Group 1: 🌸 TABLE
     this.renderCategoryGroup(navContainer, "table", "🌸 TABLE", "pakcli-table", layoutContainer);
 
-    // Group 3: 🤖 AGENT (Always renders all 2 agent modules)
+    // Group 2: ⚙️ LOCAL
+    this.renderCategoryGroup(navContainer, "local", "⚙️ LOCAL", "pakcli-local", layoutContainer);
+
+    // Group 3: 🤖 AGENT
     this.renderCategoryGroup(navContainer, "agent", "🤖 AGENT", "pakcli-agent", layoutContainer);
   }
 
@@ -276,7 +302,6 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       };
     }
 
-    // Render every standard ecosystem module in category consistently across all plugin tabs!
     const modules = ECOSYSTEM_MODULES.filter((m) => m.category === category);
     modules.forEach((mod) => {
       if (this.searchQuery && !mod.title.toLowerCase().includes(this.searchQuery)) return;
@@ -329,7 +354,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       return;
     }
 
-    // 2. Local registered handler (if current active plugin has custom DOM renderer)
+    // 2. Local registered handler (if current plugin registered custom handler)
     if (this.localHandlers.has(this.activeSectionId)) {
       const handler = this.localHandlers.get(this.activeSectionId)!;
       new Setting(contentEl)
@@ -339,7 +364,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       return;
     }
 
-    // 3. Ecosystem Module (Check if target plugin is active in vault or preview)
+    // 3. Ecosystem Module (Check if target plugin is active in vault)
     const mod = ECOSYSTEM_MODULES.find((m) => m.id === this.activeSectionId);
     if (mod) {
       const targetPluginInstance = this.getPluginInstance(mod.storeId);
@@ -351,7 +376,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       return;
     }
 
-    // Fallback
+    // Fallback to first module
     const firstMod = ECOSYSTEM_MODULES[0];
     if (firstMod) {
       this.activeSectionId = firstMod.id;
@@ -434,7 +459,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       text: "Scan your environment for PowerShell engine, symlink privileges, yt-dlp media binaries, and active suite modules.",
     });
 
-    const isLocalActive = this.plugin.manifest.id === "pakcli-local" || this.isPluginEnabled("pakcli-local");
+    const isLocalActive = this.isLocalPresent();
 
     if (isLocalActive) {
       const runBtn = banner.createEl("button", { text: "🔍 Run Full Diagnostics", cls: "pakcli-btn-primary" });
