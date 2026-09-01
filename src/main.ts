@@ -107,7 +107,9 @@ export default class PakCLITablePlugin extends Plugin {
 		console.log('[PakCLI Table] Loaded successfully.');
 	}
 
-	onunload() {
+	async onunload() {
+		// 2. Persistent Snapshot on App Close / Unload
+		try { await saveVaultConfig(this.app, 'pakcli-table', this.settings, 'session-close'); } catch {}
 		console.log('[PakCLI Table] Unloading plugin...');
 		if (this.leafletPlugin) {
 			this.leafletPlugin.onunload();

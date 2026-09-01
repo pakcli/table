@@ -13,6 +13,23 @@ export interface SettingsSectionHandler {
   render: (containerEl: HTMLElement) => void;
 }
 
+// Global window memory history stack for live Undo / Redo across all tabs
+declare global {
+  interface Window {
+    __PakCLI_MemoryHistory__?: {
+      stack: Array<{ pluginId: string; state: string }>;
+      index: number;
+    };
+  }
+}
+
+if (typeof window !== "undefined" && !window.__PakCLI_MemoryHistory__) {
+  window.__PakCLI_MemoryHistory__ = {
+    stack: [],
+    index: -1,
+  };
+}
+
 export class VaultConfigActionModal extends Modal {
   private plugin: Plugin;
   private selectedSnapshot: SnapshotItem;
@@ -113,19 +130,11 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   private simulatedState: Record<string, Record<string, any>> = {};
   private unsubscribeBus: (() => void) | null = null;
 
-  // Session Undo/Redo Stacks
-  private settingsHistory: Array<string> = [];
-  private historyIndex = -1;
-
   constructor(app: App, plugin: Plugin) {
     super(app, plugin);
     this.plugin = plugin;
     this.activeSectionId = plugin.manifest.id === "pakcli-table" ? "table-csv" : "table-csv";
-    
-    // Seed initial history
-    const initial = JSON.stringify((plugin as any).settings || {});
-    this.settingsHistory.push(initial);
-    this.historyIndex = 0;
+    this.recordMemorySnapshot((plugin as any).settings || {});
   }
 
   registerLocalSection(handler: SettingsSectionHandler) {
@@ -154,61 +163,83 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     return (plugins && plugins.plugins) ? plugins.plugins[pluginId] : null;
   }
 
-  // Push new state into history stack
-  private recordHistory(): void {
-    const current = JSON.stringify((this.plugin as any).settings || {});
-    if (this.historyIndex >= 0 && this.settingsHistory[this.historyIndex] === current) {
+  // ── 1. In-Memory Undo/Redo Engine ───────────────────────────────────────
+
+  public recordMemorySnapshot(stateObj: Record<string, any>): void {
+    if (typeof window === "undefined") return;
+    const history = window.__PakCLI_MemoryHistory__!;
+    const stateStr = JSON.stringify(stateObj);
+    const pluginId = this.plugin.manifest.id;
+
+    if (history.index >= 0 && history.stack[history.index]?.state === stateStr) {
       return;
     }
-    // Drop future if branched
-    if (this.historyIndex < this.settingsHistory.length - 1) {
-      this.settingsHistory = this.settingsHistory.slice(0, this.historyIndex + 1);
+
+    // Truncate forward history if branched
+    if (history.index < history.stack.length - 1) {
+      history.stack = history.stack.slice(0, history.index + 1);
     }
-    this.settingsHistory.push(current);
-    this.historyIndex = this.settingsHistory.length - 1;
-    // Cap history length at 50
-    if (this.settingsHistory.length > 50) {
-      this.settingsHistory.shift();
-      this.historyIndex--;
+
+    history.stack.push({ pluginId, state: stateStr });
+    history.index = history.stack.length - 1;
+
+    // Cap history at 50 states
+    if (history.stack.length > 50) {
+      history.stack.shift();
+      history.index--;
     }
   }
 
-  private async performUndo(): Promise<void> {
-    if (this.historyIndex > 0) {
-      this.historyIndex--;
-      const snapshot = JSON.parse(this.settingsHistory[this.historyIndex]);
-      Object.assign((this.plugin as any).settings, snapshot);
-      if (typeof (this.plugin as any).saveSettings === "function") {
-        await (this.plugin as any).saveSettings();
+  public async performMemoryUndo(): Promise<void> {
+    if (typeof window === "undefined") return;
+    const history = window.__PakCLI_MemoryHistory__!;
+    if (history.index > 0) {
+      history.index--;
+      const targetEntry = history.stack[history.index];
+      const parsed = JSON.parse(targetEntry.state);
+
+      const targetPlugin = this.getPluginInstance(targetEntry.pluginId) || this.plugin;
+      Object.assign(targetPlugin.settings, parsed);
+
+      if (typeof targetPlugin.saveSettings === "function") {
+        await targetPlugin.saveSettings();
       }
-      if (typeof (this.plugin as any).applyCodeblockStyle === "function") {
-        (this.plugin as any).applyCodeblockStyle();
+      if (typeof targetPlugin.applyCodeblockStyle === "function") {
+        targetPlugin.applyCodeblockStyle();
       }
-      if (typeof (this.plugin as any).applyBadgeSetting === "function") {
-        (this.plugin as any).applyBadgeSetting();
+      if (typeof targetPlugin.applyBadgeSetting === "function") {
+        targetPlugin.applyBadgeSetting();
       }
-      eventBus.emit("settings:updated", { pluginId: this.plugin.manifest.id });
-      new Notice("↶ Undone settings change");
+
+      eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id });
+      new Notice("↶ Undone setting change (Memory Snapshot)");
       this.display();
     }
   }
 
-  private async performRedo(): Promise<void> {
-    if (this.historyIndex < this.settingsHistory.length - 1) {
-      this.historyIndex++;
-      const snapshot = JSON.parse(this.settingsHistory[this.historyIndex]);
-      Object.assign((this.plugin as any).settings, snapshot);
-      if (typeof (this.plugin as any).saveSettings === "function") {
-        await (this.plugin as any).saveSettings();
+  public async performMemoryRedo(): Promise<void> {
+    if (typeof window === "undefined") return;
+    const history = window.__PakCLI_MemoryHistory__!;
+    if (history.index < history.stack.length - 1) {
+      history.index++;
+      const targetEntry = history.stack[history.index];
+      const parsed = JSON.parse(targetEntry.state);
+
+      const targetPlugin = this.getPluginInstance(targetEntry.pluginId) || this.plugin;
+      Object.assign(targetPlugin.settings, parsed);
+
+      if (typeof targetPlugin.saveSettings === "function") {
+        await targetPlugin.saveSettings();
       }
-      if (typeof (this.plugin as any).applyCodeblockStyle === "function") {
-        (this.plugin as any).applyCodeblockStyle();
+      if (typeof targetPlugin.applyCodeblockStyle === "function") {
+        targetPlugin.applyCodeblockStyle();
       }
-      if (typeof (this.plugin as any).applyBadgeSetting === "function") {
-        (this.plugin as any).applyBadgeSetting();
+      if (typeof targetPlugin.applyBadgeSetting === "function") {
+        targetPlugin.applyBadgeSetting();
       }
-      eventBus.emit("settings:updated", { pluginId: this.plugin.manifest.id });
-      new Notice("↷ Redone settings change");
+
+      eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id });
+      new Notice("↷ Redone setting change (Memory Snapshot)");
       this.display();
     }
   }
@@ -240,7 +271,28 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
     const topActions = topBar.createDiv({ cls: "pakcli-topbar-actions" });
 
-    // 1-Click Vault Config Save Button
+    // 1. Undo / Redo Memory Action Buttons (Placed visibly in TopBar)
+    const history = typeof window !== "undefined" ? window.__PakCLI_MemoryHistory__ : null;
+    const canUndo = !!(history && history.index > 0);
+    const canRedo = !!(history && history.index < history.stack.length - 1);
+
+    const historyWrap = topActions.createDiv({ cls: "pakcli-history-btn-wrap" });
+
+    const undoBtn = historyWrap.createEl("button", {
+      text: "↶ Undo",
+      cls: `pakcli-history-btn pakcli-undo-btn ${!canUndo ? "is-disabled" : ""}`,
+    });
+    undoBtn.title = canUndo ? "Undo settings change (Memory)" : "No more undo steps";
+    undoBtn.onclick = () => this.performMemoryUndo();
+
+    const redoBtn = historyWrap.createEl("button", {
+      text: "↷ Redo",
+      cls: `pakcli-history-btn pakcli-redo-btn ${!canRedo ? "is-disabled" : ""}`,
+    });
+    redoBtn.title = canRedo ? "Redo settings change (Memory)" : "No more redo steps";
+    redoBtn.onclick = () => this.performMemoryRedo();
+
+    // 2. 1-Click Vault Config Save Button (Hourly Snapshot)
     const exportBtn = topActions.createEl("button", {
       text: "💾 Save Config",
       cls: `pakcli-action-btn ${!isLocalActive ? "is-disabled-offline" : ""}`
@@ -260,7 +312,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       };
     }
 
-    // Dropdown Restore / Snapshot Manager
+    // 3. Dropdown Restore / Snapshot Manager (Hourly Snapshots)
     const dropdownWrap = topActions.createDiv({ cls: "pakcli-snapshot-dropdown-wrap" });
     const selectEl = dropdownWrap.createEl("select", {
       cls: `pakcli-snapshot-select dropdown ${!isLocalActive ? "is-disabled-offline" : ""}`
@@ -290,25 +342,6 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     } else {
       selectEl.setAttribute("disabled", "true");
     }
-
-    // Undo / Redo Buttons beside Dropdown
-    const historyWrap = topActions.createDiv({ cls: "pakcli-history-btn-wrap" });
-    
-    const canUndo = this.historyIndex > 0;
-    const undoBtn = historyWrap.createEl("button", {
-      text: "↶ Undo",
-      cls: `pakcli-history-btn pakcli-undo-btn ${!canUndo ? "is-disabled" : ""}`,
-    });
-    undoBtn.title = "Undo last settings change";
-    undoBtn.onclick = () => this.performUndo();
-
-    const canRedo = this.historyIndex < this.settingsHistory.length - 1;
-    const redoBtn = historyWrap.createEl("button", {
-      text: "↷ Redo",
-      cls: `pakcli-history-btn pakcli-redo-btn ${!canRedo ? "is-disabled" : ""}`,
-    });
-    redoBtn.title = "Redo settings change";
-    redoBtn.onclick = () => this.performRedo();
 
     const layoutContainer = containerEl.createDiv({ cls: "pakcli-master-detail-layout" });
 
@@ -492,7 +525,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       if (field.type === "toggle") {
         s.addToggle((t) => {
           t.setValue(Boolean(currentVal)).onChange(async (newVal) => {
-            this.recordHistory();
+            this.recordMemorySnapshot(targetPlugin.settings);
             settingsObj[field.key] = newVal;
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
@@ -503,7 +536,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
             if (typeof targetPlugin.applyBadgeSetting === "function") {
               targetPlugin.applyBadgeSetting();
             }
-            this.recordHistory();
+            this.recordMemorySnapshot(targetPlugin.settings);
             eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
             new Notice(`✅ Saved ${field.name}`);
           });
@@ -512,7 +545,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
         s.addDropdown((d) => {
           field.options?.forEach((opt) => d.addOption(opt, opt));
           d.setValue(String(currentVal)).onChange(async (newVal) => {
-            this.recordHistory();
+            this.recordMemorySnapshot(targetPlugin.settings);
             settingsObj[field.key] = newVal;
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
@@ -520,7 +553,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
             if (typeof targetPlugin.applyCodeblockStyle === "function") {
               targetPlugin.applyCodeblockStyle();
             }
-            this.recordHistory();
+            this.recordMemorySnapshot(targetPlugin.settings);
             eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
             new Notice(`✅ Saved ${field.name}`);
           });
@@ -528,12 +561,12 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       } else {
         s.addText((t) => {
           t.setValue(String(currentVal || "")).onChange(async (newVal) => {
-            this.recordHistory();
+            this.recordMemorySnapshot(targetPlugin.settings);
             settingsObj[field.key] = newVal.trim();
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
             }
-            this.recordHistory();
+            this.recordMemorySnapshot(targetPlugin.settings);
             eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
           });
         });
