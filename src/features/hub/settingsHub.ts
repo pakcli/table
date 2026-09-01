@@ -120,6 +120,27 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     this.localHandlers.set(handler.id, handler);
   }
 
+  // Check if a plugin is installed in vault (in manifests)
+  private isPluginInstalled(pluginId: string): boolean {
+    const plugins = (this.app as any).plugins;
+    if (!plugins) return false;
+    return !!(plugins.manifests && plugins.manifests[pluginId]);
+  }
+
+  // Check if a plugin is enabled and active in vault
+  private isPluginEnabled(pluginId: string): boolean {
+    const plugins = (this.app as any).plugins;
+    if (!plugins) return false;
+    return !!(plugins.plugins && plugins.plugins[pluginId]);
+  }
+
+  // Get active plugin instance from Obsidian runtime
+  private getPluginInstance(pluginId: string): any | null {
+    if (this.plugin.manifest.id === pluginId) return this.plugin;
+    const plugins = (this.app as any).plugins;
+    return (plugins && plugins.plugins) ? plugins.plugins[pluginId] : null;
+  }
+
   async display(): Promise<void> {
     const { containerEl } = this;
     containerEl.empty();
@@ -161,9 +182,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       const selectedId = selectEl.value;
       if (!selectedId) return;
       const targetSnap = snapshots.find((s) => s.id === selectedId) || snapshots[0];
-      selectEl.value = ""; // Reset dropdown prompt
+      selectEl.value = "";
 
-      // Open Modal with 4 options: Replace | Cancel | Overwrite | Duplicate
       new VaultConfigActionModal(this.app, this.plugin, targetSnap, () => {
         this.display();
       }).open();
@@ -200,40 +220,53 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     navContainer.empty();
 
     // Group 1: ⚙️ LOCAL
-    this.renderCategoryGroup(navContainer, "local", "⚙️ LOCAL", layoutContainer);
+    this.renderCategoryGroup(navContainer, "local", "⚙️ LOCAL", "pakcli-local", layoutContainer);
 
     // Group 2: 🌸 TABLE
-    this.renderCategoryGroup(navContainer, "table", "🌸 TABLE", layoutContainer);
+    this.renderCategoryGroup(navContainer, "table", "🌸 TABLE", "pakcli-table", layoutContainer);
 
     // Group 3: 🤖 AGENT
-    this.renderCategoryGroup(navContainer, "agent", "🤖 AGENT", layoutContainer);
+    this.renderCategoryGroup(navContainer, "agent", "🤖 AGENT", "pakcli-agent", layoutContainer);
   }
 
   private renderCategoryGroup(
     container: HTMLElement,
     category: "local" | "table" | "agent",
     label: string,
+    targetPluginId: string,
     layoutContainer: HTMLElement
   ): void {
-    const isThisPluginCat = 
-      (category === "local" && this.plugin.manifest.id === "pakcli-local") ||
-      (category === "table" && this.plugin.manifest.id === "pakcli-table");
+    const isInstalled = this.isPluginInstalled(targetPluginId);
+    const isEnabled = this.isPluginEnabled(targetPluginId);
+    const isThisActive = this.plugin.manifest.id === targetPluginId;
 
-    const groupEl = container.createDiv({ cls: `pakcli-nav-group ${isThisPluginCat ? "active" : "uninstalled"}` });
-    const headerEl = groupEl.createDiv({ cls: `pakcli-group-header ${isThisPluginCat ? "active" : ""}` });
+    const groupEl = container.createDiv({ cls: `pakcli-nav-group ${isEnabled ? "active" : "uninstalled"}` });
+    const headerEl = groupEl.createDiv({ cls: `pakcli-group-header ${isEnabled ? "active" : ""}` });
     headerEl.createSpan({ text: label, cls: "pakcli-group-title" });
 
-    if (isThisPluginCat) {
+    if (isThisActive || isEnabled) {
       headerEl.createSpan({ text: "ACTIVE", cls: "pakcli-badge active" });
+    } else if (isInstalled) {
+      const enableBtn = headerEl.createEl("button", { text: "Enable", cls: "pakcli-get-btn" });
+      enableBtn.onclick = async (e) => {
+        e.stopPropagation();
+        try {
+          await (this.app as any).plugins?.enablePlugin(targetPluginId);
+          new Notice(`🟢 Enabled ${label}!`);
+          this.display();
+        } catch (err) {
+          new Notice(`Failed to enable ${label}`);
+        }
+      };
     } else {
       const getBtn = headerEl.createEl("button", { text: "+ Get", cls: "pakcli-get-btn" });
       getBtn.onclick = (e) => {
         e.stopPropagation();
-        this.openObsidianStore(`pakcli-${category}`);
+        this.openObsidianStore(targetPluginId);
       };
     }
 
-    // 1. Registered active handlers in this category
+    // 1. Registered local handlers in this tab
     for (const [id, handler] of this.localHandlers) {
       if (handler.category === category) {
         if (this.searchQuery && !handler.title.toLowerCase().includes(this.searchQuery)) continue;
@@ -241,12 +274,12 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       }
     }
 
-    // 2. Blueprint previews for uninstalled items
+    // 2. Blueprint items (rendered either live if other plugin is enabled, or as preview if not installed)
     const blueprints = PREVIEW_BLUEPRINTS.filter((b) => b.category === category);
     blueprints.forEach((bp) => {
       if (!this.localHandlers.has(bp.id)) {
         if (this.searchQuery && !bp.title.toLowerCase().includes(this.searchQuery)) return;
-        this.renderNavItem(groupEl, bp.id, bp.title, "lock", false, layoutContainer);
+        this.renderNavItem(groupEl, bp.id, bp.title, isEnabled ? "check-circle" : "lock", isEnabled, layoutContainer);
       }
     });
   }
@@ -291,7 +324,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       return;
     }
 
-    // 2. Active handler section
+    // 2. Local registered handler
     if (this.localHandlers.has(this.activeSectionId)) {
       const handler = this.localHandlers.get(this.activeSectionId)!;
       new Setting(contentEl)
@@ -301,10 +334,17 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       return;
     }
 
-    // 3. Blueprint preview (Interactive Simulation Mode)
+    // 3. Blueprint section (Check if the corresponding plugin is enabled in vault!)
     const blueprint = PREVIEW_BLUEPRINTS.find((b) => b.id === this.activeSectionId);
     if (blueprint) {
-      this.renderBlueprintPreview(contentEl, blueprint);
+      const targetPluginInstance = this.getPluginInstance(blueprint.storeId);
+      if (targetPluginInstance) {
+        // Plugin IS INSTALLED AND ENABLED in vault! Render full live settings panel!
+        this.renderLiveCrossPluginSettings(contentEl, blueprint, targetPluginInstance);
+      } else {
+        // Plugin is not installed/enabled in vault. Render interactive sandbox preview.
+        this.renderBlueprintPreview(contentEl, blueprint);
+      }
       return;
     }
 
@@ -316,6 +356,60 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     } else {
       contentEl.createDiv({ text: "Select a module from the sidebar." });
     }
+  }
+
+  private renderLiveCrossPluginSettings(contentEl: HTMLElement, blueprint: BlueprintSection, targetPlugin: any): void {
+    new Setting(contentEl)
+      .setName(`🌸 ${blueprint.title}`)
+      .setDesc(blueprint.description)
+      .setHeading();
+
+    const banner = contentEl.createDiv({ cls: "pakcli-store-banner active-connected" });
+    new Setting(banner)
+      .setName(`🟢 Connected to ${targetPlugin.manifest.name} (v${targetPlugin.manifest.version})`)
+      .setDesc("This module is active in your vault. Settings configured below directly update the plugin.")
+      .setHeading();
+
+    const form = contentEl.createDiv({ cls: "pakcli-preview-form is-live-active" });
+
+    // Render real settings bound directly to targetPlugin.settings!
+    blueprint.fields.forEach((field) => {
+      const s = new Setting(form).setName(field.name).setDesc(field.desc);
+      const settingsObj = targetPlugin.settings || {};
+      const currentVal = settingsObj[field.name] !== undefined ? settingsObj[field.name] : field.defaultVal;
+
+      if (field.type === "toggle") {
+        s.addToggle((t) => {
+          t.setValue(currentVal as boolean).onChange(async (newVal) => {
+            settingsObj[field.name] = newVal;
+            if (typeof targetPlugin.saveSettings === "function") {
+              await targetPlugin.saveSettings();
+            }
+            new Notice(`✅ Saved ${field.name}`);
+          });
+        });
+      } else if (field.type === "dropdown") {
+        s.addDropdown((d) => {
+          field.options?.forEach((opt) => d.addOption(opt, opt));
+          d.setValue(currentVal as string).onChange(async (newVal) => {
+            settingsObj[field.name] = newVal;
+            if (typeof targetPlugin.saveSettings === "function") {
+              await targetPlugin.saveSettings();
+            }
+            new Notice(`✅ Saved ${field.name}`);
+          });
+        });
+      } else {
+        s.addText((t) => {
+          t.setValue(currentVal as string).onChange(async (newVal) => {
+            settingsObj[field.name] = newVal;
+            if (typeof targetPlugin.saveSettings === "function") {
+              await targetPlugin.saveSettings();
+            }
+          });
+        });
+      }
+    });
   }
 
   private renderWizardSection(contentEl: HTMLElement): void {

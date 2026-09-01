@@ -589,3 +589,18 @@
     }
   }
 }
+
+
+/* Connected Plugin Banner in Unified Suite Hub */
+.pakcli-store-banner.active-connected {
+  background: rgba(16, 185, 129, 0.08) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  border-radius: var(--radius-m) !important;
+  padding: 10px 14px !important;
+  margin-bottom: 12px !important;
+
+  .setting-item-heading .setting-item-name {
+    color: #10b981 !important;
+    font-weight: 700 !important;
+  }
+}
