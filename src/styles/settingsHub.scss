@@ -1,0 +1,226 @@
+/* ========================================================================= */
+/* PakCLI Master-Detail Settings Hub & Grayscale Preview Styles              */
+/* ========================================================================= */
+
+.pakcli-master-detail-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 16px;
+}
+
+.pakcli-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+
+  .pakcli-main-title {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+  }
+}
+
+.pakcli-master-detail-layout {
+  display: flex;
+  gap: 20px;
+  min-height: 520px;
+
+  /* Left Sidebar */
+  .pakcli-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-right: 1px solid var(--background-modifier-border);
+    padding-right: 12px;
+
+    .pakcli-search-box {
+      input[type="search"] {
+        width: 100%;
+        padding: 6px 10px;
+        border-radius: var(--radius-s);
+        font-size: 0.85rem;
+      }
+    }
+
+    .pakcli-nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .pakcli-nav-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+
+      .pakcli-group-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        padding: 4px 6px;
+        text-transform: uppercase;
+
+        .pakcli-badge {
+          font-size: 0.65rem;
+          padding: 1px 6px;
+          border-radius: 10px;
+          background: rgba(var(--color-green-rgb), 0.15);
+          color: var(--color-green);
+        }
+
+        .pakcli-get-btn {
+          font-size: 0.7rem;
+          padding: 2px 8px;
+          border-radius: 4px;
+          background: var(--interactive-accent);
+          color: var(--text-on-accent);
+          cursor: pointer;
+          border: none;
+
+          &:hover {
+            opacity: 0.9;
+          }
+        }
+      }
+
+      .pakcli-nav-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: var(--radius-s);
+        cursor: pointer;
+        font-size: 0.88rem;
+        color: var(--text-normal);
+        transition: all 0.15s ease-in-out;
+
+        &:hover {
+          background-color: var(--background-modifier-hover);
+        }
+
+        &.is-selected {
+          background-color: var(--background-modifier-active-hover);
+          color: var(--text-accent);
+          font-weight: 600;
+        }
+
+        &.is-preview {
+          color: var(--text-muted);
+          opacity: 0.85;
+        }
+
+        .pakcli-nav-icon {
+          display: flex;
+          align-items: center;
+          width: 16px;
+          height: 16px;
+          flex-shrink: 0;
+        }
+
+        .pakcli-nav-text {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+  }
+
+  /* Right Content Pane */
+  .pakcli-content-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    padding-left: 4px;
+
+    .pakcli-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+
+      h3 {
+        margin: 0;
+        font-size: 1.15rem;
+      }
+
+      .pakcli-header-actions {
+        display: flex;
+        gap: 8px;
+
+        button {
+          font-size: 0.8rem;
+          cursor: pointer;
+        }
+      }
+    }
+
+    .pakcli-section-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .pakcli-diag-card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px;
+      border-radius: var(--radius-m);
+      background: var(--background-secondary-alt);
+      border: 1px solid var(--background-modifier-border);
+
+      .pakcli-diag-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+
+        .pakcli-diag-label {
+          font-weight: 600;
+        }
+
+        .pakcli-diag-details {
+          color: var(--text-muted);
+        }
+      }
+    }
+
+    .pakcli-preview-banner {
+      padding: 8px 12px;
+      border-radius: var(--radius-s);
+      background: rgba(var(--color-blue-rgb), 0.1);
+      border: 1px solid rgba(var(--color-blue-rgb), 0.25);
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .pakcli-uninstalled-preview {
+      opacity: 0.5;
+      filter: grayscale(1);
+      pointer-events: none;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+
+      .pakcli-blueprint-desc {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+      }
+    }
+  }
+}

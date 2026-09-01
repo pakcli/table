@@ -1,0 +1,1891 @@
+@use 'core';
+@use 'csvEditor';
+@use 'inlineQueries';
+@use 'listView';
+@use 'syntaxHighlight';
+@use 'obsidianMinimal';
+@use 'agGrid';
+@use 'settings';
+@use 'canvas';
+@use 'autocomplete';
+@use 'global-tables';
+@use 'jsonViewer';
+@use 'receiptScanner';
+@use 'profiles';
+@use 'asciidraw';
+@use 'settingsHub';
+
+
+@use '../features/sqlseal/modules/explorer/explorer/style.scss';
+
+@import "tree.css";
+@import "leaflet.css";
+@import "ytcapture.css";
+
+/* ========================================================================= */
+/* Asset Draggable - Native Drag & Drop Styles                                */
+/* ========================================================================= */
+.internal-embed.image-embed img,
+.internal-embed img,
+.markdown-rendered img,
+.cm-embed-block img,
+.internal-embed.pdf-embed,
+.internal-embed.media-embed,
+.internal-embed[src],
+.cm-embed-block .internal-embed {
+    -webkit-user-drag: element !important;
+    user-drag: element !important;
+    cursor: grab;
+}
+
+.internal-embed.image-embed img:active,
+.markdown-rendered img:active,
+.cm-embed-block img:active {
+    cursor: grabbing !important;
+}
+
+.sqlseal-edit-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--background-secondary-alt);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-m);
+    padding: var(--size-4-3) var(--size-4-4);
+    margin-top: 10px;
+    margin-bottom: 10px;
+    box-shadow: var(--shadow-s);
+    animation: sqlsealSlideIn 0.2s ease-out;
+
+    span {
+        font-weight: 500;
+        color: var(--text-muted);
+        font-size: var(--font-size-small);
+    }
+
+    .sqlseal-edit-banner-actions {
+        display: flex;
+        gap: var(--size-4-2);
+
+        button {
+            padding: var(--size-4-1) var(--size-4-3);
+            font-size: var(--font-size-small);
+            border-radius: var(--radius-s);
+            cursor: pointer;
+            transition: all 0.15s ease;
+
+            &.sqlseal-edit-btn-save {
+                background-color: var(--interactive-accent);
+                color: var(--text-on-accent);
+                border: none;
+
+                &:hover {
+                    background-color: var(--interactive-accent-hover);
+                }
+            }
+
+            &.sqlseal-edit-btn-discard {
+                background-color: transparent;
+                border: 1px solid var(--border-color);
+                color: var(--text-normal);
+
+                &:hover {
+                    background-color: var(--background-modifier-hover);
+                }
+            }
+        }
+    }
+}
+
+@keyframes sqlsealSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.pakcli-settings-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.pakcli-settings-sidebar {
+    width: 230px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-right: 1px solid var(--background-modifier-border);
+    padding-right: 15px;
+}
+
+.pakcli-sidebar-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.pakcli-sidebar-search {
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 0.82rem;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-modifier-form-field);
+    color: var(--text-normal);
+    outline: none;
+    transition: border-color 0.15s ease;
+
+    &:focus {
+        border-color: var(--interactive-accent);
+        box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.15);
+    }
+}
+
+.pakcli-sidebar-sort {
+    width: 100%;
+    padding: 5px 8px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+        color: var(--text-normal);
+        background: var(--background-modifier-hover);
+    }
+}
+
+.pakcli-tabs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pakcli-sidebar-section-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    margin-top: 8px;
+    margin-bottom: 2px;
+    padding: 0 4px;
+}
+
+.pakcli-tab-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+
+    &:hover {
+        background-color: var(--background-modifier-hover);
+
+        .pakcli-pin-btn {
+            opacity: 1;
+        }
+    }
+
+    &.active {
+        background-color: var(--background-modifier-active-hover);
+
+        .pakcli-tab-btn {
+            color: var(--interactive-accent) !important;
+            font-weight: 600;
+        }
+    }
+
+    &.pinned {
+        border-left: 2px solid var(--interactive-accent);
+        padding-left: 2px;
+    }
+}
+
+.pakcli-tab-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+    padding: 7px 10px !important;
+    font-size: 0.84rem !important;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-align: left;
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &:hover {
+        color: var(--text-normal) !important;
+    }
+}
+
+.pakcli-pin-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+    font-size: 0.78rem !important;
+    padding: 4px 6px !important;
+    opacity: 0.35;
+    transition: opacity 0.15s ease, transform 0.12s ease;
+    flex-shrink: 0;
+
+    &:hover {
+        opacity: 1 !important;
+        transform: scale(1.15);
+    }
+
+    &.is-pinned {
+        opacity: 1 !important;
+    }
+}
+
+.pakcli-sidebar-empty {
+    font-size: 0.8rem;
+    color: var(--text-faint);
+    padding: 12px 6px;
+    text-align: center;
+    font-style: italic;
+}
+
+.pakcli-tab-content {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+/* =========================================================================
+   Codeblock Wrapping, Flow Clip & Scale Fit Modes
+   ========================================================================= */
+
+/* Ensure editor lines in Live Preview Mode never get per-line scrollbars and respect pre formatting */
+.markdown-source-view.mod-cm6 .cm-content .cm-line.HyperMD-codeblock,
+.markdown-source-view.mod-cm6 .cm-line.HyperMD-codeblock,
+.cm-line.HyperMD-codeblock {
+    word-break: normal !important;
+    word-wrap: normal !important;
+    overflow-wrap: normal !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+}
+
+.markdown-rendered pre {
+    max-width: 100% !important;
+}
+
+body.codeblock-flowclip {
+    .markdown-rendered pre {
+        white-space: pre !important;
+        word-break: normal !important;
+        word-wrap: normal !important;
+        overflow-x: auto !important;
+    }
+
+    .markdown-rendered pre code {
+        white-space: pre !important;
+        word-break: normal !important;
+        overflow-x: visible !important;
+    }
+
+    .markdown-source-view.mod-cm6 .cm-content .cm-line.HyperMD-codeblock {
+        white-space: pre !important;
+    }
+}
+
+body.codeblock-wrap {
+    .markdown-rendered pre,
+    .markdown-rendered pre code {
+        white-space: pre-wrap !important;
+        word-break: break-all !important;
+        overflow-wrap: anywhere !important;
+        overflow-x: hidden !important;
+    }
+
+    .markdown-source-view.mod-cm6 .cm-content .cm-line.HyperMD-codeblock {
+        white-space: pre-wrap !important;
+        word-break: break-all !important;
+    }
+}
+
+body.codeblock-scalefit {
+    .markdown-rendered pre,
+    .markdown-rendered pre code {
+        white-space: pre !important;
+        word-break: normal !important;
+        overflow-x: hidden !important;
+        font-family: var(--font-monospace), monospace !important;
+    }
+
+    .markdown-source-view.mod-cm6 .cm-content .cm-line.HyperMD-codeblock {
+        white-space: pre !important;
+        font-family: var(--font-monospace), monospace !important;
+    }
+}
+
+.pakcli-codeblock-slider {
+    display: block !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    margin: 6px 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+
+    .cm-line.HyperMD-codeblock {
+        white-space: pre !important;
+        word-break: normal !important;
+        word-wrap: normal !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+    }
+}
+
+/* ========================================================================= */
+/* Two-Section Codeblock & Folder Sync Component                              */
+/* ========================================================================= */
+.pakcli-sync-codeblock-wrapper {
+    margin: 12px 0;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    overflow: hidden;
+    background-color: var(--background-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Section 1: Sync Controller Header --- */
+.pakcli-sync-section1 {
+    background-color: var(--background-secondary-alt);
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding: 8px 12px;
+    font-size: var(--font-size-small);
+}
+
+.pakcli-sync-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.pakcli-sync-left-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+    flex: 1 1 auto;
+}
+
+.pakcli-sync-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+
+    &.pakcli-sync-status-synced {
+        background-color: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+    }
+    &.pakcli-sync-status-manager_modified {
+        background-color: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+    }
+    &.pakcli-sync-status-cli_modified {
+        background-color: rgba(6, 182, 212, 0.15);
+        color: #06b6d4;
+    }
+    &.pakcli-sync-status-conflict {
+        background-color: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+    }
+    &.pakcli-sync-status-cli_missing,
+    &.pakcli-sync-status-not_mapped {
+        background-color: var(--background-modifier-hover);
+        color: var(--text-muted);
+    }
+}
+
+.pakcli-sync-target-path {
+    font-family: var(--font-monospace);
+    font-size: 11px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    text-decoration: underline dotted;
+
+    &:hover {
+        color: var(--text-normal);
+    }
+}
+
+.pakcli-sync-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.pakcli-sync-btn {
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+
+    &:hover {
+        background-color: var(--background-modifier-hover);
+    }
+
+    &.pakcli-sync-btn-execute {
+        background-color: var(--interactive-accent);
+        color: var(--text-on-accent);
+        border: none;
+        font-weight: 600;
+
+        &:hover {
+            background-color: var(--interactive-accent-hover);
+        }
+    }
+
+    &.pakcli-sync-btn-diff.active {
+        background-color: var(--background-modifier-active-hover);
+        color: var(--text-accent);
+    }
+
+    &.pakcli-sync-btn-run {
+        background-color: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border-color: rgba(16, 185, 129, 0.3);
+
+        &:hover {
+            background-color: rgba(16, 185, 129, 0.25);
+        }
+    }
+}
+
+/* --- Expandable Diff Container --- */
+.pakcli-sync-diff-container {
+    margin-top: 8px;
+    padding: 8px;
+    border-radius: var(--radius-s);
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.pakcli-diff-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text-muted);
+}
+
+.pakcli-diff-table {
+    font-family: var(--font-monospace);
+    font-size: 11px;
+}
+
+.pakcli-diff-row {
+    display: flex;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    padding: 1px 4px;
+    border-radius: 2px;
+
+    &.pakcli-diff-added {
+        background-color: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+    }
+    &.pakcli-diff-removed {
+        background-color: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+    }
+    &.pakcli-diff-unchanged {
+        color: var(--text-muted);
+    }
+
+    .pakcli-diff-marker {
+        width: 14px;
+        user-select: none;
+        font-weight: bold;
+    }
+    .pakcli-diff-content {
+        flex: 1;
+    }
+}
+
+.pakcli-diff-no-changes {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 4px;
+}
+
+/* --- Expandable Output Container --- */
+.pakcli-sync-output-container {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-s);
+    background-color: #0f172a;
+    color: #f8fafc;
+    font-family: var(--font-monospace);
+    font-size: 11px;
+    border: 1px solid #334155;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.pakcli-output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.pakcli-output-status.success { color: #4ade80; }
+.pakcli-output-status.error { color: #f87171; }
+
+.pakcli-output-close-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 12px;
+    &:hover { color: #ffffff; }
+}
+
+.pakcli-output-stdout {
+    margin: 0;
+    white-space: pre-wrap;
+    color: #e2e8f0;
+}
+
+.pakcli-output-stderr {
+    margin: 4px 0 0 0;
+    white-space: pre-wrap;
+    color: #fca5a5;
+}
+
+/* --- Section 2: Codeblock View --- */
+.pakcli-sync-section2 {
+    position: relative;
+}
+
+.pakcli-codeblock-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 12px;
+    background-color: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    font-size: 10px;
+}
+
+.pakcli-codeblock-lang-tag {
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.pakcli-codeblock-copy-btn {
+    padding: 2px 6px;
+    font-size: 10px;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+        color: var(--text-normal);
+        background-color: var(--background-modifier-hover);
+    }
+}
+
+.pakcli-codeblock-body {
+    pre {
+        margin: 0 !important;
+        border-radius: 0 !important;
+        border: none !important;
+    }
+}
+
+/* --- Pending Queue List --- */
+.pakcli-pending-empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--font-size-normal);
+}
+
+.pakcli-pending-top-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.pakcli-pending-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pakcli-pending-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background-color: var(--background-secondary);
+}
+
+.pakcli-pending-item-title {
+    font-weight: 600;
+    font-size: var(--font-size-small);
+}
+
+.pakcli-pending-item-path {
+    font-size: 11px;
+    font-family: var(--font-monospace);
+    color: var(--text-muted);
+}
+
+.pakcli-pending-item-time {
+    font-size: 10px;
+    color: var(--text-faint);
+}
+
+.pakcli-pending-item-actions {
+    display: flex;
+    gap: 6px;
+}
+
+/* --- Scan Dashboard Modal --- */
+.pakcli-scan-modal-window {
+    .modal {
+        width: 850px !important;
+        max-width: 90vw !important;
+        max-height: 85vh !important;
+    }
+}
+
+.pakcli-scan-loading {
+    padding: 24px;
+    text-align: center;
+    font-size: var(--font-size-normal);
+    color: var(--text-accent);
+}
+
+.pakcli-scan-meta-bar {
+    padding: 6px 12px;
+    background-color: var(--background-secondary-alt);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    font-size: 11px;
+    font-family: var(--font-monospace);
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.pakcli-scan-toggle-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    color: var(--text-normal);
+    padding: 4px 10px;
+    border-radius: var(--radius-s);
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+
+    input[type="checkbox"] {
+        cursor: pointer;
+        accent-color: var(--interactive-accent);
+    }
+}
+
+.pakcli-scan-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.pakcli-scan-item-card {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background-color: var(--background-secondary);
+    padding: 10px 12px;
+    transition: all 0.15s ease;
+
+    &:hover {
+        border-color: var(--interactive-accent);
+    }
+}
+
+.pakcli-scan-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.pakcli-scan-item-info {
+    flex: 1 1 auto;
+    overflow: hidden;
+}
+
+.pakcli-scan-item-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.pakcli-scan-item-title {
+    font-weight: 600;
+    font-size: var(--font-size-normal);
+}
+
+.pakcli-scan-lang-pill {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background-color: var(--background-modifier-hover);
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+
+.pakcli-scan-item-paths {
+    font-size: 11px;
+    font-family: var(--font-monospace);
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pakcli-scan-item-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+/* ========================================================================= */
+/* Tablite CSV & TSV Table Editor Component                                   */
+/* ========================================================================= */
+.tablite-root {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--background-primary);
+    font-family: var(--font-text);
+}
+
+.tablite-app {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* --- Toolbar --- */
+.tablite-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 6px 12px;
+    background-color: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    font-size: 12px;
+    user-select: none;
+    z-index: 20;
+}
+
+.tablite-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.tablite-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tablite-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    height: 26px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+        background-color: var(--background-modifier-hover);
+        color: var(--text-accent);
+    }
+}
+
+.tablite-select {
+    padding: 3px 8px;
+    height: 26px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 12px;
+    cursor: pointer;
+
+    &:focus {
+        border-color: var(--interactive-accent);
+    }
+}
+
+.tablite-separator {
+    width: 1px;
+    height: 16px;
+    background-color: var(--background-modifier-border);
+    margin: 0 4px;
+}
+
+.tablite-toggle-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+    color: var(--text-normal);
+
+    input[type="checkbox"] {
+        cursor: pointer;
+        accent-color: var(--interactive-accent);
+    }
+}
+
+.tablite-columns-panel {
+    position: relative;
+    display: inline-block;
+
+    summary {
+        list-style: none;
+        user-select: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+
+        &::-webkit-details-marker {
+            display: none;
+        }
+    }
+}
+
+.tablite-columns-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 100;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    padding: 8px;
+    min-width: 190px;
+    max-height: 280px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tablite-menu-button {
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    cursor: pointer;
+    margin-bottom: 4px;
+
+    &:hover {
+        background-color: var(--background-modifier-hover);
+    }
+}
+
+.tablite-column-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: var(--radius-s);
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover {
+        background-color: var(--background-modifier-hover);
+    }
+}
+
+.tablite-freeze-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.tablite-info {
+    font-size: 11px;
+    font-family: var(--font-monospace);
+    color: var(--text-muted);
+}
+
+.tablite-search-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tablite-search {
+    padding: 3px 8px;
+    height: 26px;
+    width: 140px;
+    font-size: 12px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+
+    &:focus {
+        border-color: var(--interactive-accent);
+        outline: none;
+    }
+}
+
+.tablite-search-count {
+    font-size: 11px;
+    font-family: var(--font-monospace);
+    color: var(--text-muted);
+    min-width: 28px;
+    text-align: center;
+}
+
+/* --- Find & Replace Bar --- */
+.tablite-find-replace-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+    z-index: 20;
+    user-select: none;
+}
+
+.tablite-find-row,
+.tablite-replace-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.tablite-fr-toggle-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+        color: var(--text-normal);
+    }
+}
+
+.tablite-fr-chevron {
+    display: inline-block;
+    font-size: 9px;
+    transition: transform 0.15s ease;
+
+    &.expanded {
+        transform: rotate(90deg);
+    }
+}
+
+.tablite-fr-spacer {
+    width: 20px;
+    flex-shrink: 0;
+}
+
+.tablite-fr-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.tablite-fr-input {
+    padding: 3px 52px 3px 8px;
+    height: 26px;
+    width: 230px;
+    font-size: 12px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+
+    &:focus {
+        border-color: var(--interactive-accent);
+        outline: none;
+    }
+}
+
+.tablite-replace-row .tablite-fr-input {
+    padding-right: 8px;
+}
+
+.tablite-fr-opt-btn {
+    position: absolute;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 1px 4px;
+    font-size: 11px;
+    font-family: var(--font-monospace);
+    color: var(--text-faint);
+    border-radius: 3px;
+    line-height: 1;
+
+    &:hover {
+        background-color: var(--background-modifier-hover);
+        color: var(--text-normal);
+    }
+
+    &.active {
+        background-color: var(--interactive-accent);
+        color: var(--text-on-accent);
+        font-weight: bold;
+    }
+
+    &:nth-of-type(1) {
+        right: 26px;
+    }
+
+    &:nth-of-type(2) {
+        right: 4px;
+    }
+}
+
+.tablite-fr-count {
+    font-size: 11px;
+    font-family: var(--font-monospace);
+    color: var(--text-muted);
+    min-width: 70px;
+    text-align: center;
+}
+
+.tablite-fr-nav-btn {
+    padding: 2px 6px;
+    height: 24px;
+    font-size: 9px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        background-color: var(--background-modifier-hover);
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+}
+
+.tablite-fr-col-select {
+    padding: 2px 6px;
+    height: 24px;
+    font-size: 11px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+}
+
+.tablite-fr-close-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+
+    &:hover {
+        color: var(--text-normal);
+    }
+}
+
+.tablite-fr-btn-group {
+    display: flex;
+    gap: 6px;
+}
+
+.tablite-fr-action-btn {
+    padding: 3px 10px;
+    height: 26px;
+    font-size: 11px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        background-color: var(--background-modifier-hover);
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    &.tablite-fr-action-all {
+        background-color: var(--interactive-accent);
+        color: var(--text-on-accent);
+        border-color: var(--interactive-accent);
+
+        &:hover:not(:disabled) {
+            opacity: 0.9;
+        }
+    }
+}
+
+/* --- Table Container & Virtualized Grid --- */
+.tablite-table-container {
+    flex: 1 1 auto;
+    position: relative;
+    overflow: auto;
+    width: 100%;
+    height: 100%;
+    background-color: var(--background-primary);
+}
+
+.tablite-table {
+    border-collapse: collapse;
+    font-family: var(--font-text);
+    font-size: 12px;
+    width: max-content;
+    min-width: 100%;
+    border-spacing: 0;
+
+    thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: var(--background-secondary);
+        box-shadow: 0 1px 0 var(--background-modifier-border);
+    }
+}
+
+.tablite-th {
+    border-right: 1px solid var(--background-modifier-border);
+    border-bottom: 1px solid var(--background-modifier-border);
+    background-color: var(--background-secondary);
+    padding: 4px 8px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+    position: relative;
+    box-sizing: border-box;
+    min-height: 32px;
+
+    &.tablite-th-row-num {
+        width: 55px !important;
+        min-width: 45px !important;
+        text-align: center;
+        justify-content: center;
+        color: var(--text-faint);
+        background-color: var(--background-secondary-alt);
+        cursor: pointer;
+
+        &:hover {
+            background-color: var(--background-modifier-hover);
+            color: var(--text-normal);
+        }
+    }
+}
+
+.tablite-row-num-header {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 11px;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+
+    &:hover {
+        color: var(--text-accent);
+    }
+}
+
+.tablite-header-cell {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    position: relative;
+    box-sizing: border-box;
+    cursor: grab;
+    transition: background-color 0.15s ease, border-left-color 0.15s ease;
+
+    &:active {
+        cursor: grabbing;
+    }
+
+    &.tablite-col-drag-over {
+        border-left: 2px solid var(--interactive-accent) !important;
+        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.18) !important;
+    }
+}
+
+.tablite-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 4px;
+    position: relative;
+}
+
+.tablite-header-name {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-normal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    flex: 1 1 auto;
+}
+
+.tablite-header-type {
+    font-size: 9px;
+    font-family: var(--font-monospace);
+    color: var(--text-muted);
+    padding: 1px 5px;
+    border-radius: 3px;
+    background-color: var(--background-modifier-hover);
+    flex-shrink: 0;
+    text-transform: lowercase;
+}
+
+.tablite-resize-handle {
+    position: absolute;
+    right: -8px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    user-select: none;
+    touch-action: none;
+    z-index: 5;
+
+    &:hover {
+        background-color: var(--interactive-accent);
+    }
+}
+
+.tablite-column-filter {
+    padding: 2px 6px;
+    font-size: 11px;
+    margin-top: 4px;
+    width: 100%;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    box-sizing: border-box;
+
+    &:focus {
+        outline: none;
+        border-color: var(--interactive-accent);
+    }
+}
+
+.tablite-multiselect {
+    position: relative;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.tablite-multiselect-trigger {
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 0;
+}
+
+.tablite-multiselect-dropdown {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    z-index: 1000;
+    min-width: 180px;
+    max-width: 280px;
+    max-height: 220px;
+    overflow-y: auto;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.tablite-multiselect-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: var(--radius-s);
+    font-size: 11px;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:hover {
+        background-color: var(--background-modifier-hover);
+    }
+
+    input[type="checkbox"] {
+        cursor: pointer;
+        accent-color: var(--interactive-accent);
+    }
+}
+
+.tablite-multiselect-clear {
+    font-weight: 600;
+    color: var(--text-accent);
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 4px;
+    margin-bottom: 2px;
+}
+
+.tablite-range-filter {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.tablite-range-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-top: 0;
+}
+
+.tablite-range-sep {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* --- Table Rows & Cells --- */
+.tablite-td {
+    border-right: 1px solid var(--background-modifier-border);
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding: 4px 8px;
+    min-height: 28px;
+    font-size: 12px;
+    line-height: 1.4;
+    display: flex;
+    align-items: center;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    box-sizing: border-box;
+    overflow: hidden;
+    white-space: nowrap;
+
+    &[data-col-index="-1"],
+    &:first-child {
+        text-align: center;
+        justify-content: center;
+        color: var(--text-faint);
+        background-color: var(--background-secondary-alt);
+        user-select: none;
+        font-family: var(--font-monospace);
+        font-size: 11px;
+    }
+
+    &.tablite-td-active {
+        outline: 2px solid var(--interactive-accent) !important;
+        outline-offset: -2px !important;
+        background-color: rgba(var(--interactive-accent-rgb, 100, 100, 255), 0.12) !important;
+    }
+
+    &.tablite-td-selected {
+        background-color: rgba(var(--interactive-accent-rgb, 100, 100, 255), 0.18) !important;
+    }
+
+    &.tablite-td-cross {
+        background-color: var(--background-modifier-hover);
+    }
+
+    &.tablite-row-num-selected {
+        background-color: var(--background-modifier-active-hover) !important;
+        color: var(--text-accent) !important;
+        font-weight: 600;
+    }
+}
+
+.tablite-frozen-cell {
+    position: sticky !important;
+    z-index: 5 !important;
+    background-color: var(--background-secondary);
+}
+
+th.tablite-frozen-cell {
+    z-index: 15 !important;
+}
+
+.tablite-cell-content {
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tablite-cell-input {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--text-normal);
+    font-size: 12px;
+    font-family: inherit;
+}
+
+/* --- YouTube Thumbnail Cell --- */
+.tablite-yt-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.tablite-yt-thumb {
+    width: 32px;
+    height: 20px;
+    object-fit: cover;
+    border-radius: 3px;
+    border: 1px solid var(--background-modifier-border);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+    &:hover {
+        transform: scale(2.2);
+        z-index: 1000;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+    }
+}
+
+.tablite-yt-link {
+    color: var(--text-accent);
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+/* --- Tablite Raw Text View --- */
+.tablite-raw-editor-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--background-primary);
+}
+
+.tablite-raw-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    background-color: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    font-size: 12px;
+    user-select: none;
+    z-index: 10;
+}
+
+.tablite-raw-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tablite-raw-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tablite-raw-body {
+    flex: 1 1 auto;
+    display: flex;
+    height: calc(100% - 38px);
+    overflow: hidden;
+    position: relative;
+    background-color: var(--background-primary);
+}
+
+.tablite-raw-gutter {
+    width: 48px;
+    flex-shrink: 0;
+    background-color: var(--background-secondary-alt);
+    border-right: 1px solid var(--background-modifier-border);
+    overflow: hidden;
+    user-select: none;
+    padding: 8px 0;
+    box-sizing: border-box;
+}
+
+.tablite-raw-line-number {
+    font-family: var(--font-monospace);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-faint);
+    text-align: right;
+    padding-right: 10px;
+    height: 18px;
+    box-sizing: border-box;
+}
+
+.tablite-raw-textarea {
+    flex: 1 1 auto;
+    width: calc(100% - 48px);
+    height: 100%;
+    padding: 8px 12px;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-family: var(--font-monospace);
+    font-size: 12px;
+    line-height: 1.5;
+    border: none;
+    outline: none;
+    resize: none;
+    overflow: auto;
+    box-sizing: border-box;
+
+    &.nowrap {
+        white-space: pre;
+        word-wrap: normal;
+        overflow-x: auto;
+    }
+
+    &.wrap {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    &:focus {
+        outline: none;
+    }
+}
+
+/* ==========================================================================
+   Tablite Row Multi-Select Checkboxes & Row Drag-and-Drop
+   ========================================================================== */
+
+.tablite-th-select,
+.tablite-td-select {
+    width: 34px !important;
+    min-width: 34px !important;
+    max-width: 34px !important;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--background-secondary-alt);
+}
+
+.tablite-row-select-header,
+.tablite-row-select-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.tablite-row-checkbox {
+    cursor: pointer;
+    accent-color: var(--interactive-accent);
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    padding: 0;
+}
+
+.tablite-row-num-drag {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+
+    &:active {
+        cursor: grabbing;
+    }
+}
+
+.tablite-drag-dots {
+    font-size: 10px;
+    letter-spacing: -1px;
+    opacity: 0.35;
+    transition: opacity 0.15s ease;
+
+    &:hover {
+        opacity: 0.9;
+        color: var(--text-accent);
+    }
+}
+
+.tablite-tr {
+    transition: background-color 0.1s ease;
+
+    &.tablite-tr-checked {
+        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.12) !important;
+
+        .tablite-td {
+            background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.08) !important;
+        }
+
+        .tablite-th-select,
+        .tablite-td-select,
+        .tablite-th-row-num,
+        .tablite-row-num {
+            background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.18) !important;
+            color: var(--text-accent);
+            font-weight: 600;
+        }
+    }
+
+    &.tablite-tr-drag-over {
+        border-top: 2px solid var(--interactive-accent) !important;
+        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.2) !important;
+    }
+}
+
+/* ==========================================================================
+   Tablite Floating Selection Actions Bar
+   ========================================================================== */
+
+.tablite-floating-actions {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(8px);
+    animation: tablite-fade-in 0.2s ease-out;
+}
+
+@keyframes tablite-fade-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 10px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+.tablite-fa-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-normal);
+    padding-right: 8px;
+    border-right: 1px solid var(--background-modifier-border);
+}
+
+.tablite-fa-badge {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    min-width: 16px;
+    text-align: center;
+}
+
+.tablite-fa-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    padding: 4px 10px;
+    height: 28px;
+    border-radius: 4px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+        background: var(--background-modifier-hover);
+        border-color: var(--interactive-accent);
+    }
+
+    &.tablite-fa-danger {
+        color: var(--text-error);
+        border-color: rgba(var(--color-red-rgb, 255, 100, 100), 0.3);
+
+        &:hover {
+            background: rgba(var(--color-red-rgb, 255, 100, 100), 0.15);
+            border-color: var(--text-error);
+        }
+    }
+}
+
+.tablite-fa-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+
+    &:hover {
+        background: var(--background-modifier-hover);
+        color: var(--text-normal);
+    }
+}
+
+/* ==========================================================================
+   Tablite Confirmation Modal
+   ========================================================================== */
+
+.tablite-confirm-modal {
+    padding: 16px 20px;
+}
+
+.tablite-confirm-title {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.tablite-confirm-msg {
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.tablite-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+
+
+
+
+
