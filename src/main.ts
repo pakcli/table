@@ -1,218 +1,165 @@
-import "./styles.css";
-import {
-  Modal,
-  Notice,
-  Plugin,
-  Setting,
-  TAbstractFile,
-  TFile,
-  TFolder,
-  normalizePath,
-} from "obsidian";
-import { CsvView, CSV_VIEW_TYPE } from "./csv-view";
-import {
-  DEFAULT_PLUGIN_DATA,
-  normalizeColumnConfig,
-  type ColumnConfig,
-  type TablitePluginData,
-} from "./types";
+import { App, Plugin, Notice, TFile } from 'obsidian';
+import { PakCLITableSettings, DEFAULT_TABLE_SETTINGS } from './settings';
 
-class NewCsvModal extends Modal {
-  private value: string;
-  private onSubmit: (value: string) => Promise<void>;
+// Hub Imports
+import { MasterDetailSettingsTab } from './features/hub/settingsHub';
+import { eventBus } from './features/hub/eventBus';
+import { saveVaultConfig, loadVaultConfig } from './features/hub/vaultConfig';
 
-  constructor(plugin: TablitePlugin, initialValue: string, onSubmit: (value: string) => Promise<void>) {
-    super(plugin.app);
-    this.value = initialValue;
-    this.onSubmit = onSubmit;
-  }
+// Tree & Asset Router Imports
+import { AssetRouter } from './features/tree/router';
+import { DiagramRenderer } from './features/tree/renderers/DiagramRenderer';
+import { registerTreeCommands } from './features/tree/commands';
 
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.createEl("h3", { text: "New CSV file" });
+// SQLSeal & Database Imports
+import { initSQLSeal } from './features/sqlseal/modules/main/init';
+import { SQLSealSettingsTab } from './features/sqlseal/modules/settings/SQLSealSettingsTab';
 
-    new Setting(contentEl)
-      .setName("File name")
-      .setDesc("Enter a CSV file name")
-      .addText((text) => {
-        text
-          .setPlaceholder("Untitled.csv")
-          .setValue(this.value)
-          .onChange((value) => {
-            this.value = value;
-          });
-      });
+// Leaflet Imports
+import { BasesLeafletPlugin } from './features/leaflet/plugin';
+import { BasesLeafletViewSettingsTab } from './features/leaflet/settings/basesLeafletViewSettingsTab';
 
-    const actions = contentEl.createDiv({ cls: "tablite-modal-actions" });
-    const cancelBtn = actions.createEl("button", { text: "Cancel" });
-    const createBtn = actions.createEl("button", {
-      text: "Create",
-      cls: "mod-cta",
-    });
+// ASCII Draw Imports
+import { registerAsciiDrawFeature } from './features/asciidraw';
 
-    const submit = async () => {
-      await this.onSubmit(this.value);
-    };
+// Codeblock Auto-Scaler
+import { CodeblockScaler } from './features/codeblock/scaler';
 
-    cancelBtn.addEventListener("click", () => this.close());
-    createBtn.addEventListener("click", () => {
-      void submit();
-    });
+export default class PakCLITablePlugin extends Plugin {
+	settings!: PakCLITableSettings;
+	router!: AssetRouter;
+	codeblockScaler!: CodeblockScaler;
+	leafletPlugin!: BasesLeafletPlugin;
+	sqlsealTabInstance: SQLSealSettingsTab | null = null;
+	leafletTabInstance: any = null;
+	vaultRoot: string = '';
 
-    const resolvedInputEl = contentEl.querySelector("input");
-    if (resolvedInputEl) {
-      resolvedInputEl.addEventListener("keydown", (event: KeyboardEvent) => {
-        if (event.key !== "Enter") return;
-        event.preventDefault();
-        void submit();
-      });
+	async onload() {
+		console.log('[PakCLI Table] Loading plugin...');
 
-      window.setTimeout(() => {
-        resolvedInputEl.focus();
-        resolvedInputEl.select();
-      }, 0);
-    }
-  }
-}
+		// 1. Resolve Vault Root Path
+		const adapter = this.app.vault.adapter as { getBasePath?: () => string };
+		if (typeof adapter.getBasePath === 'function') {
+			this.vaultRoot = adapter.getBasePath();
+		}
 
-export default class TablitePlugin extends Plugin {
-  private settings: TablitePluginData = DEFAULT_PLUGIN_DATA;
+		// 2. Load Settings (with Vault Config fallback)
+		await this.loadSettings();
 
-  async onload() {
-    await this.loadSettings();
-    await this.cleanupMissingFiles();
+		// 3. Initialize Event Bus
+		eventBus.emit('table:loaded', { version: this.manifest.version });
 
-    this.registerView(CSV_VIEW_TYPE, (leaf) => new CsvView(leaf, this));
-    this.registerExtensions(["csv", "tsv"], CSV_VIEW_TYPE);
-    this.addCommand({
-      id: "create-new-csv",
-      name: "Create new CSV file",
-      callback: () => {
-        this.createAndOpenCsv();
-      },
-    });
+		// 4. Initialize Codeblock Scaler
+		this.codeblockScaler = new CodeblockScaler(this);
+		this.codeblockScaler.registerEvents();
+		this.applyCodeblockStyle();
 
-    this.registerEvent(
-      this.app.vault.on("delete", async (file) => {
-        if (!(file instanceof TFile)) return;
-        if (!(file.extension === "csv" || file.extension === "tsv")) return;
-        if (!this.settings.files[file.path]) return;
-        delete this.settings.files[file.path];
-        await this.saveSettings();
-      }),
-    );
+		// 5. Initialize Tree Diagrams & Asset Router
+		this.router = new AssetRouter(this.app, () => this.settings);
+		this.router.registerEvents(this);
 
-    this.registerEvent(
-      this.app.vault.on("rename", async (file, oldPath) => {
-        if (!(file instanceof TFile)) return;
-        if (!(file.extension === "csv" || file.extension === "tsv")) return;
-        const config = this.settings.files[oldPath];
-        if (!config) return;
-        this.settings.files[file.path] = config;
-        delete this.settings.files[oldPath];
-        await this.saveSettings();
-      }),
-    );
+		this.registerMarkdownCodeBlockProcessor("tree", async (source, el, ctx) => {
+			ctx.addChild(new DiagramRenderer(this as any, source, el, ctx));
+		});
 
-    this.registerEvent(
-      this.app.workspace.on("file-menu", (menu, file) => {
-        const targetFolder = this.resolveTargetFolder(file);
-        if (!targetFolder) return;
-        menu.addItem((item) =>
-          item
-            .setTitle("New CSV")
-            .setIcon("spreadsheet")
-            .onClick(() => {
-              this.createAndOpenCsv(targetFolder);
-            }),
-        );
-      }),
-    );
-  }
+		registerTreeCommands(this as any);
 
-  onunload() {}
+		// 6. Initialize SQLSeal & Database Explorer
+		try {
+			const sqlsealInitResult = await initSQLSeal(this as any);
+			this.sqlsealTabInstance = sqlsealInitResult?.settingsTab || null;
+		} catch (err) {
+			console.error('[PakCLI Table] Failed to initialize SQLSeal:', err);
+		}
 
-  getFileColumnConfig(filePath: string, columnCount: number): ColumnConfig {
-    return normalizeColumnConfig(this.settings.files[filePath], columnCount);
-  }
+		// 7. Initialize Leaflet Mapping Engine
+		try {
+			this.leafletPlugin = new BasesLeafletPlugin(this.app, this as any);
+			await this.leafletPlugin.onload();
+			this.leafletTabInstance = new BasesLeafletViewSettingsTab(this.app, this as any);
+		} catch (err) {
+			console.error('[PakCLI Table] Failed to initialize Leaflet:', err);
+		}
 
-  async setFileColumnConfig(filePath: string, columnCount: number, config: ColumnConfig): Promise<void> {
-    this.settings.files[filePath] = normalizeColumnConfig(config, columnCount);
-    await this.saveSettings();
-  }
+		// 8. Initialize ASCII Draw & Motion Studio
+		registerAsciiDrawFeature(this as any);
 
-  private async loadSettings(): Promise<void> {
-    const loaded = await this.loadData();
-    this.settings = {
-      ...DEFAULT_PLUGIN_DATA,
-      ...(loaded ?? {}),
-      files: {
-        ...DEFAULT_PLUGIN_DATA.files,
-        ...(loaded?.files ?? {}),
-      },
-    };
-  }
+		// 9. Register Master-Detail Settings Tab
+		this.registerSettingsHub();
 
-  private async saveSettings(): Promise<void> {
-    await this.saveData(this.settings);
-  }
+		console.log('[PakCLI Table] Loaded successfully.');
+	}
 
-  private async cleanupMissingFiles(): Promise<void> {
-    let changed = false;
-    for (const filePath of Object.keys(this.settings.files)) {
-      const file = this.app.vault.getAbstractFileByPath(filePath);
-      if (file) continue;
-      delete this.settings.files[filePath];
-      changed = true;
-    }
-    if (changed) {
-      await this.saveSettings();
-    }
-  }
+	onunload() {
+		console.log('[PakCLI Table] Unloading plugin...');
+		if (this.leafletPlugin) {
+			this.leafletPlugin.onunload();
+		}
+		eventBus.emit('table:unloaded', { version: this.manifest.version });
+	}
 
-  private resolveTargetFolder(file?: TAbstractFile | null): TFolder | null {
-    if (file instanceof TFolder) return file;
-    if (file instanceof TFile) return file.parent;
-    const activeFile = this.app.workspace.getActiveFile();
-    return activeFile?.parent ?? this.app.vault.getRoot();
-  }
+	async loadSettings() {
+		const stored = await this.loadData();
+		const fallback = await loadVaultConfig(this.app, 'pakcli-table');
+		this.settings = Object.assign({}, DEFAULT_TABLE_SETTINGS, fallback, stored);
+	}
 
-  private createAndOpenCsv(targetFolder?: TFolder | null): void {
-    const folder = targetFolder ?? this.resolveTargetFolder(null);
-    const folderPath = folder?.path === "/" ? "" : (folder?.path ?? "");
-    const defaultName = this.getAvailableCsvName(folderPath);
+	async saveSettings() {
+		await this.saveData(this.settings);
+		await saveVaultConfig(this.app, 'pakcli-table', this.settings);
+	}
 
-    const modal = new NewCsvModal(this, defaultName, async (rawValue) => {
-      const trimmed = rawValue.trim();
-      if (!trimmed) {
-        new Notice("File name is required");
-        return;
-      }
+	applyCodeblockStyle() {
+		document.body.classList.remove('pakcli-flowclip', 'pakcli-wrap', 'pakcli-scalefit');
+		document.body.classList.add(`pakcli-${this.settings.codeblockWrapMode || 'flowclip'}`);
+	}
 
-      const finalName = trimmed.toLowerCase().endsWith(".csv") ? trimmed : `${trimmed}.csv`;
-      const filePath = normalizePath(folderPath ? `${folderPath}/${finalName}` : finalName);
-      if (this.app.vault.getAbstractFileByPath(filePath)) {
-        new Notice("A file with that name already exists");
-        return;
-      }
+	private registerSettingsHub() {
+		const settingsTab = new MasterDetailSettingsTab(this.app, this);
 
-      const file = await this.app.vault.create(filePath, "Column 1\n");
-      await this.app.workspace.getLeaf(true).openFile(file);
-      new Notice(`Created ${file.name}`);
-      modal.close();
-    });
+		// 1. Tree & Asset Router Handler
+		settingsTab.registerLocalSection({
+			id: 'table-tree',
+			category: 'table',
+			title: 'Tree & Asset Router',
+			icon: 'folder-tree',
+			isInstalled: true,
+			render: (containerEl) => {
+				const info = containerEl.createDiv({ cls: 'setting-item-description' });
+				info.createEl('p', {
+					text: 'Tree Diagram visualizer generates interactive folder and outline diagrams in codeblocks.'
+				});
+			}
+		});
 
-    modal.open();
-  }
+		// 2. SQLSeal & SQLite Handler
+		if (this.sqlsealTabInstance) {
+			settingsTab.registerLocalSection({
+				id: 'table-sqlseal',
+				category: 'table',
+				title: 'SQLSeal & Database Explorer',
+				icon: 'database',
+				isInstalled: true,
+				render: (containerEl) => {
+					(this.sqlsealTabInstance as any)?.display(containerEl);
+				}
+			});
+		}
 
-  private getAvailableCsvName(folderPath: string): string {
-    let index = 0;
-    let name = "";
-    do {
-      name = index === 0 ? "Untitled.csv" : `Untitled ${index}.csv`;
-      index += 1;
-    } while (this.app.vault.getAbstractFileByPath(normalizePath(folderPath ? `${folderPath}/${name}` : name)));
-    return name;
-  }
+		// 3. Leaflet Mapping Handler
+		if (this.leafletTabInstance) {
+			settingsTab.registerLocalSection({
+				id: 'table-leaflet',
+				category: 'table',
+				title: 'Leaflet Map View',
+				icon: 'map-pin',
+				isInstalled: true,
+				render: (containerEl) => {
+					(this.leafletTabInstance as any)?.display(containerEl);
+				}
+			});
+		}
+
+		this.addSettingTab(settingsTab);
+	}
 }
