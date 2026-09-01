@@ -1,4 +1,4 @@
-import { App, Plugin, Notice, TFile } from 'obsidian';
+import { App, Plugin, Notice, TFile, Setting } from 'obsidian';
 import { PakCLITableSettings, DEFAULT_TABLE_SETTINGS } from './settings';
 
 // Hub Imports
@@ -61,7 +61,7 @@ export default class PakCLITablePlugin extends Plugin {
 		this.router = new AssetRouter(this.app, () => this.settings);
 		this.router.registerEvents(this);
 
-		this.registerMarkdownCodeBlockProcessor("tree", async (source, el, ctx) => {
+		this.registerMarkdownCodeBlockProcessor('tree', async (source, el, ctx) => {
 			ctx.addChild(new DiagramRenderer(this as any, source, el, ctx));
 		});
 
@@ -156,22 +156,179 @@ export default class PakCLITablePlugin extends Plugin {
 	private registerSettingsHub() {
 		const settingsTab = new MasterDetailSettingsTab(this.app, this);
 
-		// 1. Tree & Asset Router Handler
+		// 1. CSV & Tablite Editor Handler (table-csv)
 		settingsTab.registerLocalSection({
-			id: 'table-tree',
+			id: 'table-csv',
 			category: 'table',
-			title: 'Tree & Asset Router',
-			icon: 'folder-tree',
+			title: 'CSV & Tablite Table Editor',
+			icon: 'table',
 			isInstalled: true,
 			render: (containerEl) => {
-				const info = containerEl.createDiv({ cls: 'setting-item-description' });
-				info.createEl('p', {
-					text: 'Tree Diagram visualizer generates interactive folder and outline diagrams in codeblocks.'
-				});
+				new Setting(containerEl)
+					.setName('CSV & Tablite Grid Engine')
+					.setDesc('Fast in-vault spreadsheet and database grid editor for CSV, TSV and JSON files.')
+					.setHeading();
+
+				new Setting(containerEl)
+					.setName('Enable CSV Table Editor')
+					.setDesc('Open .csv files in the interactive AG-Grid / Tablite spreadsheet viewer.')
+					.addToggle((t) => {
+						t.setValue((this.settings as any).enableCsvEditor !== false)
+							.onChange(async (v) => {
+								(this.settings as any).enableCsvEditor = v;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Default Grid Theme')
+					.setDesc('Visual styling for table cells and header chrome.')
+					.addDropdown((d) => {
+						d.addOption('ag-theme-quartz', 'Obsidian Dark Quartz')
+							.addOption('ag-theme-alpine', 'Alpine Crisp')
+							.addOption('ag-theme-balham', 'Compact Balham')
+							.setValue((this.settings as any).gridTheme || 'ag-theme-quartz')
+							.onChange(async (v) => {
+								(this.settings as any).gridTheme = v;
+								await this.saveSettings();
+							});
+					});
 			}
 		});
 
-		// 2. SQLSeal & SQLite Handler
+		// 2. Tree Diagram & Hierarchy Explorer (table-tree)
+		settingsTab.registerLocalSection({
+			id: 'table-tree',
+			category: 'table',
+			title: 'Tree Diagram & Hierarchy Explorer',
+			icon: 'folder-tree',
+			isInstalled: true,
+			render: (containerEl) => {
+				new Setting(containerEl)
+					.setName('Tree Diagram & Asset Router')
+					.setDesc('Visual folder structure diagrams and tree view generators for markdown codeblocks.')
+					.setHeading();
+
+				new Setting(containerEl)
+					.setName('Enable Tree Post-processor')
+					.setDesc('Render tree codeblocks as interactive diagrams and folder views.')
+					.addToggle((t) => {
+						t.setValue((this.settings as any).enableTreeProcessor !== false)
+							.onChange(async (v) => {
+								(this.settings as any).enableTreeProcessor = v;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Default Tree Layout')
+					.setDesc('Default layout orientation for generated hierarchy diagrams.')
+					.addDropdown((d) => {
+						d.addOption('Left-to-Right', 'Left-to-Right (Horizontal)')
+							.addOption('Top-to-Bottom', 'Top-to-Bottom (Vertical)')
+							.addOption('Folder Box', 'Folder Box (Nested)')
+							.setValue((this.settings as any).defaultTreeLayout || 'Left-to-Right')
+							.onChange(async (v) => {
+								(this.settings as any).defaultTreeLayout = v;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Central Asset Folder')
+					.setDesc('Folder where routed media and attachments are stored.')
+					.addText((t) => {
+						t.setPlaceholder('assets')
+							.setValue(this.settings.centralAssetFolder || 'assets')
+							.onChange(async (v) => {
+								this.settings.centralAssetFolder = v.trim();
+								await this.saveSettings();
+							});
+					});
+			}
+		});
+
+		// 3. Codeblock Scaler & Themes (table-codeblock)
+		settingsTab.registerLocalSection({
+			id: 'table-codeblock',
+			category: 'table',
+			title: 'Codeblock Scaler & Themes',
+			icon: 'code',
+			isInstalled: true,
+			render: (containerEl) => {
+				new Setting(containerEl)
+					.setName('Codeblock Scaler & Styling')
+					.setDesc('Auto-scaler, syntax themes, flowclip viewer, and responsive codeblock wrapping.')
+					.setHeading();
+
+				new Setting(containerEl)
+					.setName('Codeblock Wrap & Flow Mode')
+					.setDesc('Choose how long code lines are handled in Live Preview and Reading views.')
+					.addDropdown((d) => {
+						d.addOption('flowclip', 'Flow Clip (Horizontal Scrollbar)')
+							.addOption('wrap', 'Word Wrap (Wrap Lines)')
+							.addOption('scalefit', 'Scale Fit (Auto Font Scaling)')
+							.setValue(this.settings.codeblockWrapMode || 'flowclip')
+							.onChange(async (v: any) => {
+								this.settings.codeblockWrapMode = v;
+								this.applyCodeblockStyle();
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Enable Native Asset Drag & Drop')
+					.setDesc('Allow dragging images, PDFs, and media directly out of rendered codeblocks.')
+					.addToggle((t) => {
+						t.setValue(this.settings.enableAssetDrag !== false)
+							.onChange(async (v) => {
+								this.settings.enableAssetDrag = v;
+								await this.saveSettings();
+							});
+					});
+			}
+		});
+
+		// 4. ASCII Motion & Canvas Studio (table-ascii)
+		settingsTab.registerLocalSection({
+			id: 'table-ascii',
+			category: 'table',
+			title: 'ASCII Motion & Canvas Studio',
+			icon: 'sparkles',
+			isInstalled: true,
+			render: (containerEl) => {
+				new Setting(containerEl)
+					.setName('ASCII Studio & Motion Canvas')
+					.setDesc('Render ASCII and ASCI codeblocks as animated retro-futuristic canvas diagrams.')
+					.setHeading();
+
+				new Setting(containerEl)
+					.setName('Enable ASCII Canvas Renderer')
+					.setDesc('Render ASCII diagrams with interactive playback controls and copy buttons.')
+					.addToggle((t) => {
+						t.setValue(true)
+							.onChange(async (v) => {
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Default ASCII Canvas Theme')
+					.setDesc('Color theme for ASCII diagrams.')
+					.addDropdown((d) => {
+						d.addOption('Monochrome Matrix', 'Monochrome Matrix (Green/Black)')
+							.addOption('Cyberpunk Amber', 'Cyberpunk Amber (Amber Glow)')
+							.addOption('Chalkboard White', 'Chalkboard White (Classic)')
+							.addOption('Dracula Neon', 'Dracula Neon (Purple/Cyan)')
+							.setValue('Monochrome Matrix')
+							.onChange(async (v) => {
+								await this.saveSettings();
+							});
+					});
+			}
+		});
+
+		// 5. SQLSeal & SQLite Database Handler (table-sqlseal)
 		if (this.sqlsealTabInstance) {
 			settingsTab.registerLocalSection({
 				id: 'table-sqlseal',
@@ -185,12 +342,12 @@ export default class PakCLITablePlugin extends Plugin {
 			});
 		}
 
-		// 3. Leaflet Mapping Handler
+		// 6. Leaflet Mapping Handler (table-leaflet)
 		if (this.leafletTabInstance) {
 			settingsTab.registerLocalSection({
 				id: 'table-leaflet',
 				category: 'table',
-				title: 'Leaflet Map View',
+				title: 'Leaflet Map Bases',
 				icon: 'map-pin',
 				isInstalled: true,
 				render: (containerEl) => {
