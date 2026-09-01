@@ -1,10 +1,9 @@
 {
-  "id": "tablite",
-  "name": "Tablite",
-  "version": "0.4.0",
-  "minAppVersion": "1.5.0",
-  "description": "A fast CSV/TSV editor with virtual scrolling, inline editing, column filtering, and auto encoding detection.",
-  "author": "laofahai",
-  "authorUrl": "https://github.com/laofahai",
-  "isDesktopOnly": false
+	"id": "pakcli-table",
+	"name": "PakCLI Table",
+	"version": "1.0.0",
+	"minAppVersion": "1.4.0",
+	"description": "Visual tables, interactive SQL database explorer, ASCII canvas drawing, and interactive Leaflet maps.",
+	"author": "PakCLI",
+	"isDesktopOnly": false
 }

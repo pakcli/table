@@ -1,90 +1,25 @@
-# Tablite
+# PakCLI Table (Obsidian Plugin)
 
-A fast, feature-rich CSV/TSV editor for [Obsidian](https://obsidian.md). Edit tabular data directly in your vault with an Excel-like experience.
-
-[中文文档](README_zh.md)
-
-![Tablite Screenshot](assets/screenshot.png)
+> 🌸 **PakCLI Table** is an all-in-one UI, data manipulation, and visual creativity plugin for [Obsidian](https://obsidian.md).
 
 ## Features
 
-- **Virtual scrolling & progressive loading** — handles large files smoothly with chunked rendering
-- **Inline editing** — double-click any cell to edit
-- **Cell selection & cross highlight** — single-click to select, with row/column cross highlight (toggleable)
-- **Column type detection** — auto-detects STRING, NUMBER, DATE types per column
-- **Column sorting** — click header to sort (multi-column supported)
-- **Smart column filtering**
-  - Text columns: free-text filter
-  - Enum columns (< 12 unique values): multi-select dropdown with checkboxes
-  - Number columns: min/max range filter
-  - Date columns: date range picker
-- **Global search** — search across all cells with highlight and navigation
-- **Auto delimiter detection** — comma, semicolon, tab, pipe
-- **Excel export compatibility** — auto-trims trailing empty columns from bloated spreadsheet exports
-- **Auto encoding detection** — UTF-8, GBK, Windows-1252, Shift-JIS
-- **Header detection** — auto-detects whether first row is a header, with manual toggle
-- **Column management** — hide/show, reorder via drag & drop, freeze columns
-- **Column resizing** — drag column borders to resize
-- **Persistent column config** — column widths, order, visibility, and freeze state are saved per file
-- **Context menu** — right-click to insert/delete rows and columns
-- **Undo/Redo** — full edit history (up to 50 steps)
-- **Obsidian-native styling** — respects your theme colors and dark/light mode
+- 🌳 **Tree & Folder Diagram Visualizer**: Render interactive folder and outline tree diagrams directly inside codeblocks.
+- 🗃️ **SQLite Database Explorer & SQLSeal**: Full in-memory/file-backed SQLite querying, schema visualizer, and custom SQL codeblocks.
+- 📊 **CSV & Tablite Grid Editor**: Rich tabular data editing with AG-Grid and TanStack Table features.
+- 🗺️ **Interactive Leaflet Maps**: Embedded OpenStreetMap views, custom geolocations, and marker presets.
+- 🎨 **ASCII Draw & Motion Studio**: Visual ASCII canvas drawing tool with multi-layering, themes, and animated playback.
+- 📏 **Responsive Codeblock Scaler**: Auto-scale codeblocks and ASCII diagrams to fit note margins.
+- 🎛️ **Master-Detail Settings Hub**: 2-Column responsive settings with instant search and transparent Grayscale preview for uninstalled ecosystem modules.
+- ⚡ **PakCLI Event Bus**: Decoupled inter-plugin communication (`window.PakCliEventBus`).
+- 💾 **Vault Config Persistence**: Survives uninstalls and restores configurations automatically via `pakcli-vault-config`.
 
 ## Installation
 
-### From Community Plugins
-
-Search for **Tablite** in Obsidian Settings → Community Plugins → Browse.
-
-### Via BRAT
-
-1. Install [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin
-2. In BRAT settings, select **Add Beta Plugin**
-3. Enter `laofahai/obsidian-tablite`
-
-### Manual Installation
-
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/laofahai/obsidian-tablite/releases/latest)
-2. Put the files into `<vault>/.obsidian/plugins/tablite/`
-3. Restart Obsidian and enable **Tablite** in Settings → Community Plugins
-
-## Usage
-
-Open any `.csv` or `.tsv` file in your vault — Tablite automatically opens it as an editable table.
-
-| Action | How |
-|---|---|
-| Edit a cell | Double-click |
-| Select a cell | Single-click |
-| Sort column | Click header name (multi-sort with Shift+click) |
-| Rename header | Double-click header name |
-| Filter column | Use the filter input below header (type varies by column) |
-| Resize column | Drag the right edge of header |
-| Reorder columns | Drag & drop column headers |
-| Hide/show columns | Use the Columns panel in toolbar |
-| Freeze columns | Set freeze count in toolbar |
-| Insert/delete row or column | Right-click → context menu |
-| Undo / Redo | `Ctrl/Cmd+Z` / `Ctrl/Cmd+Shift+Z` |
-| Search | `Ctrl/Cmd+F` or search box in toolbar |
-
-## Tech Stack
-
-- [Preact](https://preactjs.com/) — lightweight UI
-- [TanStack Table](https://tanstack.com/table) — headless table logic (sorting, filtering)
-- [TanStack Virtual](https://tanstack.com/virtual) — row virtualization
-- [PapaParse](https://www.papaparse.com/) — CSV parsing/serialization
-- [jschardet](https://github.com/nicstredicern/jschardet) — encoding detection
-
-## Development
-
-```bash
-git clone https://github.com/laofahai/obsidian-tablite.git
-cd obsidian-tablite
-npm install
-npm run dev    # watch mode
-npm run build  # production build
-```
+1. Open Obsidian **Settings -> Community plugins**.
+2. Turn on Community plugins and search for **PakCLI Table**.
+3. Click **Install**, then **Enable**.
 
 ## License
 
-MIT
+[MIT License](LICENSE) © PakCLI Team
