@@ -46,6 +46,7 @@
         line-height: 1.2 !important;
         color: var(--text-normal) !important;
       }
+
       .setting-item-description {
         font-size: 0.76rem !important;
         color: var(--text-muted) !important;
@@ -91,7 +92,7 @@
   align-items: flex-start !important;
   gap: 14px !important;
   width: 100% !important;
-  max-width: 800px !important;
+  max-width: 1100px !important;
   min-height: 480px !important;
   box-sizing: border-box !important;
 
@@ -140,6 +141,7 @@
       &::-webkit-scrollbar {
         width: 4px !important;
       }
+
       &::-webkit-scrollbar-thumb {
         background: var(--background-modifier-border) !important;
         border-radius: 4px !important;
@@ -285,6 +287,7 @@
           font-size: 0.88rem !important;
           font-weight: 600 !important;
         }
+
         .setting-item-description {
           font-size: 0.76rem !important;
           color: var(--text-muted) !important;
@@ -304,6 +307,7 @@
           font-weight: 700 !important;
           color: var(--text-normal) !important;
         }
+
         .setting-item-info .setting-item-description {
           font-size: 0.76rem !important;
         }
@@ -449,6 +453,138 @@
         .setting-item {
           border-left: 2px solid rgba(var(--color-blue-rgb), 0.4) !important;
         }
+      }
+    }
+  }
+}
+
+/* Snapshot Dropdown in TopBar */
+.pakcli-snapshot-dropdown-wrap {
+  display: flex !important;
+  align-items: center !important;
+
+  .pakcli-snapshot-select {
+    padding: 4px 8px !important;
+    font-size: 0.76rem !important;
+    font-weight: 600 !important;
+    border-radius: 4px !important;
+    background: var(--background-primary) !important;
+    border: 1px solid var(--background-modifier-border) !important;
+    color: var(--text-normal) !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+
+    &:hover {
+      border-color: var(--interactive-accent) !important;
+      background: var(--background-modifier-hover) !important;
+    }
+  }
+}
+
+/* Vault Config Action Modal (Replace | Overwrite | Duplicate | Cancel) */
+.pakcli-config-modal-root {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  padding: 8px 4px !important;
+
+  .pakcli-modal-desc-box {
+    padding: 8px 12px !important;
+    background: var(--background-secondary-alt) !important;
+    border-radius: var(--radius-s) !important;
+    border: 1px solid var(--background-modifier-border) !important;
+
+    p {
+      margin: 0 !important;
+      font-size: 0.84rem !important;
+      color: var(--text-muted) !important;
+    }
+  }
+
+  .pakcli-modal-actions-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+    margin: 8px 0 !important;
+
+    .pakcli-action-card {
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      padding: 12px !important;
+      background: var(--background-secondary) !important;
+      border: 1px solid var(--background-modifier-border) !important;
+      border-radius: var(--radius-m) !important;
+      gap: 8px !important;
+      transition: all 0.15s ease !important;
+
+      &:hover {
+        border-color: var(--interactive-accent) !important;
+        transform: translateY(-2px) !important;
+      }
+
+      .pakcli-card-title {
+        font-weight: 700 !important;
+        font-size: 0.9rem !important;
+        color: var(--text-normal) !important;
+      }
+
+      .pakcli-card-desc {
+        font-size: 0.74rem !important;
+        color: var(--text-muted) !important;
+        flex: 1 1 auto !important;
+      }
+
+      button {
+        width: 100% !important;
+        font-size: 0.76rem !important;
+        font-weight: 600 !important;
+        padding: 5px 8px !important;
+        border-radius: 4px !important;
+        border: none !important;
+        cursor: pointer !important;
+        transition: opacity 0.12s ease !important;
+
+        &:hover {
+          opacity: 0.9 !important;
+        }
+
+        &.pakcli-btn-replace {
+          background: var(--interactive-accent) !important;
+          color: var(--text-on-accent) !important;
+        }
+
+        &.pakcli-btn-overwrite {
+          background: #f59e0b !important;
+          color: #000000 !important;
+        }
+
+        &.pakcli-btn-duplicate {
+          background: #10b981 !important;
+          color: #ffffff !important;
+        }
+      }
+    }
+  }
+
+  .pakcli-modal-cancel-row {
+    display: flex !important;
+    justify-content: flex-end !important;
+    margin-top: 4px !important;
+
+    .pakcli-btn-cancel {
+      padding: 5px 14px !important;
+      font-size: 0.78rem !important;
+      font-weight: 500 !important;
+      background: var(--background-secondary) !important;
+      border: 1px solid var(--background-modifier-border) !important;
+      color: var(--text-muted) !important;
+      border-radius: 4px !important;
+      cursor: pointer !important;
+
+      &:hover {
+        background: var(--background-modifier-hover) !important;
+        color: var(--text-normal) !important;
       }
     }
   }

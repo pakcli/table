@@ -1,7 +1,7 @@
-import { App, Plugin, PluginSettingTab, Setting, setIcon, Notice } from "obsidian";
+import { App, Plugin, PluginSettingTab, Setting, setIcon, Notice, Modal } from "obsidian";
 import { runSystemDiagnostics, SystemHealthStatus } from "./wizard";
 import { PREVIEW_BLUEPRINTS, BlueprintSection } from "./previewSchemas";
-import { saveVaultConfig, loadVaultConfig } from "./vaultConfig";
+import { saveVaultConfig, loadVaultConfig, listVaultSnapshots, SnapshotItem } from "./vaultConfig";
 import { eventBus } from "./eventBus";
 
 export interface SettingsSectionHandler {
@@ -13,13 +13,102 @@ export interface SettingsSectionHandler {
   render: (containerEl: HTMLElement) => void;
 }
 
+export class VaultConfigActionModal extends Modal {
+  private plugin: Plugin;
+  private selectedSnapshot: SnapshotItem;
+  private onComplete: () => void;
+
+  constructor(app: App, plugin: Plugin, selectedSnapshot: SnapshotItem, onComplete: () => void) {
+    super(app);
+    this.plugin = plugin;
+    this.selectedSnapshot = selectedSnapshot;
+    this.onComplete = onComplete;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("pakcli-config-modal-root");
+
+    new Setting(contentEl)
+      .setName("⚙️ Vault Config Action")
+      .setDesc(`Selected snapshot: ${this.selectedSnapshot.name}`)
+      .setHeading();
+
+    const descBox = contentEl.createDiv({ cls: "pakcli-modal-desc-box" });
+    descBox.createEl("p", {
+      text: "Choose what you want to do with this snapshot and your active plugin settings:",
+    });
+
+    const actionsGrid = contentEl.createDiv({ cls: "pakcli-modal-actions-grid" });
+
+    // 1. REPLACE (Apply snapshot to active settings)
+    const replaceCard = actionsGrid.createDiv({ cls: "pakcli-action-card replace" });
+    replaceCard.createDiv({ cls: "pakcli-card-title", text: "🔄 Replace" });
+    replaceCard.createDiv({ cls: "pakcli-card-desc", text: "Apply snapshot settings to your active plugin immediately." });
+    const replaceBtn = replaceCard.createEl("button", { text: "Replace Active", cls: "pakcli-btn-replace" });
+    replaceBtn.onclick = async () => {
+      const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
+      const restored = await loadVaultConfig(this.app, pluginId, this.selectedSnapshot.path);
+      if (restored) {
+        Object.assign((this.plugin as any).settings, restored);
+        if (typeof (this.plugin as any).saveSettings === "function") {
+          await (this.plugin as any).saveSettings();
+        }
+        new Notice(`✅ Replaced active settings from ${this.selectedSnapshot.name}!`);
+      } else {
+        new Notice("ℹ️ Snapshot file was empty or could not be loaded.");
+      }
+      this.close();
+      this.onComplete();
+    };
+
+    // 2. OVERWRITE (Update snapshot with active settings)
+    const overwriteCard = actionsGrid.createDiv({ cls: "pakcli-action-card overwrite" });
+    overwriteCard.createDiv({ cls: "pakcli-card-title", text: "💾 Overwrite" });
+    overwriteCard.createDiv({ cls: "pakcli-card-desc", text: "Overwrite this snapshot file with your current active settings." });
+    const overwriteBtn = overwriteCard.createEl("button", { text: "Overwrite Snapshot", cls: "pakcli-btn-overwrite" });
+    overwriteBtn.onclick = async () => {
+      const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
+      await saveVaultConfig(this.app, pluginId, (this.plugin as any).settings || {});
+      new Notice(`✅ Overwritten snapshot with current settings!`);
+      this.close();
+      this.onComplete();
+    };
+
+    // 3. DUPLICATE (Save new copy)
+    const duplicateCard = actionsGrid.createDiv({ cls: "pakcli-action-card duplicate" });
+    duplicateCard.createDiv({ cls: "pakcli-card-title", text: "📑 Duplicate" });
+    duplicateCard.createDiv({ cls: "pakcli-card-desc", text: "Save current active settings as a new separate snapshot copy." });
+    const duplicateBtn = duplicateCard.createEl("button", { text: "Duplicate New", cls: "pakcli-btn-duplicate" });
+    duplicateBtn.onclick = async () => {
+      const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
+      await saveVaultConfig(this.app, pluginId, (this.plugin as any).settings || {}, "copy");
+      new Notice("✅ Created a new duplicated snapshot in pakcli-vault-config!");
+      this.close();
+      this.onComplete();
+    };
+
+    // 4. CANCEL
+    const cancelRow = contentEl.createDiv({ cls: "pakcli-modal-cancel-row" });
+    const cancelBtn = cancelRow.createEl("button", { text: "Cancel", cls: "pakcli-btn-cancel" });
+    cancelBtn.onclick = () => {
+      this.close();
+    };
+  }
+
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+}
+
 export class MasterDetailSettingsTab extends PluginSettingTab {
   plugin: Plugin;
   activeSectionId = "local-wizard";
   searchQuery = "";
   healthStatus: SystemHealthStatus | null = null;
   localHandlers: Map<string, SettingsSectionHandler> = new Map();
-  // In-memory simulation values for uninstalled plugins
   private simulatedState: Record<string, Record<string, any>> = {};
 
   constructor(app: App, plugin: Plugin) {
@@ -31,10 +120,13 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     this.localHandlers.set(handler.id, handler);
   }
 
-  display(): void {
+  async display(): Promise<void> {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("pakcli-master-detail-root");
+
+    const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
+    const snapshots = await listVaultSnapshots(this.app, pluginId);
 
     // Top Bar
     const topBar = containerEl.createDiv({ cls: "pakcli-topbar" });
@@ -44,30 +136,37 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       .setHeading();
 
     const topActions = topBar.createDiv({ cls: "pakcli-topbar-actions" });
-    
-    // 1-Click Vault Config Sync buttons
-    const exportBtn = topActions.createEl("button", { text: "💾 Save to Vault Config", cls: "pakcli-action-btn" });
+
+    // 1-Click Vault Config Save Button
+    const exportBtn = topActions.createEl("button", { text: "💾 Save Config", cls: "pakcli-action-btn" });
     exportBtn.onclick = async () => {
-      const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
       await saveVaultConfig(this.app, pluginId, (this.plugin as any).settings || {});
       new Notice(`✅ ${this.plugin.manifest.name} settings saved to pakcli-vault-config!`);
       eventBus.emit("pl:vault-config-saved", { plugin: this.plugin.manifest.id });
+      this.display();
     };
 
-    const restoreBtn = topActions.createEl("button", { text: "🔄 Restore Config", cls: "pakcli-action-btn" });
-    restoreBtn.onclick = async () => {
-      const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
-      const restored = await loadVaultConfig(this.app, pluginId);
-      if (restored) {
-        Object.assign((this.plugin as any).settings, restored);
-        if (typeof (this.plugin as any).saveSettings === "function") {
-          await (this.plugin as any).saveSettings();
-        }
-        new Notice("✅ Settings restored from pakcli-vault-config!");
+    // Dropdown Restore / Snapshot Manager
+    const dropdownWrap = topActions.createDiv({ cls: "pakcli-snapshot-dropdown-wrap" });
+    const selectEl = dropdownWrap.createEl("select", { cls: "pakcli-snapshot-select dropdown" });
+    
+    const placeholderOpt = selectEl.createEl("option", { text: "🔄 Restore Config ▼", value: "" });
+    placeholderOpt.selected = true;
+
+    for (const snap of snapshots) {
+      selectEl.createEl("option", { text: `📂 ${snap.name}`, value: snap.id });
+    }
+
+    selectEl.onchange = () => {
+      const selectedId = selectEl.value;
+      if (!selectedId) return;
+      const targetSnap = snapshots.find((s) => s.id === selectedId) || snapshots[0];
+      selectEl.value = ""; // Reset dropdown prompt
+
+      // Open Modal with 4 options: Replace | Cancel | Overwrite | Duplicate
+      new VaultConfigActionModal(this.app, this.plugin, targetSnap, () => {
         this.display();
-      } else {
-        new Notice("ℹ️ No previous config snapshot found in pakcli-vault-config.");
-      }
+      }).open();
     };
 
     const layoutContainer = containerEl.createDiv({ cls: "pakcli-master-detail-layout" });
@@ -82,7 +181,6 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   }
 
   private renderSidebar(sidebarEl: HTMLElement, layoutContainer: HTMLElement): void {
-    // Search Box
     const searchWrap = sidebarEl.createDiv({ cls: "pakcli-search-box" });
     const searchInput = searchWrap.createEl("input", {
       type: "search",
