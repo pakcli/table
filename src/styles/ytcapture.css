@@ -747,3 +747,100 @@
 
 
 
+
+
+/* ── Settings Panel & Dependencies Card Styling ───────────────────────────── */
+
+.ytec-settings {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.ytec-settings-section {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.ytec-settings-desc {
+  font-size: 0.8rem !important;
+  color: var(--text-muted) !important;
+  margin: 0 0 6px 0 !important;
+  line-height: 1.4 !important;
+}
+
+.ytec-dep-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  padding: 10px 14px !important;
+  background: var(--background-secondary) !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  border-radius: var(--radius-s) !important;
+  box-sizing: border-box !important;
+  margin-bottom: 8px !important;
+}
+
+.ytec-dep-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  color: var(--text-normal) !important;
+  font-family: var(--font-monospace) !important;
+  line-height: 1.4 !important;
+}
+
+.ytec-settings-btn-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  margin-top: 4px !important;
+  margin-bottom: 8px !important;
+}
+
+.ytec-settings-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 5px 12px !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  white-space: nowrap !important;
+}
+
+.ytec-settings-btn:hover {
+  transform: translateY(-1px) !important;
+}
+
+.ytec-settings-btn-primary {
+  background: var(--interactive-accent) !important;
+  color: var(--text-on-accent) !important;
+  border-color: var(--interactive-accent) !important;
+}
+
+.ytec-settings-btn-primary:hover {
+  opacity: 0.9 !important;
+}
+
+.ytec-settings-btn-secondary {
+  background: var(--background-primary) !important;
+  color: var(--text-normal) !important;
+}
+
+.ytec-settings-btn-secondary:hover {
+  background: var(--background-modifier-hover) !important;
+  border-color: var(--interactive-accent) !important;
+  color: var(--interactive-accent) !important;
+}
