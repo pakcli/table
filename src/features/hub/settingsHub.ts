@@ -1,6 +1,6 @@
 import { App, Plugin, PluginSettingTab, Setting, setIcon, Notice, Modal } from "obsidian";
 import { runSystemDiagnostics, SystemHealthStatus } from "./wizard";
-import { PREVIEW_BLUEPRINTS, BlueprintSection } from "./previewSchemas";
+import { ECOSYSTEM_MODULES, BlueprintSection } from "./previewSchemas";
 import { saveVaultConfig, loadVaultConfig, listVaultSnapshots, SnapshotItem } from "./vaultConfig";
 import { eventBus } from "./eventBus";
 
@@ -42,7 +42,7 @@ export class VaultConfigActionModal extends Modal {
 
     const actionsGrid = contentEl.createDiv({ cls: "pakcli-modal-actions-grid" });
 
-    // 1. REPLACE (Apply snapshot to active settings)
+    // 1. REPLACE
     const replaceCard = actionsGrid.createDiv({ cls: "pakcli-action-card replace" });
     replaceCard.createDiv({ cls: "pakcli-card-title", text: "🔄 Replace" });
     replaceCard.createDiv({ cls: "pakcli-card-desc", text: "Apply snapshot settings to your active plugin immediately." });
@@ -63,7 +63,7 @@ export class VaultConfigActionModal extends Modal {
       this.onComplete();
     };
 
-    // 2. OVERWRITE (Update snapshot with active settings)
+    // 2. OVERWRITE
     const overwriteCard = actionsGrid.createDiv({ cls: "pakcli-action-card overwrite" });
     overwriteCard.createDiv({ cls: "pakcli-card-title", text: "💾 Overwrite" });
     overwriteCard.createDiv({ cls: "pakcli-card-desc", text: "Overwrite this snapshot file with your current active settings." });
@@ -71,12 +71,12 @@ export class VaultConfigActionModal extends Modal {
     overwriteBtn.onclick = async () => {
       const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
       await saveVaultConfig(this.app, pluginId, (this.plugin as any).settings || {});
-      new Notice(`✅ Overwritten snapshot with current settings!`);
+      new Notice("✅ Overwritten snapshot with current settings!");
       this.close();
       this.onComplete();
     };
 
-    // 3. DUPLICATE (Save new copy)
+    // 3. DUPLICATE
     const duplicateCard = actionsGrid.createDiv({ cls: "pakcli-action-card duplicate" });
     duplicateCard.createDiv({ cls: "pakcli-card-title", text: "📑 Duplicate" });
     duplicateCard.createDiv({ cls: "pakcli-card-desc", text: "Save current active settings as a new separate snapshot copy." });
@@ -105,7 +105,7 @@ export class VaultConfigActionModal extends Modal {
 
 export class MasterDetailSettingsTab extends PluginSettingTab {
   plugin: Plugin;
-  activeSectionId = "local-wizard";
+  activeSectionId = "";
   searchQuery = "";
   healthStatus: SystemHealthStatus | null = null;
   localHandlers: Map<string, SettingsSectionHandler> = new Map();
@@ -114,13 +114,15 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   constructor(app: App, plugin: Plugin) {
     super(app, plugin);
     this.plugin = plugin;
+    // Set default active section
+    this.activeSectionId = plugin.manifest.id === "pakcli-local" ? "local-wizard" : "table-csv";
   }
 
   registerLocalSection(handler: SettingsSectionHandler) {
     this.localHandlers.set(handler.id, handler);
   }
 
-  // Check if a plugin is installed in vault (in manifests)
+  // Check if a plugin is installed in vault
   private isPluginInstalled(pluginId: string): boolean {
     const plugins = (this.app as any).plugins;
     if (!plugins) return false;
@@ -219,13 +221,13 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   private updateSidebarItems(navContainer: HTMLElement, layoutContainer: HTMLElement): void {
     navContainer.empty();
 
-    // Group 1: ⚙️ LOCAL
+    // Group 1: ⚙️ LOCAL (Always renders all local modules)
     this.renderCategoryGroup(navContainer, "local", "⚙️ LOCAL", "pakcli-local", layoutContainer);
 
-    // Group 2: 🌸 TABLE
+    // Group 2: 🌸 TABLE (Always renders all table modules)
     this.renderCategoryGroup(navContainer, "table", "🌸 TABLE", "pakcli-table", layoutContainer);
 
-    // Group 3: 🤖 AGENT
+    // Group 3: 🤖 AGENT (Always renders all agent modules)
     this.renderCategoryGroup(navContainer, "agent", "🤖 AGENT", "pakcli-agent", layoutContainer);
   }
 
@@ -254,7 +256,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
           await (this.app as any).plugins?.enablePlugin(targetPluginId);
           new Notice(`🟢 Enabled ${label}!`);
           this.display();
-        } catch (err) {
+        } catch {
           new Notice(`Failed to enable ${label}`);
         }
       };
@@ -266,21 +268,23 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       };
     }
 
-    // 1. Registered local handlers in this tab
-    for (const [id, handler] of this.localHandlers) {
-      if (handler.category === category) {
-        if (this.searchQuery && !handler.title.toLowerCase().includes(this.searchQuery)) continue;
-        this.renderNavItem(groupEl, id, handler.title, handler.icon, true, layoutContainer);
+    // Diagnostics wizard for local category
+    if (category === "local" && (isThisActive || this.localHandlers.has("local-wizard"))) {
+      if (!this.searchQuery || "diagnostics wizard".includes(this.searchQuery)) {
+        this.renderNavItem(groupEl, "local-wizard", "System Diagnostics", "activity", true, layoutContainer);
       }
     }
 
-    // 2. Blueprint items (rendered either live if other plugin is enabled, or as preview if not installed)
-    const blueprints = PREVIEW_BLUEPRINTS.filter((b) => b.category === category);
-    blueprints.forEach((bp) => {
-      if (!this.localHandlers.has(bp.id)) {
-        if (this.searchQuery && !bp.title.toLowerCase().includes(this.searchQuery)) return;
-        this.renderNavItem(groupEl, bp.id, bp.title, isEnabled ? "check-circle" : "lock", isEnabled, layoutContainer);
-      }
+    // Render ALL standard modules in this category consistently across both plugins!
+    const modules = ECOSYSTEM_MODULES.filter((m) => m.category === category);
+    modules.forEach((mod) => {
+      if (this.searchQuery && !mod.title.toLowerCase().includes(this.searchQuery)) return;
+
+      const hasLocalHandler = this.localHandlers.has(mod.id);
+      const isAvailable = hasLocalHandler || isEnabled;
+      const iconToUse = mod.icon || (isAvailable ? "check-circle" : "lock");
+
+      this.renderNavItem(groupEl, mod.id, mod.title, iconToUse, isAvailable, layoutContainer);
     });
   }
 
@@ -318,13 +322,13 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   private renderContent(contentEl: HTMLElement): void {
     contentEl.empty();
 
-    // 1. Wizard section (if local active)
-    if (this.activeSectionId === "local-wizard" && this.localHandlers.has("local-wizard")) {
+    // 1. Wizard section
+    if (this.activeSectionId === "local-wizard") {
       this.renderWizardSection(contentEl);
       return;
     }
 
-    // 2. Local registered handler
+    // 2. Local registered handler (if current active plugin has custom DOM renderer)
     if (this.localHandlers.has(this.activeSectionId)) {
       const handler = this.localHandlers.get(this.activeSectionId)!;
       new Setting(contentEl)
@@ -334,33 +338,31 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       return;
     }
 
-    // 3. Blueprint section (Check if the corresponding plugin is enabled in vault!)
-    const blueprint = PREVIEW_BLUEPRINTS.find((b) => b.id === this.activeSectionId);
-    if (blueprint) {
-      const targetPluginInstance = this.getPluginInstance(blueprint.storeId);
+    // 3. Ecosystem Module (Check if target plugin is enabled in vault or preview)
+    const mod = ECOSYSTEM_MODULES.find((m) => m.id === this.activeSectionId);
+    if (mod) {
+      const targetPluginInstance = this.getPluginInstance(mod.storeId);
       if (targetPluginInstance) {
-        // Plugin IS INSTALLED AND ENABLED in vault! Render full live settings panel!
-        this.renderLiveCrossPluginSettings(contentEl, blueprint, targetPluginInstance);
+        // Plugin IS ACTIVE in vault: render live cross-plugin settings bound directly to real keys!
+        this.renderLiveCrossPluginSettings(contentEl, mod, targetPluginInstance);
       } else {
-        // Plugin is not installed/enabled in vault. Render interactive sandbox preview.
-        this.renderBlueprintPreview(contentEl, blueprint);
+        // Plugin is not installed: render interactive sandbox preview
+        this.renderBlueprintPreview(contentEl, mod);
       }
       return;
     }
 
-    // Default Fallback
-    const firstLocal = Array.from(this.localHandlers.keys())[0];
-    if (firstLocal) {
-      this.activeSectionId = firstLocal;
+    // Fallback
+    const firstMod = ECOSYSTEM_MODULES[0];
+    if (firstMod) {
+      this.activeSectionId = firstMod.id;
       this.renderContent(contentEl);
-    } else {
-      contentEl.createDiv({ text: "Select a module from the sidebar." });
     }
   }
 
   private renderLiveCrossPluginSettings(contentEl: HTMLElement, blueprint: BlueprintSection, targetPlugin: any): void {
     new Setting(contentEl)
-      .setName(`🌸 ${blueprint.title}`)
+      .setName(blueprint.title)
       .setDesc(blueprint.description)
       .setHeading();
 
@@ -372,18 +374,24 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
     const form = contentEl.createDiv({ cls: "pakcli-preview-form is-live-active" });
 
-    // Render real settings bound directly to targetPlugin.settings!
+    // Render real settings bound directly to targetPlugin.settings using REAL PROPERTY KEYS!
     blueprint.fields.forEach((field) => {
       const s = new Setting(form).setName(field.name).setDesc(field.desc);
       const settingsObj = targetPlugin.settings || {};
-      const currentVal = settingsObj[field.name] !== undefined ? settingsObj[field.name] : field.defaultVal;
+      const currentVal = settingsObj[field.key] !== undefined ? settingsObj[field.key] : field.defaultVal;
 
       if (field.type === "toggle") {
         s.addToggle((t) => {
-          t.setValue(currentVal as boolean).onChange(async (newVal) => {
-            settingsObj[field.name] = newVal;
+          t.setValue(Boolean(currentVal)).onChange(async (newVal) => {
+            settingsObj[field.key] = newVal;
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
+            }
+            if (typeof targetPlugin.applyCodeblockStyle === "function") {
+              targetPlugin.applyCodeblockStyle();
+            }
+            if (typeof targetPlugin.applyBadgeSetting === "function") {
+              targetPlugin.applyBadgeSetting();
             }
             new Notice(`✅ Saved ${field.name}`);
           });
@@ -391,18 +399,21 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       } else if (field.type === "dropdown") {
         s.addDropdown((d) => {
           field.options?.forEach((opt) => d.addOption(opt, opt));
-          d.setValue(currentVal as string).onChange(async (newVal) => {
-            settingsObj[field.name] = newVal;
+          d.setValue(String(currentVal)).onChange(async (newVal) => {
+            settingsObj[field.key] = newVal;
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
+            }
+            if (typeof targetPlugin.applyCodeblockStyle === "function") {
+              targetPlugin.applyCodeblockStyle();
             }
             new Notice(`✅ Saved ${field.name}`);
           });
         });
       } else {
         s.addText((t) => {
-          t.setValue(currentVal as string).onChange(async (newVal) => {
-            settingsObj[field.name] = newVal;
+          t.setValue(String(currentVal || "")).onChange(async (newVal) => {
+            settingsObj[field.key] = newVal.trim();
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
             }
@@ -456,7 +467,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     if (!this.simulatedState[blueprint.id]) {
       this.simulatedState[blueprint.id] = {};
       blueprint.fields.forEach((f) => {
-        this.simulatedState[blueprint.id][f.name] = f.defaultVal;
+        this.simulatedState[blueprint.id][f.key] = f.defaultVal;
       });
     }
 
@@ -488,7 +499,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     });
     resetBtn.onclick = () => {
       blueprint.fields.forEach((f) => {
-        state[f.name] = f.defaultVal;
+        state[f.key] = f.defaultVal;
       });
       new Notice(`↺ Reset sandbox settings for ${blueprint.title}`);
       this.renderContent(contentEl);
@@ -502,28 +513,28 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       .setHeading();
 
     blueprint.fields.forEach((field) => {
-      const currentVal = state[field.name] !== undefined ? state[field.name] : field.defaultVal;
+      const currentVal = state[field.key] !== undefined ? state[field.key] : field.defaultVal;
       const s = new Setting(form).setName(field.name).setDesc(field.desc);
 
       if (field.type === "toggle") {
         s.addToggle((t) => {
-          t.setValue(currentVal as boolean).onChange((newVal) => {
-            state[field.name] = newVal;
+          t.setValue(Boolean(currentVal)).onChange((newVal) => {
+            state[field.key] = newVal;
             this.showUnsavedSandboxNotice(blueprint.title, blueprint.storeId);
           });
         });
       } else if (field.type === "dropdown") {
         s.addDropdown((d) => {
           field.options?.forEach((opt) => d.addOption(opt, opt));
-          d.setValue(currentVal as string).onChange((newVal) => {
-            state[field.name] = newVal;
+          d.setValue(String(currentVal)).onChange((newVal) => {
+            state[field.key] = newVal;
             this.showUnsavedSandboxNotice(blueprint.title, blueprint.storeId);
           });
         });
       } else {
         s.addText((t) => {
-          t.setValue(currentVal as string).onChange((newVal) => {
-            state[field.name] = newVal;
+          t.setValue(String(currentVal || "")).onChange((newVal) => {
+            state[field.key] = newVal;
             this.showUnsavedSandboxNotice(blueprint.title, blueprint.storeId);
           });
         });
@@ -536,7 +547,17 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   }
 
   private openObsidianStore(pluginId: string): void {
-    new Notice(`Opening Obsidian store for ${pluginId}...`);
-    window.open(`https://github.com/pakcli/${pluginId}`, "_blank");
+    new Notice(`Opening store for ${pluginId}...`);
+    try {
+      const setting = (this.app as any).setting;
+      if (setting) {
+        setting.open();
+        setting.openTabById("community-plugins");
+      } else {
+        window.open(`https://obsidian.md/plugins?id=${pluginId}`, "_blank");
+      }
+    } catch {
+      window.open(`https://obsidian.md/plugins?id=${pluginId}`, "_blank");
+    }
   }
 }

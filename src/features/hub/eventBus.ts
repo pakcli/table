@@ -6,6 +6,25 @@ type EventHandler<T = any> = (data: T) => void;
 
 export class PakCliEventBus {
   private listeners: Map<string, Set<EventHandler>> = new Map();
+  private onlinePlugins: Set<string> = new Set();
+
+  registerPlugin(id: string): void {
+    this.onlinePlugins.add(id);
+    this.emit("plugin:online", { id });
+  }
+
+  unregisterPlugin(id: string): void {
+    this.onlinePlugins.delete(id);
+    this.emit("plugin:offline", { id });
+  }
+
+  isPluginOnline(id: string): boolean {
+    return this.onlinePlugins.has(id);
+  }
+
+  getOnlinePlugins(): string[] {
+    return Array.from(this.onlinePlugins);
+  }
 
   /**
    * Listen to an event from another PakCLI plugin
@@ -53,4 +72,6 @@ if (typeof window !== "undefined" && !window.PakCliEventBus) {
   window.PakCliEventBus = new PakCliEventBus();
 }
 
-export const eventBus = (typeof window !== "undefined" && window.PakCliEventBus) ? window.PakCliEventBus : new PakCliEventBus();
+export const eventBus = (typeof window !== "undefined" && window.PakCliEventBus) 
+  ? window.PakCliEventBus 
+  : new PakCliEventBus();
