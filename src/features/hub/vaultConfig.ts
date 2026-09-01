@@ -16,6 +16,61 @@ export interface SnapshotItem {
   name: string;
   path: string;
   date: string;
+  timestamp: number;
+}
+
+/**
+ * Formats relative time (e.g. "23 jam lalu", "15 menit lalu", "2 hari lalu")
+ */
+export function formatRelativeSnapshotTime(isoOrStamp: string): string {
+  let date: Date;
+
+  // Check if standard ISO date string
+  if (isoOrStamp.includes("T") || isoOrStamp.includes("-")) {
+    const parsed = new Date(isoOrStamp);
+    if (!isNaN(parsed.getTime())) {
+      date = parsed;
+    } else {
+      // Parse custom stamp: YYYY-MM-DD_HHh00
+      const match = isoOrStamp.match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})h?(\d{2})?/);
+      if (match) {
+        date = new Date(
+          parseInt(match[1]),
+          parseInt(match[2]) - 1,
+          parseInt(match[3]),
+          parseInt(match[4]),
+          match[5] ? parseInt(match[5]) : 0
+        );
+      } else {
+        return isoOrStamp;
+      }
+    }
+  } else {
+    return isoOrStamp;
+  }
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHours = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  const timeStr = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+
+  if (diffSec < 60) {
+    return `Baru saja (${timeStr})`;
+  }
+  if (diffMin < 60) {
+    return `${diffMin} menit lalu (${timeStr})`;
+  }
+  if (diffHours < 24) {
+    return `${diffHours} jam lalu (${timeStr})`;
+  }
+  if (diffDays === 1) {
+    return `Kemarin (${timeStr})`;
+  }
+  return `${diffDays} hari lalu (${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")})`;
 }
 
 /**
@@ -35,7 +90,7 @@ async function ensureConfigDir(app: App): Promise<void> {
 }
 
 /**
- * Lists all available snapshots for a plugin
+ * Lists all available snapshots for a plugin with relative human-readable times
  */
 export async function listVaultSnapshots(
   app: App,
@@ -47,27 +102,57 @@ export async function listVaultSnapshots(
 
   const latestPath = `${VAULT_CONFIG_DIR}/latest-${prefix}.json`;
   if (await app.vault.adapter.exists(latestPath)) {
-    list.push({
-      id: "latest",
-      name: "Latest Backup (Active)",
-      path: latestPath,
-      date: "Latest"
-    });
+    try {
+      const raw = await app.vault.adapter.read(latestPath);
+      const parsed = JSON.parse(raw) as VaultConfigPayload;
+      const relTime = parsed.lastSaved ? formatRelativeSnapshotTime(parsed.lastSaved) : "Aktif";
+      const ts = parsed.lastSaved ? new Date(parsed.lastSaved).getTime() : Date.now();
+      list.push({
+        id: "latest",
+        name: `Latest Backup (${relTime})`,
+        path: latestPath,
+        date: parsed.lastSaved || "Latest",
+        timestamp: ts
+      });
+    } catch {
+      list.push({
+        id: "latest",
+        name: "Latest Backup (Active)",
+        path: latestPath,
+        date: "Latest",
+        timestamp: Date.now()
+      });
+    }
   }
 
   try {
     const files = await app.vault.adapter.list(SNAPSHOTS_DIR);
-    // Sort reverse chronological
-    const sortedFiles = files.files.sort().reverse();
-    for (const f of sortedFiles) {
+    for (const f of files.files) {
       if (f.includes(`/${prefix}-`) && f.endsWith('.json')) {
         const base = f.split('/').pop()?.replace('.json', '') || f;
         const stamp = base.replace(`${prefix}-`, '');
+
+        let isoDate = stamp;
+        let ts = 0;
+        try {
+          const raw = await app.vault.adapter.read(f);
+          const parsed = JSON.parse(raw) as VaultConfigPayload;
+          if (parsed.lastSaved) {
+            isoDate = parsed.lastSaved;
+            ts = new Date(parsed.lastSaved).getTime();
+          }
+        } catch {
+          // fallback to stamp
+        }
+
+        const relTime = formatRelativeSnapshotTime(isoDate);
+
         list.push({
           id: f,
-          name: `Snapshot (${stamp})`,
+          name: `Snapshot (${relTime})`,
           path: f,
-          date: stamp
+          date: stamp,
+          timestamp: ts || 0
         });
       }
     }
@@ -80,9 +165,17 @@ export async function listVaultSnapshots(
       id: "default",
       name: "Default Preset",
       path: "",
-      date: "Preset"
+      date: "Preset",
+      timestamp: 0
     });
   }
+
+  // Sort list: "latest" first, then newest snapshots first
+  list.sort((a, b) => {
+    if (a.id === "latest") return -1;
+    if (b.id === "latest") return 1;
+    return b.timestamp - a.timestamp;
+  });
 
   return list;
 }
@@ -98,10 +191,11 @@ export async function saveVaultConfig(
 ): Promise<void> {
   await ensureConfigDir(app);
 
+  const now = new Date();
   const payload: VaultConfigPayload = {
     plugin: pluginName,
     version: "1.0.0",
-    lastSaved: new Date().toISOString(),
+    lastSaved: now.toISOString(),
     name: customName,
     settings,
   };
@@ -111,11 +205,10 @@ export async function saveVaultConfig(
   const jsonStr = JSON.stringify(payload, null, 2);
 
   try {
-    // 1. Always write to latest
+    // 1. Always update latest
     await app.vault.adapter.write(latestPath, jsonStr);
 
-    // 2. Write to hourly snapshot file (1 new snapshot per 1 hour)
-    const now = new Date();
+    // 2. Write to hourly snapshot file
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const day = String(now.getDate()).padStart(2, "0");
