@@ -19,6 +19,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   searchQuery = "";
   healthStatus: SystemHealthStatus | null = null;
   localHandlers: Map<string, SettingsSectionHandler> = new Map();
+  // In-memory simulation values for uninstalled plugins
+  private simulatedState: Record<string, Record<string, any>> = {};
 
   constructor(app: App, plugin: Plugin) {
     super(app, plugin);
@@ -201,7 +203,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       return;
     }
 
-    // 3. Blueprint preview (Grayscale Mode)
+    // 3. Blueprint preview (Interactive Simulation Mode)
     const blueprint = PREVIEW_BLUEPRINTS.find((b) => b.id === this.activeSectionId);
     if (blueprint) {
       this.renderBlueprintPreview(contentEl, blueprint);
@@ -259,44 +261,86 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   }
 
   private renderBlueprintPreview(contentEl: HTMLElement, blueprint: BlueprintSection): void {
-    const blueprintBox = contentEl.createDiv({ cls: "pakcli-blueprint-box is-preview-mode" });
+    if (!this.simulatedState[blueprint.id]) {
+      this.simulatedState[blueprint.id] = {};
+      blueprint.fields.forEach((f) => {
+        this.simulatedState[blueprint.id][f.name] = f.defaultVal;
+      });
+    }
+
+    const state = this.simulatedState[blueprint.id];
+    const blueprintBox = contentEl.createDiv({ cls: "pakcli-blueprint-box is-interactive-preview" });
 
     new Setting(blueprintBox)
       .setName(`🌸 ${blueprint.title} (Add-on Preview)`)
       .setDesc(blueprint.description)
       .setHeading();
 
+    // Interactive Notice Banner
     const banner = blueprintBox.createDiv({ cls: "pakcli-store-banner" });
     new Setting(banner)
       .setName("📦 Module Available on Obsidian Community Store")
-      .setDesc("This feature is part of the modular PakCLI family.")
+      .setDesc("This module is not yet installed in your vault. Settings changes below operate in live sandbox mode.")
       .setHeading();
 
-    const ctaBtn = banner.createEl("button", {
-      text: `+ Get ${blueprint.title} in Community Plugins`,
+    const bannerActions = banner.createDiv({ cls: "pakcli-banner-action-row" });
+    const ctaBtn = bannerActions.createEl("button", {
+      text: `+ Get ${blueprint.title}`,
       cls: "pakcli-btn-install",
     });
     ctaBtn.onclick = () => this.openObsidianStore(blueprint.storeId);
 
-    // Grayscale interactive form mock
-    const form = blueprintBox.createDiv({ cls: "pakcli-preview-form grayscale" });
+    const resetBtn = bannerActions.createEl("button", {
+      text: "↺ Reset Sandbox",
+      cls: "pakcli-btn-reset",
+    });
+    resetBtn.onclick = () => {
+      blueprint.fields.forEach((f) => {
+        state[f.name] = f.defaultVal;
+      });
+      new Notice(`↺ Reset sandbox settings for ${blueprint.title}`);
+      this.renderContent(contentEl);
+    };
+
+    // Live Interactive Simulation Form
+    const form = blueprintBox.createDiv({ cls: "pakcli-preview-form is-live-sandbox" });
     new Setting(form)
-      .setName("Feature Settings Simulation")
+      .setName("Interactive Sandbox (Simulated Settings)")
+      .setDesc("You can freely test these toggles & options in live preview.")
       .setHeading();
 
     blueprint.fields.forEach((field) => {
+      const currentVal = state[field.name] !== undefined ? state[field.name] : field.defaultVal;
       const s = new Setting(form).setName(field.name).setDesc(field.desc);
+
       if (field.type === "toggle") {
-        s.addToggle((t) => t.setValue(field.defaultVal as boolean).setDisabled(true));
+        s.addToggle((t) => {
+          t.setValue(currentVal as boolean).onChange((newVal) => {
+            state[field.name] = newVal;
+            this.showUnsavedSandboxNotice(blueprint.title, blueprint.storeId);
+          });
+        });
       } else if (field.type === "dropdown") {
         s.addDropdown((d) => {
           field.options?.forEach((opt) => d.addOption(opt, opt));
-          d.setValue(field.defaultVal as string).setDisabled(true);
+          d.setValue(currentVal as string).onChange((newVal) => {
+            state[field.name] = newVal;
+            this.showUnsavedSandboxNotice(blueprint.title, blueprint.storeId);
+          });
         });
       } else {
-        s.addText((t) => t.setValue(field.defaultVal as string).setDisabled(true));
+        s.addText((t) => {
+          t.setValue(currentVal as string).onChange((newVal) => {
+            state[field.name] = newVal;
+            this.showUnsavedSandboxNotice(blueprint.title, blueprint.storeId);
+          });
+        });
       }
     });
+  }
+
+  private showUnsavedSandboxNotice(moduleTitle: string, storeId: string): void {
+    new Notice(`⚠️ Sandbox: Changes to ${moduleTitle} will not persist to vault until the official module is installed.`, 4000);
   }
 
   private openObsidianStore(pluginId: string): void {
