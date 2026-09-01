@@ -6,6 +6,8 @@
 $ErrorActionPreference = "Continue"
 Set-Location -Path $PSScriptRoot
 
+$ConfigFile = ".publish-config.json"
+
 function Write-Header {
     Clear-Host
     Write-Host "=================================================================" -ForegroundColor Cyan
@@ -30,7 +32,28 @@ function Write-Err([string]$msg) {
     Write-Host "[ERR] $msg" -ForegroundColor Red
 }
 
-# 1. Pre-flight Checks
+# 1. Config Persistence Helpers
+function Get-SavedCopyDir {
+    if (Test-Path $ConfigFile) {
+        try {
+            $json = Get-Content $ConfigFile -Raw | ConvertFrom-Json
+            return $json.latestCopyDir
+        } catch {
+            return ""
+        }
+    }
+    return ""
+}
+
+function Save-CopyDir([string]$dir) {
+    $cfg = [PSCustomObject]@{
+        latestCopyDir = $dir
+        lastUpdated   = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+    }
+    $cfg | ConvertTo-Json -Depth 5 | Set-Content $ConfigFile
+}
+
+# 2. Pre-flight Checks
 function Test-Preflight {
     Write-Step "Checking environment prerequisites..."
     
@@ -58,7 +81,7 @@ function Test-Preflight {
 function Get-PluginInfo {
     $manifest = Get-Content "manifest.json" -Raw | ConvertFrom-Json
     $repo = (gh repo view --json nameWithOwner -q .nameWithOwner 2>$null)
-    if ([string]::IsNullOrWhiteSpace($repo)) { $repo = "pakcli/local" }
+    if ([string]::IsNullOrWhiteSpace($repo)) { $repo = "pakcli/$($manifest.id)" }
     
     return [PSCustomObject]@{
         Id      = $manifest.id
@@ -69,7 +92,7 @@ function Get-PluginInfo {
     }
 }
 
-# 2. Main Menu Loop
+# 3. Main Menu Loop
 function Show-Menu {
     if (-not (Test-Preflight)) {
         Write-Host "Press any key to exit..."
@@ -80,14 +103,18 @@ function Show-Menu {
     while ($true) {
         Write-Header
         $info = Get-PluginInfo
+        $savedDir = Get-SavedCopyDir
         Write-Host "  Plugin ID:       $($info.Id)" -ForegroundColor White
         Write-Host "  Plugin Name:     $($info.Name)" -ForegroundColor White
         Write-Host "  Current Version: $($info.Version)" -ForegroundColor Green
         Write-Host "  Obsidian Min:    $($info.MinApp)" -ForegroundColor White
         Write-Host "  GitHub Repo:     $($info.Repo)" -ForegroundColor Yellow
+        if (-not [string]::IsNullOrWhiteSpace($savedDir)) {
+            Write-Host "  Saved Copy Dest: $savedDir" -ForegroundColor DarkGray
+        }
         Write-Host "-----------------------------------------------------------------" -ForegroundColor Gray
         Write-Host "  [1] Full Release Pipeline (Bump, Build, Tag, and GitHub Release)" -ForegroundColor Cyan
-        Write-Host "  [2] Build and Test Only (npm run build)" -ForegroundColor White
+        Write-Host "  [2] Build and Test Only (npm run build + Auto Copy to Vault)" -ForegroundColor White
         Write-Host "  [3] Upload Assets to Existing GitHub Release Tag" -ForegroundColor White
         Write-Host "  [4] Open Obsidian Review and GitHub Releases Web Page" -ForegroundColor White
         Write-Host "  [0] Exit" -ForegroundColor Gray
@@ -96,7 +123,7 @@ function Show-Menu {
         $choice = Read-Host "Select option [0-4]"
         switch ($choice) {
             "1" { Invoke-FullRelease $info }
-            "2" { Invoke-BuildOnly }
+            "2" { Invoke-BuildOnly $info }
             "3" { Invoke-UploadExistingRelease $info }
             "4" { Invoke-OpenWeb $info }
             "0" { Write-Host "Goodbye!"; exit 0 }
@@ -180,7 +207,7 @@ function Invoke-FullRelease($info) {
     }
     Write-Success "Build completed! Verified: main.js, manifest.json, styles.css."
 
-    # 3. Git Commit (only if there are staged/modified tracked changes)
+    # 3. Git Commit (only if changes exist)
     Write-Step "Step 3/5: Checking Git status..."
     $diffCheck = git status --porcelain
     if ($diffCheck) {
@@ -210,10 +237,8 @@ function Invoke-FullRelease($info) {
     # 5. Create GitHub Release & Upload Assets
     Write-Step "Step 5/5: Publishing GitHub Release with attached assets..."
     
-    # Try creating new release first
     gh release create $targetVer main.js manifest.json styles.css --repo $info.Repo --title "$targetVer" --notes "Release $targetVer of $($info.Name)" 2>$null
     if ($LASTEXITCODE -ne 0) {
-        # If release already exists, upload / overwrite assets
         gh release upload $targetVer main.js manifest.json styles.css --repo $info.Repo --clobber
         Write-Success "Updated existing GitHub Release '$targetVer' assets!"
     } else {
@@ -221,18 +246,59 @@ function Invoke-FullRelease($info) {
     }
 
     Write-Host ""
-    Write-Host "🎉 RELEASE $targetVer IS OFFICIALLY LIVE! 🎉" -ForegroundColor Green
+    Write-Host "RELEASE $targetVer IS OFFICIALLY LIVE!" -ForegroundColor Green
     Write-Host "Release URL: https://github.com/$($info.Repo)/releases/tag/$targetVer" -ForegroundColor Yellow
 }
 
-# Action 2: Build Only
-function Invoke-BuildOnly {
+# Action 2: Build Only + Auto Copy
+function Invoke-BuildOnly($info) {
     Write-Step "Running production build..."
     npm run build
     if ($LASTEXITCODE -ne 0) {
         Write-Err "Build encountered errors."
-    } else {
-        Write-Success "Build succeeded! Check main.js and styles.css."
+        return
+    }
+    
+    Write-Success "Build succeeded! (main.js, manifest.json, styles.css)"
+
+    # Ask for copy to vault
+    Write-Host ""
+    $savedDir = Get-SavedCopyDir
+    if ([string]::IsNullOrWhiteSpace($savedDir)) {
+        $savedDir = "<Enter path to Vault/.obsidian/plugins/$($info.Id)>"
+    }
+
+    $doCopy = Read-Host "Copy built files to Obsidian Vault plugin directory? [Y/n, default: Y]"
+    if ([string]::IsNullOrWhiteSpace($doCopy) -or $doCopy -match "^[Yy]") {
+        Write-Host "Current saved destination: $savedDir" -ForegroundColor Yellow
+        $targetPath = Read-Host "Enter target directory path (Press ENTER to use saved destination)"
+        
+        if ([string]::IsNullOrWhiteSpace($targetPath)) {
+            $targetPath = $savedDir
+        }
+
+        if ([string]::IsNullOrWhiteSpace($targetPath) -or $targetPath.StartsWith("<Enter")) {
+            Write-Warn "No valid destination provided. Skipping copy."
+            return
+        }
+
+        # Ensure directory exists
+        if (-not (Test-Path $targetPath)) {
+            New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+        }
+
+        # Copy release artifacts
+        Copy-Item "main.js" -Destination $targetPath -Force
+        Copy-Item "manifest.json" -Destination $targetPath -Force
+        if (Test-Path "styles.css") {
+            Copy-Item "styles.css" -Destination $targetPath -Force
+        }
+
+        # Save to config JSON
+        Save-CopyDir $targetPath
+
+        Write-Success "Successfully copied plugin files to: $targetPath"
+        Write-Host "Saved destination to .publish-config.json for future 1-click builds." -ForegroundColor DarkGray
     }
 }
 

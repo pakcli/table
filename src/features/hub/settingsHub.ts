@@ -29,36 +29,40 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     this.localHandlers.set(handler.id, handler);
   }
 
-  async display(): Promise<void> {
+  display(): void {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("pakcli-master-detail-root");
 
     // Top Bar
     const topBar = containerEl.createDiv({ cls: "pakcli-topbar" });
-    const title = topBar.createEl("h2", { text: "⚙️ PakCLI Local" });
-    title.addClass("pakcli-main-title");
+    new Setting(topBar)
+      .setName("⚙️ PakCLI Suite")
+      .setDesc("Unified ecosystem settings, diagnostics, and module hub.")
+      .setHeading();
 
     const topActions = topBar.createDiv({ cls: "pakcli-topbar-actions" });
     
     // 1-Click Vault Config Sync buttons
     const exportBtn = topActions.createEl("button", { text: "💾 Save to Vault Config", cls: "pakcli-action-btn" });
     exportBtn.onclick = async () => {
-      await saveVaultConfig(this.app, "pakcli-local", (this.plugin as any).settings || {});
-      new Notice("✅ PakCLI Local settings saved to .obsidian/plugins/pakcli-vault-config!");
-      eventBus.emit("pl:vault-config-saved", { plugin: "pakcli-local" });
+      const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
+      await saveVaultConfig(this.app, pluginId, (this.plugin as any).settings || {});
+      new Notice(`✅ ${this.plugin.manifest.name} settings saved to pakcli-vault-config!`);
+      eventBus.emit("pl:vault-config-saved", { plugin: this.plugin.manifest.id });
     };
 
     const restoreBtn = topActions.createEl("button", { text: "🔄 Restore Config", cls: "pakcli-action-btn" });
     restoreBtn.onclick = async () => {
-      const restored = await loadVaultConfig(this.app, "pakcli-local");
+      const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
+      const restored = await loadVaultConfig(this.app, pluginId);
       if (restored) {
         Object.assign((this.plugin as any).settings, restored);
         if (typeof (this.plugin as any).saveSettings === "function") {
           await (this.plugin as any).saveSettings();
         }
         new Notice("✅ Settings restored from pakcli-vault-config!");
-        await this.display();
+        this.display();
       } else {
         new Notice("ℹ️ No previous config snapshot found in pakcli-vault-config.");
       }
@@ -72,7 +76,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
     // 2. RIGHT CONTENT PANE
     const contentEl = layoutContainer.createDiv({ cls: "pakcli-content-pane" });
-    await this.renderContent(contentEl);
+    this.renderContent(contentEl);
   }
 
   private renderSidebar(sidebarEl: HTMLElement, layoutContainer: HTMLElement): void {
@@ -95,55 +99,55 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   private updateSidebarItems(navContainer: HTMLElement, layoutContainer: HTMLElement): void {
     navContainer.empty();
 
-    // Group 1: ⚙️ LOCAL (Active)
-    const localGroup = navContainer.createDiv({ cls: "pakcli-nav-group" });
-    const localHeader = localGroup.createDiv({ cls: "pakcli-group-header active" });
-    localHeader.createSpan({ text: "⚙️ LOCAL", cls: "pakcli-group-title" });
-    localHeader.createSpan({ text: "ACTIVE", cls: "pakcli-badge active" });
+    // Group 1: ⚙️ LOCAL
+    this.renderCategoryGroup(navContainer, "local", "⚙️ LOCAL", layoutContainer);
 
-    // Built-in Local items
-    const localItems = [
-      { id: "local-wizard", title: "Setup Wizard", icon: "wand-2" },
-      { id: "local-symlink", title: "Symlink Manager", icon: "link" },
-      { id: "local-scriptsync", title: "ScriptSync Runner", icon: "terminal" },
-      { id: "local-ytd", title: "YTD Media Engine", icon: "video" },
-      { id: "local-profiles", title: "Vault Profiles", icon: "folder-sync" },
-    ];
+    // Group 2: 🌸 TABLE
+    this.renderCategoryGroup(navContainer, "table", "🌸 TABLE", layoutContainer);
 
-    localItems.forEach((item) => {
-      if (this.searchQuery && !item.title.toLowerCase().includes(this.searchQuery)) return;
-      this.renderNavItem(localGroup, item.id, item.title, item.icon, true, layoutContainer);
-    });
-
-    // Group 2: 🌸 TABLE (Preview)
-    this.renderPreviewGroup(navContainer, "table", "🌸 TABLE", "pakcli-table", layoutContainer);
-
-    // Group 3: 🤖 AGENT (Preview)
-    this.renderPreviewGroup(navContainer, "agent", "🤖 AGENT", "pakcli-agent", layoutContainer);
+    // Group 3: 🤖 AGENT
+    this.renderCategoryGroup(navContainer, "agent", "🤖 AGENT", layoutContainer);
   }
 
-  private renderPreviewGroup(
+  private renderCategoryGroup(
     container: HTMLElement,
-    category: "table" | "agent",
+    category: "local" | "table" | "agent",
     label: string,
-    storeId: string,
     layoutContainer: HTMLElement
   ): void {
-    const groupEl = container.createDiv({ cls: "pakcli-nav-group uninstalled" });
-    const headerEl = groupEl.createDiv({ cls: "pakcli-group-header" });
+    const isThisPluginCat = 
+      (category === "local" && this.plugin.manifest.id === "pakcli-local") ||
+      (category === "table" && this.plugin.manifest.id === "pakcli-table");
+
+    const groupEl = container.createDiv({ cls: `pakcli-nav-group ${isThisPluginCat ? "active" : "uninstalled"}` });
+    const headerEl = groupEl.createDiv({ cls: `pakcli-group-header ${isThisPluginCat ? "active" : ""}` });
     headerEl.createSpan({ text: label, cls: "pakcli-group-title" });
 
-    // Quick [ + Get ] action button in sidebar
-    const getBtn = headerEl.createEl("button", { text: "+ Get", cls: "pakcli-get-btn" });
-    getBtn.onclick = (e) => {
-      e.stopPropagation();
-      this.openObsidianStore(storeId);
-    };
+    if (isThisPluginCat) {
+      headerEl.createSpan({ text: "ACTIVE", cls: "pakcli-badge active" });
+    } else {
+      const getBtn = headerEl.createEl("button", { text: "+ Get", cls: "pakcli-get-btn" });
+      getBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.openObsidianStore(`pakcli-${category}`);
+      };
+    }
 
+    // 1. Registered active handlers in this category
+    for (const [id, handler] of this.localHandlers) {
+      if (handler.category === category) {
+        if (this.searchQuery && !handler.title.toLowerCase().includes(this.searchQuery)) continue;
+        this.renderNavItem(groupEl, id, handler.title, handler.icon, true, layoutContainer);
+      }
+    }
+
+    // 2. Blueprint previews for uninstalled items
     const blueprints = PREVIEW_BLUEPRINTS.filter((b) => b.category === category);
     blueprints.forEach((bp) => {
-      if (this.searchQuery && !bp.title.toLowerCase().includes(this.searchQuery)) return;
-      this.renderNavItem(groupEl, bp.id, bp.title, "lock", false, layoutContainer);
+      if (!this.localHandlers.has(bp.id)) {
+        if (this.searchQuery && !bp.title.toLowerCase().includes(this.searchQuery)) return;
+        this.renderNavItem(groupEl, bp.id, bp.title, "lock", false, layoutContainer);
+      }
     });
   }
 
@@ -168,128 +172,135 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
     itemEl.createSpan({ text: title, cls: "pakcli-nav-text" });
 
-    itemEl.onclick = async () => {
+    itemEl.onclick = () => {
       this.activeSectionId = id;
       const sidebar = layoutContainer.querySelector(".pakcli-nav-list");
       if (sidebar) this.updateSidebarItems(sidebar as HTMLElement, layoutContainer);
 
       const contentPane = layoutContainer.querySelector(".pakcli-content-pane") as HTMLElement;
-      if (contentPane) await this.renderContent(contentPane);
+      if (contentPane) this.renderContent(contentPane);
     };
   }
 
-  private async renderContent(contentEl: HTMLElement): Promise<void> {
+  private renderContent(contentEl: HTMLElement): void {
     contentEl.empty();
 
-    // 1. LOCAL: SETUP WIZARD
-    if (this.activeSectionId === "local-wizard") {
-      await this.renderWizardSection(contentEl);
+    // 1. Wizard section (if local active)
+    if (this.activeSectionId === "local-wizard" && this.localHandlers.has("local-wizard")) {
+      this.renderWizardSection(contentEl);
       return;
     }
 
-    // 2. OTHER LOCAL ACTIVE SECTIONS
+    // 2. Active handler section
     if (this.localHandlers.has(this.activeSectionId)) {
       const handler = this.localHandlers.get(this.activeSectionId)!;
-      contentEl.createEl("h3", { text: handler.title });
+      new Setting(contentEl)
+        .setName(handler.title)
+        .setHeading();
       handler.render(contentEl);
       return;
     }
 
-    // 3. PREVIEW BLUEPRINT SECTIONS (Grayscale Mode)
+    // 3. Blueprint preview (Grayscale Mode)
     const blueprint = PREVIEW_BLUEPRINTS.find((b) => b.id === this.activeSectionId);
     if (blueprint) {
-      this.renderBlueprintSection(contentEl, blueprint);
+      this.renderBlueprintPreview(contentEl, blueprint);
       return;
     }
 
-    // Default fallback
-    contentEl.createEl("h3", { text: "Section not found" });
+    // Default Fallback
+    const firstLocal = Array.from(this.localHandlers.keys())[0];
+    if (firstLocal) {
+      this.activeSectionId = firstLocal;
+      this.renderContent(contentEl);
+    } else {
+      contentEl.createDiv({ text: "Select a module from the sidebar." });
+    }
   }
 
-  private async renderWizardSection(contentEl: HTMLElement): Promise<void> {
-    const headerWrap = contentEl.createDiv({ cls: "pakcli-section-header" });
-    headerWrap.createEl("h3", { text: "🧙 PakCLI System Wizard & Diagnostics" });
+  private renderWizardSection(contentEl: HTMLElement): void {
+    new Setting(contentEl)
+      .setName("🚀 System & Ecosystem Diagnostics")
+      .setHeading();
 
-    const desc = contentEl.createEl("p", {
-      text: "Real-time health check for desktop OS integrations (PowerShell, Symlinks, and yt-dlp binary engine).",
+    const banner = contentEl.createDiv({ cls: "pakcli-wizard-banner" });
+    banner.createEl("p", {
+      text: "Scan your environment for PowerShell, symlink privileges, YouTube media engines, and complementary modules.",
     });
-    desc.addClass("pakcli-section-desc");
 
-    const diagCard = contentEl.createDiv({ cls: "pakcli-diag-card" });
-    diagCard.setText("Running system diagnostics...");
-
-    this.healthStatus = await runSystemDiagnostics((this.plugin as any).settings?.ytDlpPath);
-    diagCard.empty();
-
-    // 1. PowerShell Status
-    this.renderDiagRow(diagCard, "PowerShell Engine", this.healthStatus.powershell.status, this.healthStatus.powershell.details);
-
-    // 2. Symlink Privileges Status
-    this.renderDiagRow(
-      diagCard,
-      "Windows Symlink Permissions",
-      this.healthStatus.symlink.status,
-      this.healthStatus.symlink.details
-    );
-
-    // 3. yt-dlp Engine Status
-    this.renderDiagRow(diagCard, "yt-dlp Media CLI", this.healthStatus.ytdlp.status, this.healthStatus.ytdlp.details);
-
-    // Action buttons
-    const btnRow = contentEl.createDiv({ cls: "pakcli-btn-row" });
-    const refreshBtn = btnRow.createEl("button", { text: "🔄 Refresh Diagnostics", cls: "mod-cta" });
-    refreshBtn.onclick = async () => {
-      await this.renderContent(contentEl);
+    const runBtn = banner.createEl("button", { text: "🔍 Run Full Diagnostics", cls: "pakcli-btn-primary" });
+    runBtn.onclick = async () => {
+      runBtn.setText("Scanning system...");
+      runBtn.setAttribute("disabled", "true");
+      this.healthStatus = await runSystemDiagnostics();
+      this.renderWizardSection(contentEl);
     };
+
+    if (this.healthStatus) {
+      const resultsContainer = contentEl.createDiv({ cls: "pakcli-diagnostics-results" });
+      new Setting(resultsContainer)
+        .setName("Diagnostic Report")
+        .setHeading();
+
+      const items = [
+        { name: "PowerShell Engine", status: this.healthStatus.powershell.status, details: this.healthStatus.powershell.details },
+        { name: "Symlink Privileges", status: this.healthStatus.symlink.status, details: this.healthStatus.symlink.details },
+        { name: "yt-dlp Media Binary", status: this.healthStatus.ytdlp.status, details: this.healthStatus.ytdlp.details }
+      ];
+
+      items.forEach((chk) => {
+        const item = resultsContainer.createDiv({ cls: `pakcli-diag-item status-${chk.status}` });
+        item.createSpan({ text: chk.status === "ok" ? "✅" : chk.status === "warning" ? "⚠️" : "❌", cls: "pakcli-diag-icon" });
+        const textWrap = item.createDiv({ cls: "pakcli-diag-text" });
+        textWrap.createSpan({ text: chk.name, cls: "pakcli-diag-name" });
+        textWrap.createSpan({ text: chk.details, cls: "pakcli-diag-msg" });
+      });
+    }
   }
 
-  private renderDiagRow(container: HTMLElement, label: string, status: "ok" | "warning" | "error", details: string): void {
-    const row = container.createDiv({ cls: `pakcli-diag-row ${status}` });
-    const statusIcon = status === "ok" ? "🟢" : status === "warning" ? "🟡" : "🔴";
-    row.createSpan({ text: `${statusIcon} ${label}: `, cls: "pakcli-diag-label" });
-    row.createSpan({ text: details, cls: "pakcli-diag-details" });
-  }
+  private renderBlueprintPreview(contentEl: HTMLElement, blueprint: BlueprintSection): void {
+    const blueprintBox = contentEl.createDiv({ cls: "pakcli-blueprint-box is-preview-mode" });
 
-  private renderBlueprintSection(contentEl: HTMLElement, bp: BlueprintSection): void {
-    // Header with Direct Store Actions
-    const headerWrap = contentEl.createDiv({ cls: "pakcli-section-header preview" });
-    headerWrap.createEl("h3", { text: bp.title });
+    new Setting(blueprintBox)
+      .setName(`🌸 ${blueprint.title} (Add-on Preview)`)
+      .setDesc(blueprint.description)
+      .setHeading();
 
-    const actionsWrap = headerWrap.createDiv({ cls: "pakcli-header-actions" });
-    const storeBtn = actionsWrap.createEl("button", { text: "📥 Get from Store", cls: "mod-cta" });
-    storeBtn.onclick = () => this.openObsidianStore(bp.storeId);
+    const banner = blueprintBox.createDiv({ cls: "pakcli-store-banner" });
+    new Setting(banner)
+      .setName("📦 Module Available on Obsidian Community Store")
+      .setDesc("This feature is part of the modular PakCLI family.")
+      .setHeading();
 
-    const webBtn = actionsWrap.createEl("button", { text: "🌐 Website / Docs" });
-    webBtn.onclick = () => window.open(bp.repoUrl);
+    const ctaBtn = banner.createEl("button", {
+      text: `+ Get ${blueprint.title} in Community Plugins`,
+      cls: "pakcli-btn-install",
+    });
+    ctaBtn.onclick = () => this.openObsidianStore(blueprint.storeId);
 
-    const banner = contentEl.createDiv({ cls: "pakcli-preview-banner" });
-    banner.setText(`ℹ️ This module is part of ${bp.storeId}. Configurations below are displayed in transparent preview mode.`);
+    // Grayscale interactive form mock
+    const form = blueprintBox.createDiv({ cls: "pakcli-preview-form grayscale" });
+    new Setting(form)
+      .setName("Feature Settings Simulation")
+      .setHeading();
 
-    // Grayscale Form Container
-    const formContainer = contentEl.createDiv({ cls: "pakcli-uninstalled-preview" });
-    formContainer.createEl("p", { text: bp.description, cls: "pakcli-blueprint-desc" });
-
-    bp.fields.forEach((field) => {
-      const s = new Setting(formContainer).setName(field.name).setDesc(field.desc);
+    blueprint.fields.forEach((field) => {
+      const s = new Setting(form).setName(field.name).setDesc(field.desc);
       if (field.type === "toggle") {
-        s.addToggle((t) => t.setValue(Boolean(field.defaultVal)).setDisabled(true));
-      } else if (field.type === "dropdown" && field.options) {
+        s.addToggle((t) => t.setValue(field.defaultVal as boolean).setDisabled(true));
+      } else if (field.type === "dropdown") {
         s.addDropdown((d) => {
-          field.options!.forEach((opt) => d.addOption(opt, opt));
-          d.setValue(String(field.defaultVal)).setDisabled(true);
+          field.options?.forEach((opt) => d.addOption(opt, opt));
+          d.setValue(field.defaultVal as string).setDisabled(true);
         });
       } else {
-        s.addText((t) => t.setValue(String(field.defaultVal)).setDisabled(true));
+        s.addText((t) => t.setValue(field.defaultVal as string).setDisabled(true));
       }
     });
   }
 
   private openObsidianStore(pluginId: string): void {
-    try {
-      window.open(`obsidian://show-plugin?id=${pluginId}`);
-    } catch {
-      // Fallback
-      (this.app as any).setting?.openTabById("community-plugins");
-    }
+    new Notice(`Opening Obsidian store for ${pluginId}...`);
+    window.open(`https://github.com/pakcli/${pluginId}`, "_blank");
   }
 }

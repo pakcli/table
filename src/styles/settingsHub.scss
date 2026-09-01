@@ -1,225 +1,393 @@
 /* ========================================================================= */
-/* PakCLI Master-Detail Settings Hub & Grayscale Preview Styles              */
+/* PakCLI Master-Detail Settings Hub & Premium Aesthetics                    */
 /* ========================================================================= */
 
 .pakcli-master-detail-root {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 16px;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  gap: 16px !important;
+  box-sizing: border-box !important;
 }
 
+/* 1. Top Bar Header & Action Buttons */
 .pakcli-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--background-modifier-border);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 12px 16px !important;
+  background: var(--background-secondary) !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  border-radius: var(--radius-m) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
 
-  .pakcli-main-title {
-    margin: 0;
-    font-size: 1.4rem;
-    font-weight: 700;
+  .setting-item {
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+
+    .setting-item-info {
+      .setting-item-name {
+        font-size: 1.25rem !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.01em !important;
+        color: var(--text-normal) !important;
+      }
+      .setting-item-description {
+        font-size: 0.82rem !important;
+        color: var(--text-muted) !important;
+      }
+    }
+  }
+
+  .pakcli-topbar-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+
+    .pakcli-action-btn {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+      font-size: 0.78rem !important;
+      font-weight: 600 !important;
+      padding: 5px 12px !important;
+      border-radius: 6px !important;
+      cursor: pointer !important;
+      transition: all 0.15s ease !important;
+      background: var(--background-primary) !important;
+      border: 1px solid var(--background-modifier-border) !important;
+      color: var(--text-normal) !important;
+
+      &:hover {
+        background: var(--background-modifier-hover) !important;
+        border-color: var(--interactive-accent) !important;
+        color: var(--interactive-accent) !important;
+        transform: translateY(-1px) !important;
+      }
+    }
   }
 }
 
+/* 2. Master-Detail Layout (2-Column Flexbox) */
 .pakcli-master-detail-layout {
-  display: flex;
-  gap: 20px;
-  min-height: 520px;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  gap: 20px !important;
+  width: 100% !important;
+  min-height: 520px !important;
+  box-sizing: border-box !important;
 
-  /* Left Sidebar */
+  /* Left Master Sidebar */
   .pakcli-sidebar {
-    width: 240px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    border-right: 1px solid var(--background-modifier-border);
-    padding-right: 12px;
+    width: 250px !important;
+    min-width: 250px !important;
+    max-width: 250px !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    background: var(--background-secondary) !important;
+    border: 1px solid var(--background-modifier-border) !important;
+    border-radius: var(--radius-m) !important;
+    padding: 14px 10px !important;
+    box-sizing: border-box !important;
 
     .pakcli-search-box {
       input[type="search"] {
-        width: 100%;
-        padding: 6px 10px;
-        border-radius: var(--radius-s);
-        font-size: 0.85rem;
+        width: 100% !important;
+        padding: 7px 12px !important;
+        border-radius: 6px !important;
+        border: 1px solid var(--background-modifier-border) !important;
+        background: var(--background-primary) !important;
+        font-size: 0.82rem !important;
+        color: var(--text-normal) !important;
+        outline: none !important;
+        box-sizing: border-box !important;
+
+        &:focus {
+          border-color: var(--interactive-accent) !important;
+          box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.15) !important;
+        }
       }
     }
 
     .pakcli-nav-list {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      overflow-y: auto;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 14px !important;
+      overflow-y: auto !important;
+      max-height: 600px !important;
+      padding-right: 2px !important;
     }
 
     .pakcli-nav-group {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 3px !important;
+
+      &.active {
+        .pakcli-group-header {
+          color: var(--text-normal) !important;
+        }
+      }
+
+      &.uninstalled {
+        opacity: 0.85 !important;
+      }
 
       .pakcli-group-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        color: var(--text-muted);
-        padding: 4px 6px;
-        text-transform: uppercase;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        font-size: 0.72rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.06em !important;
+        color: var(--text-muted) !important;
+        padding: 4px 6px !important;
+        text-transform: uppercase !important;
+        margin-bottom: 2px !important;
 
-        .pakcli-badge {
-          font-size: 0.65rem;
-          padding: 1px 6px;
-          border-radius: 10px;
-          background: rgba(var(--color-green-rgb), 0.15);
-          color: var(--color-green);
+        .pakcli-group-title {
+          font-weight: 700 !important;
+        }
+
+        .pakcli-badge.active {
+          font-size: 0.65rem !important;
+          font-weight: 700 !important;
+          padding: 2px 7px !important;
+          border-radius: 10px !important;
+          background: rgba(34, 197, 94, 0.15) !important;
+          color: #22c55e !important;
+          border: 1px solid rgba(34, 197, 94, 0.3) !important;
         }
 
         .pakcli-get-btn {
-          font-size: 0.7rem;
-          padding: 2px 8px;
-          border-radius: 4px;
-          background: var(--interactive-accent);
-          color: var(--text-on-accent);
-          cursor: pointer;
-          border: none;
+          font-size: 0.68rem !important;
+          font-weight: 700 !important;
+          padding: 2px 8px !important;
+          border-radius: 4px !important;
+          background: var(--interactive-accent) !important;
+          color: var(--text-on-accent) !important;
+          cursor: pointer !important;
+          border: none !important;
+          transition: all 0.15s ease !important;
 
           &:hover {
-            opacity: 0.9;
+            opacity: 0.9 !important;
+            transform: scale(1.03) !important;
           }
         }
       }
 
       .pakcli-nav-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 10px;
-        border-radius: var(--radius-s);
-        cursor: pointer;
-        font-size: 0.88rem;
-        color: var(--text-normal);
-        transition: all 0.15s ease-in-out;
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 7px 10px !important;
+        border-radius: 6px !important;
+        cursor: pointer !important;
+        font-size: 0.82rem !important;
+        font-weight: 500 !important;
+        color: var(--text-muted) !important;
+        transition: all 0.15s ease !important;
+        user-select: none !important;
 
         &:hover {
-          background-color: var(--background-modifier-hover);
+          background: var(--background-modifier-hover) !important;
+          color: var(--text-normal) !important;
         }
 
         &.is-selected {
-          background-color: var(--background-modifier-active-hover);
-          color: var(--text-accent);
-          font-weight: 600;
+          background: var(--background-modifier-active-hover) !important;
+          color: var(--interactive-accent) !important;
+          font-weight: 600 !important;
+          border-left: 3px solid var(--interactive-accent) !important;
+          padding-left: 8px !important;
         }
 
         &.is-preview {
-          color: var(--text-muted);
-          opacity: 0.85;
+          color: var(--text-faint) !important;
+          font-style: normal !important;
+
+          &:hover {
+            color: var(--text-muted) !important;
+          }
         }
 
         .pakcli-nav-icon {
-          display: flex;
-          align-items: center;
-          width: 16px;
-          height: 16px;
-          flex-shrink: 0;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 16px !important;
+          height: 16px !important;
+          flex-shrink: 0 !important;
+          font-size: 0.85rem !important;
+
+          svg {
+            width: 15px !important;
+            height: 15px !important;
+          }
         }
 
         .pakcli-nav-text {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          white-space: nowrap !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          flex: 1 1 auto !important;
         }
       }
     }
   }
 
-  /* Right Content Pane */
+  /* Right Detail Content Pane */
   .pakcli-content-pane {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    overflow-y: auto;
-    padding-left: 4px;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    box-sizing: border-box !important;
 
-    .pakcli-section-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+    .setting-item {
+      background: var(--background-secondary) !important;
+      border: 1px solid var(--background-modifier-border) !important;
+      border-radius: var(--radius-m) !important;
+      padding: 12px 16px !important;
+      margin-bottom: 8px !important;
+      transition: border-color 0.15s ease !important;
 
-      h3 {
-        margin: 0;
-        font-size: 1.15rem;
+      &:hover {
+        border-color: rgba(var(--interactive-accent-rgb), 0.3) !important;
       }
 
-      .pakcli-header-actions {
-        display: flex;
-        gap: 8px;
+      &.setting-item-heading {
+        background: transparent !important;
+        border: none !important;
+        padding: 4px 0 !important;
+        margin-top: 6px !important;
+        margin-bottom: 2px !important;
 
-        button {
-          font-size: 0.8rem;
-          cursor: pointer;
+        .setting-item-info .setting-item-name {
+          font-size: 1.05rem !important;
+          font-weight: 700 !important;
+          color: var(--text-normal) !important;
         }
       }
     }
 
-    .pakcli-section-desc {
-      font-size: 0.88rem;
-      color: var(--text-muted);
-      margin: 0;
-    }
+    /* Diagnostics Banner Card */
+    .pakcli-wizard-banner {
+      padding: 16px !important;
+      background: var(--background-secondary) !important;
+      border: 1px solid var(--background-modifier-border) !important;
+      border-radius: var(--radius-m) !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 10px !important;
 
-    .pakcli-diag-card {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding: 14px;
-      border-radius: var(--radius-m);
-      background: var(--background-secondary-alt);
-      border: 1px solid var(--background-modifier-border);
+      p {
+        margin: 0 !important;
+        font-size: 0.85rem !important;
+        color: var(--text-muted) !important;
+      }
 
-      .pakcli-diag-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.9rem;
+      .pakcli-btn-primary {
+        align-self: flex-start !important;
+        background: var(--interactive-accent) !important;
+        color: var(--text-on-accent) !important;
+        font-weight: 600 !important;
+        font-size: 0.82rem !important;
+        padding: 6px 14px !important;
+        border-radius: 6px !important;
+        border: none !important;
+        cursor: pointer !important;
+        transition: opacity 0.15s ease !important;
 
-        .pakcli-diag-label {
-          font-weight: 600;
-        }
-
-        .pakcli-diag-details {
-          color: var(--text-muted);
+        &:hover {
+          opacity: 0.9 !important;
         }
       }
     }
 
-    .pakcli-preview-banner {
-      padding: 8px 12px;
-      border-radius: var(--radius-s);
-      background: rgba(var(--color-blue-rgb), 0.1);
-      border: 1px solid rgba(var(--color-blue-rgb), 0.25);
-      font-size: 0.82rem;
-      color: var(--text-muted);
+    /* Diagnostics Item Rows */
+    .pakcli-diagnostics-results {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 8px !important;
+      margin-top: 10px !important;
+
+      .pakcli-diag-item {
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        padding: 10px 14px !important;
+        background: var(--background-secondary) !important;
+        border: 1px solid var(--background-modifier-border) !important;
+        border-radius: var(--radius-s) !important;
+
+        .pakcli-diag-icon {
+          font-size: 1.1rem !important;
+        }
+
+        .pakcli-diag-text {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 2px !important;
+
+          .pakcli-diag-name {
+            font-weight: 600 !important;
+            font-size: 0.85rem !important;
+            color: var(--text-normal) !important;
+          }
+
+          .pakcli-diag-msg {
+            font-size: 0.78rem !important;
+            color: var(--text-muted) !important;
+          }
+        }
+      }
     }
 
-    .pakcli-uninstalled-preview {
-      opacity: 0.5;
-      filter: grayscale(1);
-      pointer-events: none;
-      user-select: none;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+    /* Add-on Preview Mockup Card */
+    .pakcli-blueprint-box {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 12px !important;
 
-      .pakcli-blueprint-desc {
-        font-size: 0.85rem;
-        color: var(--text-muted);
-        margin-bottom: 8px;
+      .pakcli-store-banner {
+        padding: 16px !important;
+        background: rgba(var(--color-blue-rgb), 0.08) !important;
+        border: 1px solid rgba(var(--color-blue-rgb), 0.25) !important;
+        border-radius: var(--radius-m) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+
+        .pakcli-btn-install {
+          align-self: flex-start !important;
+          background: var(--interactive-accent) !important;
+          color: var(--text-on-accent) !important;
+          font-weight: 600 !important;
+          font-size: 0.82rem !important;
+          padding: 6px 14px !important;
+          border-radius: 6px !important;
+          border: none !important;
+          cursor: pointer !important;
+          transition: transform 0.12s ease !important;
+
+          &:hover {
+            transform: scale(1.02) !important;
+          }
+        }
+      }
+
+      .pakcli-preview-form.grayscale {
+        opacity: 0.65 !important;
+        filter: grayscale(1) !important;
+        pointer-events: none !important;
       }
     }
   }
