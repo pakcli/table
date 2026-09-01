@@ -33,24 +33,31 @@ function Write-Err([string]$msg) {
 }
 
 # 1. Config Persistence Helpers
-function Get-SavedCopyDir {
+function Get-PublishConfig {
     if (Test-Path $ConfigFile) {
         try {
-            $json = Get-Content $ConfigFile -Raw | ConvertFrom-Json
-            return $json.latestCopyDir
+            return Get-Content $ConfigFile -Raw | ConvertFrom-Json
         } catch {
-            return ""
+            return $null
         }
     }
-    return ""
+    return $null
 }
 
-function Save-CopyDir([string]$dir) {
-    $cfg = [PSCustomObject]@{
-        latestCopyDir = $dir
-        lastUpdated   = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+function Save-PublishConfig([hashtable]$updates) {
+    $existing = @{}
+    $cfg = Get-PublishConfig
+    if ($cfg) {
+        foreach ($prop in $cfg.PSObject.Properties) {
+            $existing[$prop.Name] = $prop.Value
+        }
     }
-    $cfg | ConvertTo-Json -Depth 5 | Set-Content $ConfigFile
+    foreach ($k in $updates.Keys) {
+        $existing[$k] = $updates[$k]
+    }
+    $existing["lastUpdated"] = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+    
+    $existing | ConvertTo-Json -Depth 5 | Set-Content $ConfigFile
 }
 
 # 2. Pre-flight Checks
@@ -103,7 +110,10 @@ function Show-Menu {
     while ($true) {
         Write-Header
         $info = Get-PluginInfo
-        $savedDir = Get-SavedCopyDir
+        $config = Get-PublishConfig
+        $savedDir = if ($config -and $config.latestCopyDir) { $config.latestCopyDir } else { "" }
+        $lastChoice = if ($config -and $config.latestMenuChoice) { [string]$config.latestMenuChoice } else { "2" }
+
         Write-Host "  Plugin ID:       $($info.Id)" -ForegroundColor White
         Write-Host "  Plugin Name:     $($info.Name)" -ForegroundColor White
         Write-Host "  Current Version: $($info.Version)" -ForegroundColor Green
@@ -111,6 +121,9 @@ function Show-Menu {
         Write-Host "  GitHub Repo:     $($info.Repo)" -ForegroundColor Yellow
         if (-not [string]::IsNullOrWhiteSpace($savedDir)) {
             Write-Host "  Saved Copy Dest: $savedDir" -ForegroundColor DarkGray
+        }
+        if (-not [string]::IsNullOrWhiteSpace($lastChoice)) {
+            Write-Host "  Last Option Used: [$lastChoice]" -ForegroundColor Cyan
         }
         Write-Host "-----------------------------------------------------------------" -ForegroundColor Gray
         Write-Host "  [1] Full Release Pipeline (Bump, Build, Tag, and GitHub Release)" -ForegroundColor Cyan
@@ -120,7 +133,13 @@ function Show-Menu {
         Write-Host "  [0] Exit" -ForegroundColor Gray
         Write-Host "-----------------------------------------------------------------" -ForegroundColor Gray
 
-        $choice = Read-Host "Select option [0-4]"
+        $choicePrompt = "Select option [0-4, Default: $lastChoice]"
+        $choice = Read-Host $choicePrompt
+        if ([string]::IsNullOrWhiteSpace($choice)) { $choice = $lastChoice }
+
+        # Save selected choice to config
+        Save-PublishConfig @{ latestMenuChoice = $choice }
+
         switch ($choice) {
             "1" { Invoke-FullRelease $info }
             "2" { Invoke-BuildOnly $info }
@@ -149,14 +168,19 @@ function Invoke-FullRelease($info) {
     $minorVer = "$major.$($minor + 1).0"
     $majorVer = "$($major + 1).0.0"
 
+    $config = Get-PublishConfig
+    $lastBump = if ($config -and $config.latestBumpChoice) { [string]$config.latestBumpChoice } else { "1" }
+
     Write-Host "  [1] Keep current ($cur) -> Directly publish / re-release" -ForegroundColor White
     Write-Host "  [2] Patch bump   ($cur -> $patchVer)" -ForegroundColor Green
     Write-Host "  [3] Minor bump   ($cur -> $minorVer)" -ForegroundColor Yellow
     Write-Host "  [4] Major bump   ($cur -> $majorVer)" -ForegroundColor Magenta
     Write-Host "  [5] Custom version string" -ForegroundColor White
 
-    $vChoice = Read-Host "Select version bump [Default: 1]"
-    if ([string]::IsNullOrWhiteSpace($vChoice)) { $vChoice = "1" }
+    $vChoice = Read-Host "Select version bump [Default: $lastBump]"
+    if ([string]::IsNullOrWhiteSpace($vChoice)) { $vChoice = $lastBump }
+
+    Save-PublishConfig @{ latestBumpChoice = $vChoice }
 
     $targetVer = $cur
     if ($vChoice -eq "2") { $targetVer = $patchVer }
@@ -263,7 +287,8 @@ function Invoke-BuildOnly($info) {
 
     # Ask for copy to vault
     Write-Host ""
-    $savedDir = Get-SavedCopyDir
+    $config = Get-PublishConfig
+    $savedDir = if ($config -and $config.latestCopyDir) { $config.latestCopyDir } else { "" }
     if ([string]::IsNullOrWhiteSpace($savedDir)) {
         $savedDir = "<Enter path to Vault/.obsidian/plugins/$($info.Id)>"
     }
@@ -295,10 +320,10 @@ function Invoke-BuildOnly($info) {
         }
 
         # Save to config JSON
-        Save-CopyDir $targetPath
+        Save-PublishConfig @{ latestCopyDir = $targetPath }
 
         Write-Success "Successfully copied plugin files to: $targetPath"
-        Write-Host "Saved destination to .publish-config.json for future 1-click builds." -ForegroundColor DarkGray
+        Write-Host "Saved destination and choices to .publish-config.json for instant 1-click execution." -ForegroundColor DarkGray
     }
 }
 
