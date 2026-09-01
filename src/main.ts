@@ -9,14 +9,16 @@ import { saveVaultConfig, loadVaultConfig } from './features/hub/vaultConfig';
 // Tree & Asset Router Imports
 import { AssetRouter } from './features/tree/router';
 import { DiagramRenderer } from './features/tree/renderers/DiagramRenderer';
-import { registerTreeCommands } from './features/tree/commands';
+import { registerCommands as registerTreeCommands } from './features/tree/commands/index';
 
 // SQLSeal & Database Imports
-import { initSQLSeal } from './features/sqlseal/modules/main/init';
+import { mainModule } from './features/sqlseal/modules/main/module';
 import { SQLSealSettingsTab } from './features/sqlseal/modules/settings/SQLSealSettingsTab';
+import { ColumnConfig } from './features/sqlseal/types';
+import { CsvView, CSV_VIEW_TYPE } from './features/sqlseal/csv-view';
 
 // Leaflet Imports
-import { BasesLeafletPlugin } from './features/leaflet/plugin';
+import { BasesLeafletViewPlugin } from './features/leaflet/plugin';
 import { BasesLeafletViewSettingsTab } from './features/leaflet/settings/basesLeafletViewSettingsTab';
 
 // ASCII Draw Imports
@@ -29,12 +31,13 @@ export default class PakCLITablePlugin extends Plugin {
 	settings!: PakCLITableSettings;
 	router!: AssetRouter;
 	codeblockScaler!: CodeblockScaler;
-	leafletPlugin!: BasesLeafletPlugin;
+	leafletPlugin!: BasesLeafletViewPlugin;
 	sqlsealTabInstance: SQLSealSettingsTab | null = null;
 	leafletTabInstance: any = null;
+	settingsPanelStates: Map<string, boolean> = new Map();
 	vaultRoot: string = '';
 
-	async onload() {
+	async onload(): Promise<void> {
 		console.log('[PakCLI Table] Loading plugin...');
 
 		// 1. Resolve Vault Root Path
@@ -51,7 +54,7 @@ export default class PakCLITablePlugin extends Plugin {
 
 		// 4. Initialize Codeblock Scaler
 		this.codeblockScaler = new CodeblockScaler(this);
-		this.codeblockScaler.registerEvents();
+		this.codeblockScaler.init();
 		this.applyCodeblockStyle();
 
 		// 5. Initialize Tree Diagrams & Asset Router
@@ -66,17 +69,31 @@ export default class PakCLITablePlugin extends Plugin {
 
 		// 6. Initialize SQLSeal & Database Explorer
 		try {
-			const sqlsealInitResult = await initSQLSeal(this as any);
-			this.sqlsealTabInstance = sqlsealInitResult?.settingsTab || null;
+			const container = mainModule.build({
+				'obsidian.app': (d: { value: (v: unknown) => unknown }) => d.value(this.app),
+				'obsidian.plugin': (d: { value: (v: unknown) => unknown }) => d.value(this),
+				'obsidian.vault': (d: { value: (v: unknown) => unknown }) => d.value(this.app.vault)
+			} as unknown as Parameters<typeof mainModule.build>[0]);
+
+			const init = await container.get('init');
+			init();
+
+			this.sqlsealTabInstance = await container.get('settings.settingsTab');
 		} catch (err) {
 			console.error('[PakCLI Table] Failed to initialize SQLSeal:', err);
 		}
 
+		// Register CSV View
+		this.registerView(CSV_VIEW_TYPE, (leaf) => new CsvView(leaf, this as any));
+		this.registerExtensions(['csv'], CSV_VIEW_TYPE);
+
 		// 7. Initialize Leaflet Mapping Engine
 		try {
-			this.leafletPlugin = new BasesLeafletPlugin(this.app, this as any);
+			this.leafletPlugin = new BasesLeafletViewPlugin(this.app, this.manifest);
 			await this.leafletPlugin.onload();
-			this.leafletTabInstance = new BasesLeafletViewSettingsTab(this.app, this as any);
+			if (this.leafletPlugin.settingsManager) {
+				this.leafletTabInstance = new BasesLeafletViewSettingsTab(this.leafletPlugin, this.leafletPlugin.settingsManager);
+			}
 		} catch (err) {
 			console.error('[PakCLI Table] Failed to initialize Leaflet:', err);
 		}
@@ -112,6 +129,28 @@ export default class PakCLITablePlugin extends Plugin {
 	applyCodeblockStyle() {
 		document.body.classList.remove('pakcli-flowclip', 'pakcli-wrap', 'pakcli-scalefit');
 		document.body.classList.add(`pakcli-${this.settings.codeblockWrapMode || 'flowclip'}`);
+	}
+
+	getFileColumnConfig(filePath: string, columnCount: number): ColumnConfig {
+		const fileConfigs = (this.settings as any).fileConfigs || {};
+		const saved = fileConfigs[filePath];
+		if (saved && !Array.isArray(saved)) {
+			return saved;
+		}
+		return {
+			order: Array.from({ length: columnCount }, (_, i) => i),
+			hidden: [],
+			sizing: {},
+			frozenCount: 0
+		};
+	}
+
+	async setFileColumnConfig(filePath: string, nextColumnCount: number, config: ColumnConfig): Promise<void> {
+		if (!(this.settings as any).fileConfigs) {
+			(this.settings as any).fileConfigs = {};
+		}
+		(this.settings as any).fileConfigs[filePath] = config;
+		await this.saveSettings();
 	}
 
 	private registerSettingsHub() {
