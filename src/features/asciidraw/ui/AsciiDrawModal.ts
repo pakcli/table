@@ -563,14 +563,14 @@ export class AsciiDrawModal extends Modal {
 		const rows = composite.rows;
 		const palette = THEME_PALETTES[this.activeTheme] || THEME_PALETTES.default;
 
-		this.canvasGridEl.setCssProps({
+		this.canvasGridEl.setCssStyles({
 			transform: `scale(${this.zoomScale})`,
-			'transform-origin': 'top left',
-			'background-color': palette.bg,
-			'border-color': palette.border
+			transformOrigin: 'top left',
+			backgroundColor: palette.bg,
+			borderColor: palette.border
 		});
 
-		const frag = document.createDocumentFragment();
+		const frag = createFragment();
 		for (let r = 0; r < rows; r++) {
 			const rowDiv = createDiv({ cls: 'ascii-row' });
 			for (let c = 0; c < cols; c++) {
@@ -580,9 +580,9 @@ export class AsciiDrawModal extends Modal {
 				cellSpan.setAttribute('data-col', String(c));
 				cellSpan.setAttribute('data-row', String(r));
 				cellSpan.textContent = charToDisplay === ' ' ? '\u00A0' : charToDisplay;
-				if (cell?.fg) cellSpan.setCssProps({ color: cell.fg });
-				else cellSpan.setCssProps({ color: palette.fg });
-				if (cell?.bg) cellSpan.setCssProps({ 'background-color': cell.bg });
+				if (cell?.fg) cellSpan.setCssStyles({ color: cell.fg });
+				else cellSpan.setCssStyles({ color: palette.fg });
+				if (cell?.bg) cellSpan.setCssStyles({ backgroundColor: cell.bg });
 			}
 			frag.appendChild(rowDiv);
 		}
