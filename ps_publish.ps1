@@ -1,6 +1,7 @@
 <#
 .SYNOPSIS
-    PakCLI Suite - Interactive Plugin Release Hub (10/10 Architecture)
+    PakCLI Plugin Release Automation Tool & Obsidian Community Hub
+    Supports modular release, build, GitHub Releases, and Obsidian Community check-release trigger.
 #>
 
 $ErrorActionPreference = "Continue"
@@ -11,7 +12,7 @@ $ConfigFile = ".publish-config.json"
 function Write-Header {
     Clear-Host
     Write-Host "=================================================================" -ForegroundColor Cyan
-    Write-Host "       * PakCLI Suite - Interactive Plugin Release Hub *       " -ForegroundColor Yellow
+    Write-Host "         * PakCLI Suite - Interactive Plugin Release Hub *       " -ForegroundColor Yellow
     Write-Host "=================================================================" -ForegroundColor Cyan
 }
 
@@ -32,7 +33,7 @@ function Write-Err([string]$msg) {
     Write-Host "[ERR] $msg" -ForegroundColor Red
 }
 
-# 1. Config Persistence Helpers
+# 1. Load / Save Config Helper
 function Get-PublishConfig {
     if (Test-Path $ConfigFile) {
         try {
@@ -56,88 +57,64 @@ function Save-PublishConfig([hashtable]$updates) {
         $existing[$k] = $updates[$k]
     }
     $existing["lastUpdated"] = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-    
     $existing | ConvertTo-Json -Depth 5 | Set-Content $ConfigFile
 }
 
-# 2. Pre-flight Checks
-function Test-Preflight {
-    Write-Step "Checking environment prerequisites..."
-    
-    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-        Write-Err "npm is not installed or not in PATH."
-        return $false
-    }
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        Write-Err "git is not installed or not in PATH."
-        return $false
-    }
-    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
-        Write-Err "GitHub CLI (gh) is not installed."
-        return $false
-    }
-    if (-not (Test-Path "manifest.json")) {
-        Write-Err "manifest.json not found in current directory."
-        return $false
-    }
-    
-    Write-Success "Prerequisites verified (npm, git, gh, manifest.json)."
-    return $true
-}
-
+# 2. Extract Plugin Info Modularly from manifest.json & git remote
 function Get-PluginInfo {
-    $manifest = Get-Content "manifest.json" -Raw | ConvertFrom-Json
-    $repo = (gh repo view --json nameWithOwner -q .nameWithOwner 2>$null)
-    if ([string]::IsNullOrWhiteSpace($repo)) { $repo = "pakcli/$($manifest.id)" }
-    
-    return [PSCustomObject]@{
-        Id      = $manifest.id
-        Name    = $manifest.name
-        Version = $manifest.version
-        MinApp  = $manifest.minAppVersion
-        Repo    = $repo.Trim()
-    }
-}
-
-# 3. Main Menu Loop
-function Show-Menu {
-    if (-not (Test-Preflight)) {
-        Write-Host "Press any key to exit..."
-        [Console]::ReadKey() | Out-Null
+    if (-not (Test-Path "manifest.json")) {
+        Write-Err "manifest.json not found in $PSScriptRoot!"
         exit 1
     }
 
+    $manifest = Get-Content "manifest.json" -Raw | ConvertFrom-Json
+    $pkg = if (Test-Path "package.json") { Get-Content "package.json" -Raw | ConvertFrom-Json } else { $null }
+
+    # Detect git remote repo
+    $remoteUrl = git config --get remote.origin.url
+    $repo = ""
+    if ($remoteUrl -match "github.com[:/](.+?)(?:.git)?$") {
+        $repo = $matches[1]
+    }
+
+    return [PSCustomObject]@{
+        Id          = $manifest.id
+        Name        = $manifest.name
+        Version     = $manifest.version
+        MinApp      = $manifest.minAppVersion
+        Description = $manifest.description
+        Repo        = $repo
+    }
+}
+
+# 3. Main Interactive Menu
+function Show-Menu {
+    $info = Get-PluginInfo
+
     while ($true) {
         Write-Header
-        $info = Get-PluginInfo
+        Write-Host "Plugin:  $($info.Name) ($($info.Id))" -ForegroundColor White
+        Write-Host "Version: $($info.Version) (minAppVersion: $($info.MinApp))" -ForegroundColor Green
+        Write-Host "GitHub:  $($info.Repo)" -ForegroundColor Yellow
+        Write-Host "Portal:  https://community.obsidian.md/account/plugins/$($info.Id)/check-release" -ForegroundColor Magenta
+        Write-Host "-----------------------------------------------------------------" -ForegroundColor Gray
+        
         $config = Get-PublishConfig
-        $savedDir = if ($config -and $config.latestCopyDir) { $config.latestCopyDir } else { "" }
         $lastChoice = if ($config -and $config.latestMenuChoice) { [string]$config.latestMenuChoice } else { "2" }
-
-        Write-Host "  Plugin ID:       $($info.Id)" -ForegroundColor White
-        Write-Host "  Plugin Name:     $($info.Name)" -ForegroundColor White
-        Write-Host "  Current Version: $($info.Version)" -ForegroundColor Green
-        Write-Host "  Obsidian Min:    $($info.MinApp)" -ForegroundColor White
-        Write-Host "  GitHub Repo:     $($info.Repo)" -ForegroundColor Yellow
-        if (-not [string]::IsNullOrWhiteSpace($savedDir)) {
-            Write-Host "  Saved Copy Dest: $savedDir" -ForegroundColor DarkGray
-        }
-        if (-not [string]::IsNullOrWhiteSpace($lastChoice)) {
-            Write-Host "  Last Option Used: [$lastChoice]" -ForegroundColor Cyan
-        }
-        Write-Host "-----------------------------------------------------------------" -ForegroundColor Gray
-        Write-Host "  [1] Full Release Pipeline (Bump, Build, Tag, and GitHub Release)" -ForegroundColor Cyan
-        Write-Host "  [2] Build and Test Only (npm run build + Auto Copy to Vault)" -ForegroundColor White
-        Write-Host "  [3] Upload Assets to Existing GitHub Release Tag" -ForegroundColor White
-        Write-Host "  [4] Open Obsidian Review and GitHub Releases Web Page" -ForegroundColor White
-        Write-Host "  [0] Exit" -ForegroundColor Gray
+        
+        Write-Host "  [1] Full Release Pipeline (Bump -> Build -> Git Tag -> GH Release -> Obsidian Check)" -ForegroundColor Green
+        Write-Host "  [2] Build and Test Only (npm run build + Auto Copy to Vault)" -ForegroundColor Cyan
+        Write-Host "  [3] Upload Assets to an Existing GitHub Release" -ForegroundColor White
+        Write-Host "  [4] Open GitHub Releases in Browser" -ForegroundColor Gray
+        Write-Host "  [5] 🌐 Trigger Obsidian Community Release Check API" -ForegroundColor Yellow
+        Write-Host "  [0] Exit" -ForegroundColor Red
         Write-Host "-----------------------------------------------------------------" -ForegroundColor Gray
 
-        $choicePrompt = "Select option [0-4, Default: $lastChoice]"
-        $choice = Read-Host $choicePrompt
-        if ([string]::IsNullOrWhiteSpace($choice)) { $choice = $lastChoice }
+        $choice = Read-Host "Choose option [Default: $lastChoice]"
+        if ([string]::IsNullOrWhiteSpace($choice)) {
+            $choice = $lastChoice
+        }
 
-        # Save selected choice to config
         Save-PublishConfig @{ latestMenuChoice = $choice }
 
         switch ($choice) {
@@ -145,8 +122,9 @@ function Show-Menu {
             "2" { Invoke-BuildOnly $info }
             "3" { Invoke-UploadExistingRelease $info }
             "4" { Invoke-OpenWeb $info }
+            "5" { Invoke-ObsidianCheckRelease $info }
             "0" { Write-Host "Goodbye!"; exit 0 }
-            default { Write-Warn "Invalid choice. Please choose 0 to 4." }
+            default { Write-Warn "Invalid choice. Please choose 0 to 5." }
         }
 
         Write-Host ""
@@ -157,7 +135,7 @@ function Show-Menu {
 
 # Action 1: Full Release Pipeline
 function Invoke-FullRelease($info) {
-    Write-Step "Step 1/5: Select Version Bump"
+    Write-Step "Step 1/6: Select Version Bump"
     $cur = $info.Version
     $parts = $cur.Split('.')
     $major = [int]$parts[0]
@@ -215,7 +193,7 @@ function Invoke-FullRelease($info) {
     }
 
     # 2. Build Production Assets
-    Write-Step "Step 2/5: Building production assets (npm run build)..."
+    Write-Step "Step 2/6: Building production assets (npm run build)..."
     npm run build
     if ($LASTEXITCODE -ne 0) {
         Write-Err "Build failed! Please fix compiler errors."
@@ -232,7 +210,7 @@ function Invoke-FullRelease($info) {
     Write-Success "Build completed! Verified: main.js, manifest.json, styles.css."
 
     # 3. Git Commit (only if changes exist)
-    Write-Step "Step 3/5: Checking Git status..."
+    Write-Step "Step 3/6: Checking Git status..."
     $diffCheck = git status --porcelain
     if ($diffCheck) {
         git add manifest.json package.json versions.json
@@ -245,7 +223,7 @@ function Invoke-FullRelease($info) {
     }
 
     # 4. Git Tag & Push
-    Write-Step "Step 4/5: Pushing code and ensuring tag '$targetVer' exists..."
+    Write-Step "Step 4/6: Pushing code and ensuring tag '$targetVer' exists..."
     git push origin HEAD 2>$null
     
     $tagCheck = git tag -l $targetVer
@@ -259,7 +237,7 @@ function Invoke-FullRelease($info) {
     }
 
     # 5. Create GitHub Release & Upload Assets
-    Write-Step "Step 5/5: Publishing GitHub Release with attached assets..."
+    Write-Step "Step 5/6: Publishing GitHub Release with attached assets..."
     
     gh release create $targetVer main.js manifest.json styles.css --repo $info.Repo --title "$targetVer" --notes "Release $targetVer of $($info.Name)" 2>$null
     if ($LASTEXITCODE -ne 0) {
@@ -270,8 +248,12 @@ function Invoke-FullRelease($info) {
     }
 
     Write-Host ""
-    Write-Host "RELEASE $targetVer IS OFFICIALLY LIVE!" -ForegroundColor Green
+    Write-Host "RELEASE $targetVer IS OFFICIALLY LIVE ON GITHUB!" -ForegroundColor Green
     Write-Host "Release URL: https://github.com/$($info.Repo)/releases/tag/$targetVer" -ForegroundColor Yellow
+
+    # 6. Trigger Obsidian Community Release Check API
+    Write-Step "Step 6/6: Triggering Obsidian Community Check Release API & Portal..."
+    Invoke-ObsidianCheckRelease $info
 }
 
 # Action 2: Build Only + Auto Copy
@@ -341,11 +323,26 @@ function Invoke-UploadExistingRelease($info) {
 # Action 4: Open Web
 function Invoke-OpenWeb($info) {
     $releasesUrl = "https://github.com/$($info.Repo)/releases"
-    $reviewUrl = "https://community.obsidian.md/account/plugins/$($info.Id)/check-release"
-    
-    Write-Step "Opening GitHub Releases and Obsidian Review portal..."
+    Write-Step "Opening GitHub Releases in browser: $releasesUrl"
     Start-Process $releasesUrl
-    Start-Process $reviewUrl
+}
+
+# Action 5: Modular Obsidian Community Check Release Trigger API
+function Invoke-ObsidianCheckRelease($info) {
+    $checkUrl = "https://community.obsidian.md/account/plugins/$($info.Id)/check-release"
+    Write-Step "Triggering Obsidian Community Release Check for '$($info.Id)'..."
+    Write-Host "Endpoint: $checkUrl" -ForegroundColor Cyan
+
+    try {
+        $response = Invoke-WebRequest -Uri $checkUrl -Method Get -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+        Write-Success "Obsidian API responded with status code: $($response.StatusCode)"
+    } catch {
+        Write-Host "API check request sent to portal (requires portal login session)." -ForegroundColor Gray
+    }
+
+    Write-Step "Opening Obsidian Check Release Portal in browser..."
+    Start-Process $checkUrl
+    Write-Success "Check release page opened for '$($info.Id)'!"
 }
 
 # Start execution
