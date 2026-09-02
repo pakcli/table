@@ -1,6 +1,6 @@
 {
     "name":  "pakcli-table",
-    "version":  "1.0.16",
+    "version":  "1.0.17",
     "description":  "Visual tables, interactive SQL database explorer, ASCII canvas drawing, and interactive Leaflet maps.",
     "main":  "main.js",
     "type":  "module",
