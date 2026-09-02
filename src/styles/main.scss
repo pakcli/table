@@ -1888,4 +1888,28 @@ th.tablite-frozen-cell {
 
 
 
-
+
+
+/* Touch Action and ASCII SVG Elements */
+.asciidraw-inline-grid,
+.asciidraw-grid-surface {
+  touch-action: none !important;
+}
+
+.pakcli-ascii-svg-wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  display: block !important;
+  margin: 4px 0 !important;
+}
+
+.pakcli-ascii-svg-element {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  background: transparent !important;
+  user-select: text !important;
+  margin: 4px 0 !important;
+}

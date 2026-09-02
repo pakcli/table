@@ -85,7 +85,7 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 
 		// Draw Surface (Interactive cell grid & draggable asset in Lock mode)
 		this.gridSurfaceEl = bodyWrapper.createDiv({ cls: 'asciidraw-inline-grid' });
-		this.gridSurfaceEl.setCssProps({ 'touch-action': 'none' });
+		// touch-action: none handled in CSS class asciidraw-inline-grid
 
 		this.gridSurfaceEl.addEventListener('pointerdown', (e) => this.handlePointerDown(e));
 		window.addEventListener('pointermove', (e) => this.handlePointerMove(e));

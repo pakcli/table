@@ -312,7 +312,7 @@ export class AsciiDrawModal extends Modal {
 		const wrapper = parent.createDiv({ cls: 'asciidraw-canvas-wrapper' });
 
 		this.canvasGridEl = wrapper.createDiv({ cls: 'asciidraw-grid-surface' });
-		this.canvasGridEl.setCssProps({ 'touch-action': 'none' });
+		// touch-action handled in CSS class asciidraw-grid-surface
 
 		this.canvasGridEl.addEventListener('pointerdown', (e) => this.handlePointerDown(e));
 		window.addEventListener('pointermove', (e) => this.handlePointerMove(e));
