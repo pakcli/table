@@ -1,3 +1,4 @@
+import { AsciiPromptModal } from './AsciiModals';
 import { App, Modal, Notice } from 'obsidian';
 import {
 	AsciiTool,
@@ -479,12 +480,13 @@ export class AsciiDrawModal extends Modal {
 			const nameEl = item.createSpan({ cls: 'layer-name', text: layer.name });
 			nameEl.ondblclick = (e) => {
 				e.stopPropagation();
-				const newName = prompt('Rename Layer:', layer.name);
-				if (newName) {
-					lm.renameLayer(layerIndex, newName);
-					this.renderLayersList();
-					this.pushHistory();
-				}
+				new AsciiPromptModal(this.app, 'Rename Layer', layer.name, (newName) => {
+					if (newName && newName.trim()) {
+						lm.renameLayer(layerIndex, newName.trim());
+						this.renderLayersList();
+						this.pushHistory();
+					}
+				}).open();
 			};
 
 			// Quick Up / Down Reorder Buttons for tablet/touch
@@ -665,12 +667,13 @@ export class AsciiDrawModal extends Modal {
 			this.renderCanvas();
 			this.pushHistory();
 		} else if (this.activeTool === 'text') {
-			const promptText = prompt('Enter text to insert:');
-			if (promptText) {
-				frame.drawText(pt.x, pt.y, promptText, this.activeFg, this.activeBg);
-				this.renderCanvas();
-				this.pushHistory();
-			}
+			new AsciiPromptModal(this.app, 'Insert Text', '', (promptText) => {
+				if (promptText) {
+					frame.drawText(pt.x, pt.y, promptText, this.activeFg, this.activeBg);
+					this.renderCanvas();
+					this.pushHistory();
+				}
+			}).open();
 		} else if (this.activeTool === 'select') {
 			this.selectionRect = { startX: pt.x, startY: pt.y, endX: pt.x, endY: pt.y };
 		}

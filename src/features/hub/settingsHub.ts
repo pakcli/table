@@ -713,17 +713,17 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   }
 
   private openObsidianStore(pluginId: string): void {
-    new Notice(`Opening store for ${pluginId}...`);
+    new Notice(`Opening community plugins for ${pluginId}...`);
     try {
       const setting = (this.app as any).setting;
       if (setting && typeof setting.open === "function") {
         setting.open();
-        setting.openTabById("community-plugins");
-      } else {
-        window.open(`https://obsidian.md/plugins?id=${pluginId}`, "_blank");
+        if (typeof setting.openTabById === "function") {
+          setting.openTabById("community-plugins");
+        }
       }
-    } catch {
-      window.open(`https://obsidian.md/plugins?id=${pluginId}`, "_blank");
+    } catch (e) {
+      console.warn("Could not open settings tab", e);
     }
   }
 
@@ -740,15 +740,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       depsBox.empty();
       depsBox.createDiv({ cls: "pakcli-deps-loading", text: "Checking system dependencies..." });
 
-      let netOk = true;
-      try {
-        const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 2500);
-        await fetch("https://www.google.com/generate_204", { method: "GET", signal: ctrl.signal, mode: "no-cors" });
-        clearTimeout(tid);
-      } catch {
-        netOk = false;
-      }
+      const netOk = typeof window !== "undefined" && typeof window.navigator !== "undefined" ? window.navigator.onLine : true;
 
       depsBox.empty();
 
@@ -777,18 +769,18 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       itemWinpty.createSpan({ cls: "pakcli-deps-msg", text: "Optional for PTY terminal (run: pip install pywinpty)" });
     };
 
-    checkAndRender();
+    void checkAndRender();
 
     const btnRow = setupSection.createDiv({ cls: "pakcli-deps-actions" });
     const refreshBtn = btnRow.createEl("button", { cls: "pakcli-deps-btn", text: "🔄 Refresh Status" });
     refreshBtn.onclick = () => {
-      checkAndRender();
+      void checkAndRender();
       new Notice("🔄 Checked dependencies status.");
     };
 
     const downloadBtn = btnRow.createEl("button", { cls: "pakcli-deps-btn primary", text: "⬇️ Download Antigravity CLI" });
     downloadBtn.onclick = () => {
-      window.open("https://antigravity.google", "_blank");
+      this.openObsidianStore("pakcli-agent");
     };
   }
 }

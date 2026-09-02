@@ -1,0 +1,55 @@
+ID,date, time, question, answer, sample-case
+1,2026-09-02, 13:50:00, "Mengapa muncul Error 'Sets styles directly instead of using CSS classes, setCssProps, or setCssStyles (obsidianmd/no-static-styles-assignment)' pada review Obsidian?", "Obsidian Reviewer melarang manipulasi DOM style langsung seperti 'el.style.xxx = ...' atau penggunaan 'setCssProps' untuk properti style biasa. Gunakan helper resmi: 1) 'setCssStyles(el, { transformOrigin: 'top left', backgroundColor: '#fff' })' untuk properti inline (wajib format camelCase), 2) 'setCssProps(el, { '--custom-var': '10px' })' HANYA untuk CSS variables (diawali '--'), atau 3) Buat CSS class di stylesheet dan panggil 'el.addClass('nama-class')'.", "// SALAH (Error Linter):
+el.setCssProps({ 'background-color': '#000', 'touch-action': 'none' });
+el.style.width = '100px';
+
+// BENAR (Lulus Review):
+el.setCssStyles({ backgroundColor: '#000', width: '100px' });
+el.addClass('asciidraw-touch-area');"
+2,2026-09-02, 13:50:00, "Apa arti Recommendation 'Missing GitHub artifact attestations for release assets main.js, styles.css' dan bagaimana cara mengatasinya?", "Artifact Attestations adalah rekomendasi keamanan GitHub (bukan error penolak pemblokir) untuk memverifikasi keaslian biner bahwa release asset dibuat langsung dari GitHub Actions resmi repositori. Untuk mengaktifkannya, tambahkan permission 'id-token: write' dan 'attestations: write' di GitHub Actions workflow (.github/workflows/release.yml), lalu jalankan step 'actions/attest-build-provenance@v2' untuk file main.js, manifest.json, dan styles.css.", "- name: Attest Build Provenance
+  uses: actions/attest-build-provenance@v2
+  with:
+    subject-path: |
+      main.js
+      manifest.json
+      styles.css"
+3,2026-09-02, 13:50:00, "Mengapa muncul Behavior Recommendation 'Vault Enumeration: Enumerates all files in the vault (vault.getFiles, getMarkdownFiles)'?", "Obsidian menandai plugin yang memindai seluruh file vault untuk alasan privasi data pengguna dan performa CPU/RAM pada vault besar (ribuan file). Rekomendasi ini wajar untuk plugin indexing, tabel database (seperti SQLSeal/DataView), atau visualisasi graf. Cara terbaik: 1) Jangan scan vault di 'onload()' synchronous, 2) Gunakan debounce/batching atau lazy initialization, 3) Beri penjelasan ringkas pada README/dokumen plugin bahwa file hanya dibaca secara lokal tanpa dikirim ke server luar.", "// Hindari scan langsung saat startup:
+async onload() {
+  // SALAH: this.app.vault.getFiles().forEach(...)
+  
+  // BENAR: Defer saat tab/fitur dibuka
+  this.app.workspace.onLayoutReady(() => {
+    this.scheduleLazyVaultIndexing();
+  });
+}"
+4,2026-09-02, 13:50:00, "Mengapa muncul Behavior Recommendation 'Dynamic Code Execution: Executes dynamically generated code via eval() or new Function()'?", "Obsidian Reviewer memberikan catatan ini jika mendeteksi penggunaan 'eval()' atau 'new Function()', karena eksekusi kode dinamis mencegah analisa keamanan statis secara menyeluruh. Jika plugin Anda membutuhkan runtime engine (seperti SQLite WebAssembly, template SQL, atau JavaScript macro pengguna), Anda wajib memastikan kode berjalan offline di sandbox lokal, tidak menjalankan remote script eksternal (larangan keras remote code), dan memberikan dokumentasi jelas.", "// Safe SQLite WASM execution:
+// Pastikan WASM & engine di-bundle lokal (bukan fetch dari remote CDN)
+import initSqlite from 'wa-sqlite';"
+5,2026-09-02, 13:50:00, "Apa saja hal penting linter Obsidian yang sering terlewat (Warning prefer-create-el, Window safety, Promise handling, dll)?", "1) Gunakan 'createEl', 'createDiv', 'createSpan', atau 'createFragment()' alih-alih 'document.createElement' atau 'document.createDocumentFragment()'. 2) Gunakan 'window.setTimeout()' dan 'window.requestAnimationFrame()' alih-alih fungsi global tanpa 'window' agar kompatibel dengan Popout Multi-Window Obsidian. 3) Handle Promise yang tidak di-await dengan 'void myAsyncFunc()' atau 'await' untuk mencegah unhandled rejection. 4) Hindari native browser 'confirm()' atau 'prompt()'; gunakan Modal resmi Obsidian.", "// SALAH:
+const frag = document.createDocumentFragment();
+setTimeout(() => {}, 100);
+myPromiseCall();
+
+// BENAR:
+const frag = createFragment();
+window.setTimeout(() => {}, 100);
+void myPromiseCall();"
+6,2026-09-02, 13:50:00, "Mengapa PR listing Community Plugins sudah di-merge / komplit, tapi plugin belum muncul di Obsidian Store dalam aplikasi?", "Setelah PR penambahan plugin baru di repository 'obsidianmd/obsidian-releases' berhasil di-merge oleh tim Obsidian, ada jeda propagasi (delay 1 hingga 4 jam). Penyebabnya: 1) GitHub Actions di obsidian-releases membangun dan mem-publish katalog 'community-plugins.json' secara berkala (cron bot), 2) Server CDN Obsidian menerapkan caching untuk meringankan beban trafik, 3) Aplikasi Obsidian di desktop/mobile meng-cache daftar plugin lokal. Untuk mempercepat di sisi client, tutup dan buka kembali Obsidian atau matikan & nyalakan kembali koneksi internet di tab Community Plugins.", "// Solusi refresh manual di Obsidian:
+1. Buka Settings -> Community plugins
+2. Klik tombol Refresh/Reload icon di pojok kanan atas pencarian
+3. Jika belum muncul, tunggu 1-2 jam siklus sync katalog CDN Obsidian."
+7,2026-09-02, 14:03:00, "Apa itu fitur 'Scorecards' di Obsidian Community dan bagaimana status 'Health: Excellent' bekerja?", "Obsidian Scorecards adalah sistem metrik otomatis baru dari Obsidian untuk menilai kesehatan, kepatuhan, keaktifan rilis, dan keamanan kode plugin. Status 'Health: Excellent' diberikan jika plugin aktif di-maintain (commit & rilis baru), memiliki README, License, Description lengkap, dan tidak ada pelanggaran pemblokir. Jumlah angka warnings (misal ribuan type warnings dari dependency library pihak ketiga seperti AG-Grid, Leaflet, wa-sqlite) tidak memblokir rilis selama tidak ada Error merah.", "// Metrik Scorecards:
+- Health: Excellent (Aktif & lengkap)
+- Hygiene: Has README, license, description
+- Risks: Static code analysis warnings
+- Disclosures: Network domains & WASM usage"
+8,2026-09-02, 14:03:00, "Mengapa domain 'antigravity.google', 'obsidian.md', dan 'www.google.com' muncul di Scorecards Disclosures Table Plugin padahal plugin bersifat lokal untuk views?", "Obsidian Scorecard secara otomatis memindai string URL apa pun di dalam bundle JavaScript 'main.js'. Di Table plugin, string tersebut muncul karena: 1) 'antigravity.google' ada di tombol link eksternal 'window.open('https://antigravity.google')' pada tab Agent blueprint di SettingsHub, 2) 'obsidian.md' ada pada link fallback buka store 'https://obsidian.md/plugins?id=...', 3) 'www.google.com' ada pada fungsi ping cek koneksi internet 'fetch('https://www.google.com/generate_204')'. Table plugin tidak mengirim data vault ke server luar dan aman untuk views offline.", "// String yang terdeteksi scanner di SettingsHub:
+window.open('https://antigravity.google', '_blank');
+window.open('https://obsidian.md/plugins?id=' + id, '_blank');
+await fetch('https://www.google.com/generate_204', { mode: 'no-cors' });"
+9,2026-09-02, 14:03:00, "Mengapa muncul Disclosure 'WASM module (inline WASM blob) exports its linear memory' dan apakah berbahaya?", "Ini bukan malware atau pelanggaran, melainkan pendeteksian modul WebAssembly (WASM) dari library database lokal SQLite ('wa-sqlite') yang digunakan fitur SQLSeal/Table untuk menjalankan query SQL secara instan di memori browser. WASM mengekspor linear memory agar JavaScript dapat membaca/menulis buffer data tabel tanpa latensi. Selama WASM di-bundle lokal dan tidak mendownload binary dari internet luar, hal ini sepenuhnya aman dan diizinkan oleh Obsidian.", "// Modul SQL lokal di-bundle langsung:
+import initSqlite from 'wa-sqlite';
+// Berjalan 100% lokal di sandbox Obsidian tanpa network"
+10,2026-09-02, 14:03:00, "Bagaimana menyikapi ribuan Warning Scorecard (Unsafe member access, any type, dll) dari library eksternal?", "Sebagian besar warning tipe data (Unsafe member access, Unsafe assignment, Unexpected any) berasal dari library bundle besar yang diikutsertakan seperti ag-grid-community, leaflet, sql-parser-cst, dan jsonpath. Selama kode sumber plugin utama Anda bebas dari 'Error' pemblokir (seperti 'no-static-styles-assignment'), plugin Anda tetap lolos review dan terdaftar resmi di direktori Obsidian Community.", "// Aturan Prioritas Review Obsidian:
+1. Error (Merah) -> Wajib diperbaiki untuk rilis (Blocking)
+2. Warnings / Scorecard (Kuning) -> Rekomendasi best practice & library types (Non-blocking)"

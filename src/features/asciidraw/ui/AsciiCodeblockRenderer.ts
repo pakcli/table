@@ -1,3 +1,4 @@
+import { AsciiConfirmModal, AsciiPromptModal } from './AsciiModals';
 import { App, MarkdownPostProcessorContext, MarkdownRenderChild, Notice, TFile } from 'obsidian';
 import { AsciiTool, AsciiTheme, THEME_PALETTES, BoxStyle, LineStyle } from '../types';
 import { GridBuffer } from '../core/GridBuffer';
@@ -226,13 +227,14 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 			title: 'Clear entire canvas (requires confirmation)'
 		});
 		btnClear.onclick = () => {
-			const confirmed = window.confirm('Are you sure you want to clear this drawing canvas?');
-			if (confirmed) {
-				this.buffer.clear(' ');
-				this.renderGrid();
-				this.debouncedSave();
-				new Notice('Canvas cleared.');
-			}
+			new AsciiConfirmModal(this.app, 'Clear Canvas', 'Are you sure you want to clear this drawing canvas?', (confirmed) => {
+				if (confirmed) {
+					this.buffer.clear(' ');
+					this.renderGrid();
+					this.debouncedSave();
+					new Notice('Canvas cleared.');
+				}
+			}).open();
 		};
 
 		// 4. Copy the codeblock
@@ -346,12 +348,13 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 			this.renderGrid();
 			this.debouncedSave();
 		} else if (this.activeTool === 'text') {
-			const promptText = prompt('Enter text to stamp:');
-			if (promptText) {
-				this.buffer.drawText(pt.x, pt.y, promptText);
-				this.renderGrid();
-				this.debouncedSave();
-			}
+			new AsciiPromptModal(this.app, 'Stamp Text', '', (promptText) => {
+				if (promptText) {
+					this.buffer.drawText(pt.x, pt.y, promptText);
+					this.renderGrid();
+					this.debouncedSave();
+				}
+			}).open();
 		}
 	}
 
