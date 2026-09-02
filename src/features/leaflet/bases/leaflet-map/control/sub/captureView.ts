@@ -29,6 +29,7 @@ export class CaptureViewControl extends SubControl {
 		const lat = center.lat.toFixed(5);
 		const lng = this.normalizeLng(center.lng).toFixed(5);
 		const content = `${lat}, ${lng}`;
+		navigator.clipboard?.writeText(content);
 		Promise.resolve()
 			.then(() => new Notice(t("map.controls.captureView.notice.success")))
 			.catch(() => new Notice(t("map.controls.captureView.notice.failure")));

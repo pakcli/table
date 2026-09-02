@@ -1,7 +1,13 @@
 import { App } from "obsidian";
 
-const VAULT_CONFIG_DIR = ".obsidian/plugins/pakcli-vault-config";
-const SNAPSHOTS_DIR = `${VAULT_CONFIG_DIR}/snapshots`;
+function getVaultConfigDir(app: App): string {
+  const configDir = (app.vault as any).configDir || ".obsidian";
+  return `${configDir}/plugins/pakcli-vault-config`;
+}
+
+function getSnapshotsDir(app: App): string {
+  return `${getVaultConfigDir(app)}/snapshots`;
+}
 
 export interface VaultConfigPayload {
   plugin: "pakcli-local" | "pakcli-table" | "pakcli-agent";
@@ -78,11 +84,11 @@ export function formatRelativeSnapshotTime(isoOrStamp: string): string {
  */
 async function ensureConfigDir(app: App): Promise<void> {
   try {
-    if (!(await app.vault.adapter.exists(VAULT_CONFIG_DIR))) {
-      await app.vault.adapter.mkdir(VAULT_CONFIG_DIR);
+    if (!(await app.vault.adapter.exists(getVaultConfigDir(app)))) {
+      await app.vault.adapter.mkdir(getVaultConfigDir(app));
     }
-    if (!(await app.vault.adapter.exists(SNAPSHOTS_DIR))) {
-      await app.vault.adapter.mkdir(SNAPSHOTS_DIR);
+    if (!(await app.vault.adapter.exists(getSnapshotsDir(app)))) {
+      await app.vault.adapter.mkdir(getSnapshotsDir(app));
     }
   } catch (err) {
     console.error("[VaultConfig] Error creating directories:", err);
@@ -100,7 +106,7 @@ export async function listVaultSnapshots(
   const prefix = pluginName.replace("pakcli-", "");
   const list: SnapshotItem[] = [];
 
-  const latestPath = `${VAULT_CONFIG_DIR}/latest-${prefix}.json`;
+  const latestPath = `${getVaultConfigDir(app)}/latest-${prefix}.json`
   if (await app.vault.adapter.exists(latestPath)) {
     try {
       const raw = await app.vault.adapter.read(latestPath);
@@ -126,7 +132,7 @@ export async function listVaultSnapshots(
   }
 
   try {
-    const files = await app.vault.adapter.list(SNAPSHOTS_DIR);
+    const files = await app.vault.adapter.list(getSnapshotsDir(app));
     for (const f of files.files) {
       if (f.includes(`/${prefix}-`) && f.endsWith('.json')) {
         const base = f.split('/').pop()?.replace('.json', '') || f;
@@ -201,7 +207,7 @@ export async function saveVaultConfig(
   };
 
   const prefix = pluginName.replace("pakcli-", "");
-  const latestPath = `${VAULT_CONFIG_DIR}/latest-${prefix}.json`;
+  const latestPath = `${getVaultConfigDir(app)}/latest-${prefix}.json`
   const jsonStr = JSON.stringify(payload, null, 2);
 
   try {
@@ -216,8 +222,8 @@ export async function saveVaultConfig(
     const hourlyStamp = `${year}-${month}-${day}_${hour}h00`;
 
     const snapPath = customName 
-      ? `${SNAPSHOTS_DIR}/${prefix}-${customName}-${hourlyStamp}_${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}.json`
-      : `${SNAPSHOTS_DIR}/${prefix}-${hourlyStamp}.json`;
+      ? `${getSnapshotsDir(app)}/${prefix}-${customName}-${hourlyStamp}_${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}.json`
+      : `${getSnapshotsDir(app)}/${prefix}-${hourlyStamp}.json`
 
     await app.vault.adapter.write(snapPath, jsonStr);
   } catch (err) {
@@ -233,7 +239,7 @@ export async function loadVaultConfig(
   pluginName: "pakcli-local" | "pakcli-table" | "pakcli-agent",
   targetPath?: string
 ): Promise<Record<string, any> | null> {
-  const filePath = targetPath || `${VAULT_CONFIG_DIR}/latest-${pluginName.replace("pakcli-", "")}.json`;
+  const filePath = targetPath || `${getVaultConfigDir(app)}/latest-${pluginName.replace("pakcli-", "")}.json`
   try {
     if (await app.vault.adapter.exists(filePath)) {
       const raw = await app.vault.adapter.read(filePath);

@@ -22,6 +22,7 @@ export class CaptureZoomControl extends SubControl {
 
 	private captureCurrentZoom(): void {
 		const content = this.map.getZoom().toFixed(2);
+		navigator.clipboard?.writeText(content);
 		Promise.resolve()
 			.then(() => new Notice(t("map.controls.captureZoom.notice.success")))
 			.catch(() => new Notice(t("map.controls.captureZoom.notice.failure")));

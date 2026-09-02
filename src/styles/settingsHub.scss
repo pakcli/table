@@ -2,7 +2,6 @@
 /* PakCLI Master-Detail Settings Hub - Capped at 1100px Max-Width            */
 /* ========================================================================= */
 
-.vertical-tab-content:has(.pakcli-master-detail-root),
 .vertical-tab-content.pakcli-settings-hub {
   padding: 14px 18px;
 }
@@ -375,8 +374,7 @@
 /* ========================================================================= */
 
 @media (max-width: 768px), (max-device-width: 768px) {
-  .vertical-tab-content:has(.pakcli-master-detail-root),
-  .vertical-tab-content.pakcli-settings-hub {
+    .vertical-tab-content.pakcli-settings-hub {
     padding: 8px 10px !important;
   }
 
