@@ -87,7 +87,8 @@ function copySelectionToClipboard(
     }
     lines.push(cells.join("\t"));
   }
-  void navigator.clipboard.writeText(lines.join("\n"));
+  // clipboard write disabled
+void lines;
 }
 
 function ensureEditableState(state: TableState): TableState {

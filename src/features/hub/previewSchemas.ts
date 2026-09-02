@@ -71,7 +71,7 @@ export const ECOSYSTEM_MODULES: BlueprintSection[] = [
     ],
   },
 
-  // 🌸 TABLE MODULES
+  // ☐ TABLE MODULES
   {
     id: "table-csv",
     category: "table",
@@ -153,17 +153,17 @@ export const ECOSYSTEM_MODULES: BlueprintSection[] = [
   },
 
   // 🤖 AGENT MODULES
-  {
+      {
     id: "agent-antigravity",
     category: "agent",
-    title: "Antigravity AI Proxy & Models",
+    title: "Antigravity AI Agent & CLI",
     icon: "bot",
     storeId: "pakcli-agent",
     repoUrl: "https://github.com/pakcli/agent",
-    description: "Intelligent AI assistant, Antigravity AI proxy, local Ollama integration, and smart actions.",
+    description: "Antigravity Agent companion for Obsidian with AI Chat, Vault context (Ctrl+L), Media Explorer, Diff Apply, and interactive Terminal.",
     fields: [
-      { key: "proxyEndpoint", type: "text", name: "Antigravity Proxy Endpoint", desc: "Local or remote AI proxy server URL.", defaultVal: "http://localhost:8080" },
-      { key: "defaultModel", type: "dropdown", name: "Default Model", desc: "Active LLM engine.", defaultVal: "Gemini Flash (Fast)", options: ["Gemini Flash (Fast)", "Gemini Pro (Smart)", "Local Ollama"] },
+      { key: "command", type: "text", name: "Antigravity Command / Path", desc: "Path or command to run Google Antigravity CLI.", defaultVal: "agy" },
+      { key: "args", type: "text", name: "Default Arguments", desc: "Default CLI arguments passed on execution.", defaultVal: "--dangerously-skip-permissions --continue" },
     ],
   },
   {

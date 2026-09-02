@@ -43,23 +43,23 @@ export function renderAsciiSvg(source: string, container: HTMLElement): void {
 	svg.setAttribute('height', 'auto');
 	svg.setAttribute('preserveAspectRatio', 'xMinYMin meet');
 	svg.style.cssText = `
-		display: block !important;
-		width: 100% !important;
-		max-width: 100% !important;
-		height: auto !important;
-		background: transparent !important;
-		user-select: text !important;
-		margin: 4px 0 !important;
+		display: block;
+		width: 100%;
+		max-width: 100%;
+		height: auto;
+		background: transparent;
+		user-select: text;
+		margin: 4px 0;
 	`;
 
 	const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
 	style.textContent = `
 		text.ascii-line {
-			font-family: var(--font-monospace), 'Courier New', Courier, monospace !important;
-			font-size: 13.5px !important;
-			fill: var(--text-normal, currentColor) !important;
-			white-space: pre !important;
-			letter-spacing: 0px !important;
+			font-family: var(--font-monospace), 'Courier New', Courier, monospace;
+			font-size: 13.5px;
+			fill: var(--text-normal, currentColor);
+			white-space: pre;
+			letter-spacing: 0px;
 		}
 	`;
 	svg.appendChild(style);
@@ -76,11 +76,11 @@ export function renderAsciiSvg(source: string, container: HTMLElement): void {
 
 	const wrapper = container.createDiv({ cls: 'pakcli-ascii-svg-wrapper' });
 	wrapper.style.cssText = `
-		width: 100% !important;
-		max-width: 100% !important;
-		overflow: hidden !important;
-		display: block !important;
-		margin: 4px 0 !important;
+		width: 100%;
+		max-width: 100%;
+		overflow: hidden;
+		display: block;
+		margin: 4px 0;
 	`;
 	wrapper.appendChild(svg);
 }

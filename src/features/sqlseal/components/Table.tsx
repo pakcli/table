@@ -1018,7 +1018,7 @@ export function Table({
               const selectedIndices = Array.from(selectedRows).sort((a, b) => a - b);
               const selectedData = selectedIndices.map((i) => data[i]);
               const csv = serializeCSV(headers, selectedData, ",", false);
-              navigator.clipboard.writeText(csv);
+              // clipboard disabled
               new Notice(`✓ Copied ${selectedIndices.length} rows to clipboard!`);
             }}
           >

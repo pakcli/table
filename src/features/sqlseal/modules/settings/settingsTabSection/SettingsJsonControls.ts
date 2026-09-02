@@ -41,7 +41,7 @@ export class SettingsJsonControls extends SettingsControls {
 	display(el: HTMLDivElement) {
 		el.empty();
 
-		el.createEl("h2", { text: "JSON File Viewer" });
+		new Setting(el).setName("JSON File Viewer").setHeading();
 
 		const view = checkTypeViewAvaiability(this.app, "json");
 

@@ -40,7 +40,7 @@ export class SettingsCSVControls extends SettingsControls {
 
 	display(el: HTMLDivElement) {
 		el.empty();
-		el.createEl("h2", { text: "CSV File Viewer" });
+		new Setting(el).setName("CSV File Viewer").setHeading();
 
 		const view = checkTypeViewAvaiability(this.app, "csv");
 

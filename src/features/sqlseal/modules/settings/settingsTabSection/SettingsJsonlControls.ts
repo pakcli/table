@@ -38,7 +38,7 @@ export class SettingsJsonlControls extends SettingsControls {
 	display(el: HTMLDivElement) {
 		el.empty();
 
-		el.createEl("h2", { text: "JSONL / NDJSON File Viewer" });
+		new Setting(el).setName("JSONL / NDJSON File Viewer").setHeading();
 
 		const view = checkTypeViewAvaiability(this.app, JSONL_VIEW_EXTENSIONS[0]);
 

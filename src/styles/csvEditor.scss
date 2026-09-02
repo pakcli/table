@@ -105,11 +105,11 @@
         transition: all 150ms ease-in-out;
         
         &:hover {
-            background: var(--background-modifier-hover) !important;
+            background: var(--background-modifier-hover);
         }
         
         &.ag-row-selected {
-            background: var(--background-modifier-active-hover) !important;
+            background: var(--background-modifier-active-hover);
             border-left: 3px solid var(--color-accent);
         }
         
@@ -139,20 +139,20 @@
         
         /* Hide when pagination is not needed */
         &.ag-hidden {
-            display: none !important;
+            display: none;
         }
         
         /* Hide page size selector, page number input, and unwanted text */
         .ag-paging-page-size,
         .ag-paging-number,
         .ag-paging-description {
-            display: none !important;
+            display: none;
         }
         
         /* Hide first/last page buttons */
         .ag-paging-button[aria-label="First Page"],
         .ag-paging-button[aria-label="Last Page"] {
-            display: none !important;
+            display: none;
         }
         
         /* Style only prev/next buttons */
@@ -179,7 +179,7 @@
         
         /* Hide pagination row summary completely - we'll use a custom display */
         .ag-paging-row-summary-panel {
-            display: none !important;
+            display: none;
         }
     }
     
@@ -195,7 +195,7 @@
     /* Hide pagination when not enough data to paginate */
     .ag-theme-quartz:not(.ag-pagination) .ag-paging-panel,
     .ag-theme-quartz .ag-paging-panel:empty {
-        display: none !important;
+        display: none;
     }
 }
 

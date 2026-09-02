@@ -28,7 +28,7 @@ import { registerAsciiDrawFeature } from './features/asciidraw';
 import { CodeblockScaler } from './features/codeblock/scaler';
 
 export default class PakCLITablePlugin extends Plugin {
-	settings!: PakCLITableSettings;
+	declare settings: PakCLITableSettings;
 	router!: AssetRouter;
 	codeblockScaler!: CodeblockScaler;
 	leafletPlugin!: BasesLeafletViewPlugin;

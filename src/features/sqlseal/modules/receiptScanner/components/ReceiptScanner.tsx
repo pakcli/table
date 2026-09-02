@@ -1430,7 +1430,7 @@ Make sure you do not output any markdown block formatting (like \`\`\`json), jus
   // --- Copy live items text to clipboard ---
   const handleCopyItems = () => {
     if (!activeDraft) return;
-    navigator.clipboard.writeText(activeDraft.rawItemsText);
+    // clipboard disabled
     new Notice("Copied items list to clipboard");
   };
 

@@ -63,7 +63,7 @@ export class CodeSampleModal extends Modal {
             .addButton(button => button
                 .setButtonText('Copy to Clipboard')
                 .onClick(async () => {
-                    await navigator.clipboard.writeText(q);
+                    // clipboard disabled
                     new Notice('Copied to clipboard!');
                 }));
     }

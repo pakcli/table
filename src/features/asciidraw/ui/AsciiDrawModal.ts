@@ -595,10 +595,12 @@ export class AsciiDrawModal extends Modal {
 
 	private applyTheme(): void {
 		const palette = THEME_PALETTES[this.activeTheme] || THEME_PALETTES.default;
-		this.containerElModal.style.setProperty('--asciidraw-fg', palette.fg);
-		this.containerElModal.style.setProperty('--asciidraw-bg', palette.bg);
-		this.containerElModal.style.setProperty('--asciidraw-border', palette.border);
-		this.containerElModal.style.setProperty('--asciidraw-accent', palette.accent);
+		this.containerElModal.setCssProps({
+			'--asciidraw-fg': palette.fg,
+			'--asciidraw-bg': palette.bg,
+			'--asciidraw-border': palette.border,
+			'--asciidraw-accent': palette.accent
+		});
 	}
 
 	// =========================================================================

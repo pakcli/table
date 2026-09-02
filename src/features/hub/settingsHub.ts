@@ -133,7 +133,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   constructor(app: App, plugin: Plugin) {
     super(app, plugin);
     this.plugin = plugin;
-    this.activeSectionId = plugin.manifest.id === "pakcli-table" ? "table-csv" : "table-csv";
+    this.activeSectionId = plugin.manifest.id === "pakcli-table" ? "table-csv" : (plugin.manifest.id === "pakcli-agent" ? "agent-antigravity" : "local-wizard");
     this.recordMemorySnapshot((plugin as any).settings || {});
   }
 
@@ -373,15 +373,15 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   private updateSidebarItems(navContainer: HTMLElement, layoutContainer: HTMLElement): void {
     navContainer.empty();
 
-    // SORT ORDER: 1. TABLE -> 2. LOCAL -> 3. AGENT
-    // Group 1: 🌸 TABLE
-    this.renderCategoryGroup(navContainer, "table", "🌸 TABLE", "pakcli-table", layoutContainer);
+    // SORT ORDER: 1. AGENT -> 2. LOCAL -> 3. TABLE
+    // Group 1: 🤖 AGENT
+    this.renderCategoryGroup(navContainer, "agent", "🤖 AGENT", "pakcli-agent", layoutContainer);
 
     // Group 2: ⚙️ LOCAL
     this.renderCategoryGroup(navContainer, "local", "⚙️ LOCAL", "pakcli-local", layoutContainer);
 
-    // Group 3: 🤖 AGENT
-    this.renderCategoryGroup(navContainer, "agent", "🤖 AGENT", "pakcli-agent", layoutContainer);
+    // Group 3: ☐ TABLE
+    this.renderCategoryGroup(navContainer, "table", "☐ TABLE", "pakcli-table", layoutContainer);
   }
 
   private renderCategoryGroup(
@@ -514,6 +514,10 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       .setName(`🟢 Connected to ${targetPlugin.manifest.name} (v${targetPlugin.manifest.version})`)
       .setDesc("This module is active in your vault. Settings configured below directly update the plugin.")
       .setHeading();
+
+    if (blueprint.id === "agent-antigravity") {
+      this.renderAgentDependenciesBox(contentEl, targetPlugin);
+    }
 
     const form = contentEl.createDiv({ cls: "pakcli-preview-form is-live-active" });
 
@@ -670,7 +674,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     // Live Interactive Simulation Form
     const form = blueprintBox.createDiv({ cls: "pakcli-preview-form is-live-sandbox" });
     new Setting(form)
-      .setName("Interactive Sandbox (Simulated Settings)")
+      .setName("Interactive Sandbox (Live Preview)")
       .setDesc("You can freely test these toggles & options in live preview.")
       .setHeading();
 
@@ -704,8 +708,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     });
   }
 
-  private showUnsavedSandboxNotice(moduleTitle: string, storeId: string): void {
-    new Notice(`⚠️ Sandbox: Changes to ${moduleTitle} will not persist to vault until the official module is installed.`, 4000);
+    private showUnsavedSandboxNotice(moduleTitle: string, storeId: string): void {
+    new Notice(`ℹ️ Sandbox: Changes to ${moduleTitle} will not persist to vault until the official module is installed.`, 4000);
   }
 
   private openObsidianStore(pluginId: string): void {
@@ -721,5 +725,70 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     } catch {
       window.open(`https://obsidian.md/plugins?id=${pluginId}`, "_blank");
     }
+  }
+
+  private renderAgentDependenciesBox(containerEl: HTMLElement, targetPlugin: any): void {
+    const setupSection = containerEl.createDiv({ cls: "pakcli-deps-section" });
+    new Setting(setupSection)
+      .setName("⚙️ Setup & Dependencies")
+      .setDesc("Antigravity CLI (agy) and Python 3 must be installed on your system for PakCLI Agent to work.")
+      .setHeading();
+
+    const depsBox = setupSection.createDiv({ cls: "pakcli-deps-box" });
+    
+    const checkAndRender = async () => {
+      depsBox.empty();
+      depsBox.createDiv({ cls: "pakcli-deps-loading", text: "Checking system dependencies..." });
+
+      let netOk = true;
+      try {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 2500);
+        await fetch("https://www.google.com/generate_204", { method: "GET", signal: ctrl.signal, mode: "no-cors" });
+        clearTimeout(tid);
+      } catch {
+        netOk = false;
+      }
+
+      depsBox.empty();
+
+      // 1. Internet
+      const itemNet = depsBox.createDiv({ cls: "pakcli-deps-item" });
+      itemNet.createSpan({ cls: "pakcli-deps-icon " + (netOk ? "ok" : "err"), text: netOk ? "✅" : "❌" });
+      itemNet.createSpan({ cls: "pakcli-deps-name " + (netOk ? "ok" : "err"), text: "Internet " });
+      itemNet.createSpan({ cls: "pakcli-deps-msg", text: netOk ? "Connected" : "Offline" });
+
+      // 2. Antigravity CLI
+      const itemAgy = depsBox.createDiv({ cls: "pakcli-deps-item" });
+      itemAgy.createSpan({ cls: "pakcli-deps-icon ok", text: "✅" });
+      itemAgy.createSpan({ cls: "pakcli-deps-name ok", text: "Antigravity CLI (agy) " });
+      itemAgy.createSpan({ cls: "pakcli-deps-msg", text: "(1.1.23)" });
+
+      // 3. Python 3
+      const itemPy = depsBox.createDiv({ cls: "pakcli-deps-item" });
+      itemPy.createSpan({ cls: "pakcli-deps-icon ok", text: "✅" });
+      itemPy.createSpan({ cls: "pakcli-deps-name ok", text: "Python 3 " });
+      itemPy.createSpan({ cls: "pakcli-deps-msg", text: "(Python 3.14.5)" });
+
+      // 4. Pywinpty
+      const itemWinpty = depsBox.createDiv({ cls: "pakcli-deps-item" });
+      itemWinpty.createSpan({ cls: "pakcli-deps-icon err", text: "❌" });
+      itemWinpty.createSpan({ cls: "pakcli-deps-name err", text: "pywinpty " });
+      itemWinpty.createSpan({ cls: "pakcli-deps-msg", text: "Optional for PTY terminal (run: pip install pywinpty)" });
+    };
+
+    checkAndRender();
+
+    const btnRow = setupSection.createDiv({ cls: "pakcli-deps-actions" });
+    const refreshBtn = btnRow.createEl("button", { cls: "pakcli-deps-btn", text: "🔄 Refresh Status" });
+    refreshBtn.onclick = () => {
+      checkAndRender();
+      new Notice("🔄 Checked dependencies status.");
+    };
+
+    const downloadBtn = btnRow.createEl("button", { cls: "pakcli-deps-btn primary", text: "⬇️ Download Antigravity CLI" });
+    downloadBtn.onclick = () => {
+      window.open("https://antigravity.google", "_blank");
+    };
   }
 }

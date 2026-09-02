@@ -4,82 +4,82 @@
 
 .vertical-tab-content:has(.pakcli-master-detail-root),
 .vertical-tab-content.pakcli-settings-hub {
-  padding: 14px 18px !important;
+  padding: 14px 18px;
 }
 
 /* Entire UI Root strictly capped at 800px for natural human eye span */
 .pakcli-master-detail-root {
-  display: flex !important;
-  flex-direction: column !important;
-  width: 100% !important;
-  max-width: 800px !important;
-  margin: 0 !important;
-  gap: 12px !important;
-  box-sizing: border-box !important;
-  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 800px;
+  margin: 0;
+  gap: 12px;
+  box-sizing: border-box;
+  padding: 0;
 }
 
 /* 1. Top Bar Header & Action Buttons (Strict 800px Max-Width) */
 .pakcli-topbar {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  padding: 8px 12px !important;
-  background: var(--background-secondary) !important;
-  border: 1px solid var(--background-modifier-border) !important;
-  border-radius: var(--radius-s) !important;
-  width: 100% !important;
-  max-width: 800px !important;
-  box-sizing: border-box !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  width: 100%;
+  max-width: 800px;
+  box-sizing: border-box;
 
   .setting-item {
-    border: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    background: transparent !important;
-    width: auto !important;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    width: auto;
 
     .setting-item-info {
       .setting-item-name {
-        font-size: 1.05rem !important;
-        font-weight: 700 !important;
-        line-height: 1.2 !important;
-        color: var(--text-normal) !important;
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1.2;
+        color: var(--text-normal);
       }
 
       .setting-item-description {
-        font-size: 0.76rem !important;
-        color: var(--text-muted) !important;
-        margin-top: 1px !important;
+        font-size: 0.76rem;
+        color: var(--text-muted);
+        margin-top: 1px;
       }
     }
   }
 
   .pakcli-topbar-actions {
-    display: flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-    flex-shrink: 0 !important;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
 
     .pakcli-action-btn {
-      display: inline-flex !important;
-      align-items: center !important;
-      gap: 4px !important;
-      font-size: 0.74rem !important;
-      font-weight: 600 !important;
-      padding: 4px 8px !important;
-      border-radius: 4px !important;
-      cursor: pointer !important;
-      transition: all 0.15s ease !important;
-      background: var(--background-primary) !important;
-      border: 1px solid var(--background-modifier-border) !important;
-      color: var(--text-normal) !important;
-      white-space: nowrap !important;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      background: var(--background-primary);
+      border: 1px solid var(--background-modifier-border);
+      color: var(--text-normal);
+      white-space: nowrap;
 
       &:hover {
-        background: var(--background-modifier-hover) !important;
-        border-color: var(--interactive-accent) !important;
-        color: var(--interactive-accent) !important;
+        background: var(--background-modifier-hover);
+        border-color: var(--interactive-accent);
+        color: var(--interactive-accent);
       }
     }
   }
@@ -87,168 +87,168 @@
 
 /* 2. Master-Detail Layout (Strict 800px Max-Width: 240px Sidebar + 546px Content) */
 .pakcli-master-detail-layout {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: flex-start !important;
-  gap: 14px !important;
-  width: 100% !important;
-  max-width: 1100px !important;
-  min-height: 480px !important;
-  box-sizing: border-box !important;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  max-width: 1100px;
+  min-height: 480px;
+  box-sizing: border-box;
 
   /* Left Master Sidebar (240px Solid Width) */
   .pakcli-sidebar {
-    width: 240px !important;
-    min-width: 240px !important;
-    max-width: 240px !important;
-    flex: 0 0 240px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-    background: var(--background-secondary) !important;
-    border: 1px solid var(--background-modifier-border) !important;
-    border-radius: var(--radius-s) !important;
-    padding: 8px 6px !important;
-    box-sizing: border-box !important;
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
+    flex: 0 0 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    padding: 8px 6px;
+    box-sizing: border-box;
 
     .pakcli-search-box {
       input[type="search"] {
-        width: 100% !important;
-        padding: 5px 8px !important;
-        border-radius: 4px !important;
-        border: 1px solid var(--background-modifier-border) !important;
-        background: var(--background-primary) !important;
-        font-size: 0.78rem !important;
-        color: var(--text-normal) !important;
-        outline: none !important;
-        box-sizing: border-box !important;
+        width: 100%;
+        padding: 5px 8px;
+        border-radius: 4px;
+        border: 1px solid var(--background-modifier-border);
+        background: var(--background-primary);
+        font-size: 0.78rem;
+        color: var(--text-normal);
+        outline: none;
+        box-sizing: border-box;
 
         &:focus {
-          border-color: var(--interactive-accent) !important;
-          box-shadow: 0 0 0 1px var(--interactive-accent) !important;
+          border-color: var(--interactive-accent);
+          box-shadow: 0 0 0 1px var(--interactive-accent);
         }
       }
     }
 
     .pakcli-nav-list {
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 10px !important;
-      overflow-y: auto !important;
-      max-height: 560px !important;
-      padding-right: 2px !important;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+      max-height: 560px;
+      padding-right: 2px;
 
       &::-webkit-scrollbar {
-        width: 4px !important;
+        width: 4px;
       }
 
       &::-webkit-scrollbar-thumb {
-        background: var(--background-modifier-border) !important;
-        border-radius: 4px !important;
+        background: var(--background-modifier-border);
+        border-radius: 4px;
       }
     }
 
     .pakcli-nav-group {
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 2px !important;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
 
       .pakcli-group-header {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        font-size: 0.68rem !important;
-        font-weight: 700 !important;
-        letter-spacing: 0.05em !important;
-        color: var(--text-muted) !important;
-        padding: 3px 4px !important;
-        text-transform: uppercase !important;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        padding: 3px 4px;
+        text-transform: uppercase;
 
         .pakcli-group-title {
-          font-weight: 700 !important;
+          font-weight: 700;
         }
 
         .pakcli-badge.active {
-          font-size: 0.6rem !important;
-          font-weight: 700 !important;
-          padding: 1px 5px !important;
-          border-radius: 8px !important;
-          background: rgba(34, 197, 94, 0.15) !important;
-          color: #22c55e !important;
-          border: 1px solid rgba(34, 197, 94, 0.3) !important;
+          font-size: 0.6rem;
+          font-weight: 700;
+          padding: 1px 5px;
+          border-radius: 8px;
+          background: rgba(34, 197, 94, 0.15);
+          color: #22c55e;
+          border: 1px solid rgba(34, 197, 94, 0.3);
         }
 
         .pakcli-get-btn {
-          font-size: 0.62rem !important;
-          font-weight: 700 !important;
-          padding: 1px 6px !important;
-          border-radius: 3px !important;
-          background: var(--interactive-accent) !important;
-          color: var(--text-on-accent) !important;
-          cursor: pointer !important;
-          border: none !important;
-          line-height: 1.2 !important;
+          font-size: 0.62rem;
+          font-weight: 700;
+          padding: 1px 6px;
+          border-radius: 3px;
+          background: var(--interactive-accent);
+          color: var(--text-on-accent);
+          cursor: pointer;
+          border: none;
+          line-height: 1.2;
 
           &:hover {
-            opacity: 0.9 !important;
+            opacity: 0.9;
           }
         }
       }
 
       .pakcli-nav-item {
-        display: flex !important;
-        align-items: center !important;
-        gap: 6px !important;
-        padding: 5px 6px !important;
-        border-radius: 4px !important;
-        cursor: pointer !important;
-        font-size: 0.77rem !important;
-        font-weight: 500 !important;
-        color: var(--text-muted) !important;
-        transition: all 0.12s ease !important;
-        user-select: none !important;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 6px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.77rem;
+        font-weight: 500;
+        color: var(--text-muted);
+        transition: all 0.12s ease;
+        user-select: none;
 
         &:hover {
-          background: var(--background-modifier-hover) !important;
-          color: var(--text-normal) !important;
+          background: var(--background-modifier-hover);
+          color: var(--text-normal);
         }
 
         &.is-selected {
-          background: var(--background-modifier-active-hover) !important;
-          color: var(--interactive-accent) !important;
-          font-weight: 600 !important;
-          border-left: 2px solid var(--interactive-accent) !important;
-          padding-left: 5px !important;
+          background: var(--background-modifier-active-hover);
+          color: var(--interactive-accent);
+          font-weight: 600;
+          border-left: 2px solid var(--interactive-accent);
+          padding-left: 5px;
         }
 
         &.is-preview {
-          color: var(--text-faint) !important;
+          color: var(--text-faint);
 
           &:hover {
-            color: var(--text-muted) !important;
+            color: var(--text-muted);
           }
         }
 
         .pakcli-nav-icon {
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          width: 14px !important;
-          height: 14px !important;
-          flex-shrink: 0 !important;
-          font-size: 0.78rem !important;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 14px;
+          height: 14px;
+          flex-shrink: 0;
+          font-size: 0.78rem;
 
           svg {
-            width: 13px !important;
-            height: 13px !important;
+            width: 13px;
+            height: 13px;
           }
         }
 
         .pakcli-nav-text {
-          white-space: nowrap !important;
-          overflow: hidden !important;
-          text-overflow: ellipsis !important;
-          flex: 1 1 auto !important;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          flex: 1 1 auto;
         }
       }
     }
@@ -256,130 +256,130 @@
 
   /* Right Detail Content Pane (Comfortable Compact Width ~546px) */
   .pakcli-content-pane {
-    flex: 1 1 auto !important;
-    width: calc(100% - 254px) !important;
-    max-width: 546px !important;
-    min-width: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-    box-sizing: border-box !important;
+    flex: 1 1 auto;
+    width: calc(100% - 254px);
+    max-width: 546px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-sizing: border-box;
 
     .setting-item {
-      width: 100% !important;
-      max-width: 546px !important;
-      background: var(--background-secondary) !important;
-      border: 1px solid var(--background-modifier-border) !important;
-      border-radius: var(--radius-s) !important;
-      padding: 8px 12px !important;
-      margin-bottom: 6px !important;
-      box-sizing: border-box !important;
-      transition: border-color 0.15s ease !important;
+      width: 100%;
+      max-width: 546px;
+      background: var(--background-secondary);
+      border: 1px solid var(--background-modifier-border);
+      border-radius: var(--radius-s);
+      padding: 8px 12px;
+      margin-bottom: 6px;
+      box-sizing: border-box;
+      transition: border-color 0.15s ease;
 
       &:hover {
-        border-color: rgba(var(--interactive-accent-rgb), 0.25) !important;
+        border-color: rgba(var(--interactive-accent-rgb), 0.25);
       }
 
       .setting-item-info {
-        flex: 1 1 auto !important;
+        flex: 1 1 auto;
 
         .setting-item-name {
-          font-size: 0.88rem !important;
-          font-weight: 600 !important;
+          font-size: 0.88rem;
+          font-weight: 600;
         }
 
         .setting-item-description {
-          font-size: 0.76rem !important;
-          color: var(--text-muted) !important;
-          margin-top: 1px !important;
+          font-size: 0.76rem;
+          color: var(--text-muted);
+          margin-top: 1px;
         }
       }
 
       &.setting-item-heading {
-        background: transparent !important;
-        border: none !important;
-        padding: 2px 0 !important;
-        margin-top: 4px !important;
-        margin-bottom: 1px !important;
+        background: transparent;
+        border: none;
+        padding: 2px 0;
+        margin-top: 4px;
+        margin-bottom: 1px;
 
         .setting-item-info .setting-item-name {
-          font-size: 0.98rem !important;
-          font-weight: 700 !important;
-          color: var(--text-normal) !important;
+          font-size: 0.98rem;
+          font-weight: 700;
+          color: var(--text-normal);
         }
 
         .setting-item-info .setting-item-description {
-          font-size: 0.76rem !important;
+          font-size: 0.76rem;
         }
       }
     }
 
     /* Diagnostics Banner Card */
     .pakcli-wizard-banner {
-      width: 100% !important;
-      max-width: 546px !important;
-      padding: 10px 12px !important;
-      background: var(--background-secondary) !important;
-      border: 1px solid var(--background-modifier-border) !important;
-      border-radius: var(--radius-s) !important;
-      box-sizing: border-box !important;
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 6px !important;
+      width: 100%;
+      max-width: 546px;
+      padding: 10px 12px;
+      background: var(--background-secondary);
+      border: 1px solid var(--background-modifier-border);
+      border-radius: var(--radius-s);
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
 
       p {
-        margin: 0 !important;
-        font-size: 0.78rem !important;
-        color: var(--text-muted) !important;
+        margin: 0;
+        font-size: 0.78rem;
+        color: var(--text-muted);
       }
 
       .pakcli-btn-primary {
-        align-self: flex-start !important;
-        background: var(--interactive-accent) !important;
-        color: var(--text-on-accent) !important;
-        font-weight: 600 !important;
-        font-size: 0.76rem !important;
-        padding: 4px 10px !important;
-        border-radius: 4px !important;
-        border: none !important;
-        cursor: pointer !important;
+        align-self: flex-start;
+        background: var(--interactive-accent);
+        color: var(--text-on-accent);
+        font-weight: 600;
+        font-size: 0.76rem;
+        padding: 4px 10px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
       }
     }
 
     /* Diagnostics Item Rows */
     .pakcli-diagnostics-results {
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 6px !important;
-      margin-top: 6px !important;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 6px;
 
       .pakcli-diag-item {
-        display: flex !important;
-        align-items: center !important;
-        gap: 8px !important;
-        padding: 6px 10px !important;
-        background: var(--background-secondary) !important;
-        border: 1px solid var(--background-modifier-border) !important;
-        border-radius: var(--radius-s) !important;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        background: var(--background-secondary);
+        border: 1px solid var(--background-modifier-border);
+        border-radius: var(--radius-s);
 
         .pakcli-diag-icon {
-          font-size: 0.95rem !important;
+          font-size: 0.95rem;
         }
 
         .pakcli-diag-text {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 1px !important;
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
 
           .pakcli-diag-name {
-            font-weight: 600 !important;
-            font-size: 0.8rem !important;
-            color: var(--text-normal) !important;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: var(--text-normal);
           }
 
           .pakcli-diag-msg {
-            font-size: 0.72rem !important;
-            color: var(--text-muted) !important;
+            font-size: 0.72rem;
+            color: var(--text-muted);
           }
         }
       }
@@ -387,71 +387,71 @@
 
     /* Add-on Preview Mockup Card & Live Sandbox */
     .pakcli-blueprint-box {
-      width: 100% !important;
-      max-width: 546px !important;
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 8px !important;
-      box-sizing: border-box !important;
+      width: 100%;
+      max-width: 546px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-sizing: border-box;
 
       .pakcli-store-banner {
-        padding: 10px 12px !important;
-        background: rgba(var(--color-blue-rgb), 0.08) !important;
-        border: 1px solid rgba(var(--color-blue-rgb), 0.25) !important;
-        border-radius: var(--radius-s) !important;
-        box-sizing: border-box !important;
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 6px !important;
+        padding: 10px 12px;
+        background: rgba(var(--color-blue-rgb), 0.08);
+        border: 1px solid rgba(var(--color-blue-rgb), 0.25);
+        border-radius: var(--radius-s);
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
 
         .setting-item {
-          background: transparent !important;
-          border: none !important;
-          padding: 0 !important;
-          margin: 0 !important;
+          background: transparent;
+          border: none;
+          padding: 0;
+          margin: 0;
         }
 
         .pakcli-banner-action-row {
-          display: flex !important;
-          align-items: center !important;
-          gap: 8px !important;
-          margin-top: 4px !important;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 4px;
 
           .pakcli-btn-install {
-            background: var(--interactive-accent) !important;
-            color: var(--text-on-accent) !important;
-            font-weight: 600 !important;
-            font-size: 0.76rem !important;
-            padding: 4px 10px !important;
-            border-radius: 4px !important;
-            border: none !important;
-            cursor: pointer !important;
+            background: var(--interactive-accent);
+            color: var(--text-on-accent);
+            font-weight: 600;
+            font-size: 0.76rem;
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
           }
 
           .pakcli-btn-reset {
-            background: var(--background-primary) !important;
-            border: 1px solid var(--background-modifier-border) !important;
-            color: var(--text-muted) !important;
-            font-weight: 500 !important;
-            font-size: 0.74rem !important;
-            padding: 3px 8px !important;
-            border-radius: 4px !important;
-            cursor: pointer !important;
+            background: var(--background-primary);
+            border: 1px solid var(--background-modifier-border);
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.74rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
 
             &:hover {
-              color: var(--text-normal) !important;
-              background: var(--background-modifier-hover) !important;
+              color: var(--text-normal);
+              background: var(--background-modifier-hover);
             }
           }
         }
       }
 
       .pakcli-preview-form.is-live-sandbox {
-        opacity: 1 !important;
-        pointer-events: auto !important;
+        opacity: 1;
+        pointer-events: auto;
 
         .setting-item {
-          border-left: 2px solid rgba(var(--color-blue-rgb), 0.4) !important;
+          border-left: 2px solid rgba(var(--color-blue-rgb), 0.4);
         }
       }
     }
@@ -460,131 +460,131 @@
 
 /* Snapshot Dropdown in TopBar */
 .pakcli-snapshot-dropdown-wrap {
-  display: flex !important;
-  align-items: center !important;
+  display: flex;
+  align-items: center;
 
   .pakcli-snapshot-select {
-    padding: 4px 8px !important;
-    font-size: 0.76rem !important;
-    font-weight: 600 !important;
-    border-radius: 4px !important;
-    background: var(--background-primary) !important;
-    border: 1px solid var(--background-modifier-border) !important;
-    color: var(--text-normal) !important;
-    cursor: pointer !important;
-    transition: all 0.15s ease !important;
+    padding: 4px 8px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    border-radius: 4px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+    cursor: pointer;
+    transition: all 0.15s ease;
 
     &:hover {
-      border-color: var(--interactive-accent) !important;
-      background: var(--background-modifier-hover) !important;
+      border-color: var(--interactive-accent);
+      background: var(--background-modifier-hover);
     }
   }
 }
 
 /* Vault Config Action Modal (Replace | Overwrite | Duplicate | Cancel) */
 .pakcli-config-modal-root {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 12px !important;
-  padding: 8px 4px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 4px;
 
   .pakcli-modal-desc-box {
-    padding: 8px 12px !important;
-    background: var(--background-secondary-alt) !important;
-    border-radius: var(--radius-s) !important;
-    border: 1px solid var(--background-modifier-border) !important;
+    padding: 8px 12px;
+    background: var(--background-secondary-alt);
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
 
     p {
-      margin: 0 !important;
-      font-size: 0.84rem !important;
-      color: var(--text-muted) !important;
+      margin: 0;
+      font-size: 0.84rem;
+      color: var(--text-muted);
     }
   }
 
   .pakcli-modal-actions-grid {
-    display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 10px !important;
-    margin: 8px 0 !important;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 8px 0;
 
     .pakcli-action-card {
-      display: flex !important;
-      flex-direction: column !important;
-      justify-content: space-between !important;
-      padding: 12px !important;
-      background: var(--background-secondary) !important;
-      border: 1px solid var(--background-modifier-border) !important;
-      border-radius: var(--radius-m) !important;
-      gap: 8px !important;
-      transition: all 0.15s ease !important;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px;
+      background: var(--background-secondary);
+      border: 1px solid var(--background-modifier-border);
+      border-radius: var(--radius-m);
+      gap: 8px;
+      transition: all 0.15s ease;
 
       &:hover {
-        border-color: var(--interactive-accent) !important;
-        transform: translateY(-2px) !important;
+        border-color: var(--interactive-accent);
+        transform: translateY(-2px);
       }
 
       .pakcli-card-title {
-        font-weight: 700 !important;
-        font-size: 0.9rem !important;
-        color: var(--text-normal) !important;
+        font-weight: 700;
+        font-size: 0.9rem;
+        color: var(--text-normal);
       }
 
       .pakcli-card-desc {
-        font-size: 0.74rem !important;
-        color: var(--text-muted) !important;
-        flex: 1 1 auto !important;
+        font-size: 0.74rem;
+        color: var(--text-muted);
+        flex: 1 1 auto;
       }
 
       button {
-        width: 100% !important;
-        font-size: 0.76rem !important;
-        font-weight: 600 !important;
-        padding: 5px 8px !important;
-        border-radius: 4px !important;
-        border: none !important;
-        cursor: pointer !important;
-        transition: opacity 0.12s ease !important;
+        width: 100%;
+        font-size: 0.76rem;
+        font-weight: 600;
+        padding: 5px 8px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        transition: opacity 0.12s ease;
 
         &:hover {
-          opacity: 0.9 !important;
+          opacity: 0.9;
         }
 
         &.pakcli-btn-replace {
-          background: var(--interactive-accent) !important;
-          color: var(--text-on-accent) !important;
+          background: var(--interactive-accent);
+          color: var(--text-on-accent);
         }
 
         &.pakcli-btn-overwrite {
-          background: #f59e0b !important;
-          color: #000000 !important;
+          background: #f59e0b;
+          color: #000000;
         }
 
         &.pakcli-btn-duplicate {
-          background: #10b981 !important;
-          color: #ffffff !important;
+          background: #10b981;
+          color: #ffffff;
         }
       }
     }
   }
 
   .pakcli-modal-cancel-row {
-    display: flex !important;
-    justify-content: flex-end !important;
-    margin-top: 4px !important;
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
 
     .pakcli-btn-cancel {
-      padding: 5px 14px !important;
-      font-size: 0.78rem !important;
-      font-weight: 500 !important;
-      background: var(--background-secondary) !important;
-      border: 1px solid var(--background-modifier-border) !important;
-      color: var(--text-muted) !important;
-      border-radius: 4px !important;
-      cursor: pointer !important;
+      padding: 5px 14px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      background: var(--background-secondary);
+      border: 1px solid var(--background-modifier-border);
+      color: var(--text-muted);
+      border-radius: 4px;
+      cursor: pointer;
 
       &:hover {
-        background: var(--background-modifier-hover) !important;
-        color: var(--text-normal) !important;
+        background: var(--background-modifier-hover);
+        color: var(--text-normal);
       }
     }
   }
@@ -593,15 +593,15 @@
 
 /* Connected Plugin Banner in Unified Suite Hub */
 .pakcli-store-banner.active-connected {
-  background: rgba(16, 185, 129, 0.08) !important;
-  border: 1px solid rgba(16, 185, 129, 0.35) !important;
-  border-radius: var(--radius-m) !important;
-  padding: 10px 14px !important;
-  margin-bottom: 12px !important;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: var(--radius-m);
+  padding: 10px 14px;
+  margin-bottom: 12px;
 
   .setting-item-heading .setting-item-name {
-    color: #10b981 !important;
-    font-weight: 700 !important;
+    color: #10b981;
+    font-weight: 700;
   }
 }
 
@@ -609,41 +609,41 @@
 /* Offline / Disabled Vault Config buttons when Local is not present */
 .pakcli-action-btn.is-disabled-offline,
 .pakcli-snapshot-select.is-disabled-offline {
-  opacity: 0.45 !important;
-  filter: grayscale(1) !important;
-  cursor: not-allowed !important;
-  pointer-events: auto !important;
+  opacity: 0.45;
+  filter: grayscale(1);
+  cursor: not-allowed;
+  pointer-events: auto;
 }
 
 
 /* History Undo/Redo Buttons beside Dropdown */
 .pakcli-history-btn-wrap {
-  display: flex !important;
-  align-items: center !important;
-  gap: 4px !important;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 
   .pakcli-history-btn {
-    padding: 4px 8px !important;
-    font-size: 0.74rem !important;
-    font-weight: 600 !important;
-    border-radius: 4px !important;
-    background: var(--background-primary) !important;
-    border: 1px solid var(--background-modifier-border) !important;
-    color: var(--text-normal) !important;
-    cursor: pointer !important;
-    transition: all 0.15s ease !important;
+    padding: 4px 8px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    border-radius: 4px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+    cursor: pointer;
+    transition: all 0.15s ease;
 
     &:hover:not(.is-disabled) {
-      background: var(--background-modifier-hover) !important;
-      border-color: var(--interactive-accent) !important;
-      color: var(--interactive-accent) !important;
-      transform: translateY(-1px) !important;
+      background: var(--background-modifier-hover);
+      border-color: var(--interactive-accent);
+      color: var(--interactive-accent);
+      transform: translateY(-1px);
     }
 
     &.is-disabled {
-      opacity: 0.4 !important;
-      cursor: not-allowed !important;
-      pointer-events: none !important;
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
     }
   }
 }
@@ -651,54 +651,137 @@
 
 /* TopBar Actions Container */
 .pakcli-topbar {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  gap: 12px !important;
-  padding-bottom: 8px !important;
-  border-bottom: 1px solid var(--background-modifier-border) !important;
-  margin-bottom: 12px !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 12px;
 }
 
 .pakcli-topbar-actions {
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  flex-shrink: 0 !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 /* History Undo/Redo Buttons */
 .pakcli-history-btn-wrap {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 4px !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 
   .pakcli-history-btn {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 5px 10px !important;
-    font-size: 0.78rem !important;
-    font-weight: 600 !important;
-    border-radius: 4px !important;
-    background: var(--background-primary) !important;
-    border: 1px solid var(--background-modifier-border) !important;
-    color: var(--text-normal) !important;
-    cursor: pointer !important;
-    transition: all 0.15s ease !important;
-    white-space: nowrap !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 4px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
 
     &:hover:not(.is-disabled) {
-      background: var(--background-modifier-hover) !important;
-      border-color: var(--interactive-accent) !important;
-      color: var(--interactive-accent) !important;
-      transform: translateY(-1px) !important;
+      background: var(--background-modifier-hover);
+      border-color: var(--interactive-accent);
+      color: var(--interactive-accent);
+      transform: translateY(-1px);
     }
 
     &.is-disabled {
-      opacity: 0.35 !important;
-      cursor: not-allowed !important;
-      pointer-events: none !important;
+      opacity: 0.35;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+  }
+}
+
+
+/* ==========================================================
+   Setup & Dependencies Checking Card
+   ========================================================== */
+.pakcli-deps-section {
+  margin-top: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--background-modifier-border);
+
+  .pakcli-deps-title {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .pakcli-deps-desc {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+
+  .pakcli-deps-box {
+    background-color: #12151c;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-family: var(--font-monospace);
+    font-size: 12.5px;
+    margin-bottom: 12px;
+
+    .pakcli-deps-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .pakcli-deps-icon.ok { color: #4ade80; }
+      .pakcli-deps-icon.err { color: #f87171; }
+
+      .pakcli-deps-name {
+        font-weight: 600;
+        &.ok { color: #4ade80; }
+        &.err { color: #f87171; }
+      }
+
+      .pakcli-deps-msg {
+        color: var(--text-muted);
+        font-size: 11.5px;
+      }
+    }
+  }
+
+  .pakcli-deps-actions {
+    display: flex;
+    gap: 8px;
+
+    .pakcli-deps-btn {
+      border: 1px solid var(--background-modifier-border);
+      background-color: var(--background-secondary);
+      color: var(--text-normal);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &.primary {
+        background-color: var(--interactive-accent);
+        color: var(--text-on-accent);
+        border-color: var(--interactive-accent);
+      }
+
+      &:hover {
+        filter: brightness(1.1);
+      }
     }
   }
 }

@@ -33,15 +33,15 @@
 .internal-embed.media-embed,
 .internal-embed[src],
 .cm-embed-block .internal-embed {
-    -webkit-user-drag: element !important;
-    user-drag: element !important;
+    -webkit-user-drag: element;
+    user-drag: element;
     cursor: grab;
 }
 
 .internal-embed.image-embed img:active,
 .markdown-rendered img:active,
 .cm-embed-block img:active {
-    cursor: grabbing !important;
+    cursor: grabbing;
 }
 
 .sqlseal-edit-banner {
@@ -202,7 +202,7 @@
         background-color: var(--background-modifier-active-hover);
 
         .pakcli-tab-btn {
-            color: var(--interactive-accent) !important;
+            color: var(--interactive-accent);
             font-weight: 600;
         }
     }
@@ -214,12 +214,12 @@
 }
 
 .pakcli-tab-btn {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
+    background: transparent;
+    border: none;
+    box-shadow: none;
     cursor: pointer;
-    padding: 7px 10px !important;
-    font-size: 0.84rem !important;
+    padding: 7px 10px;
+    font-size: 0.84rem;
     font-weight: 500;
     color: var(--text-muted);
     text-align: left;
@@ -229,28 +229,28 @@
     text-overflow: ellipsis;
 
     &:hover {
-        color: var(--text-normal) !important;
+        color: var(--text-normal);
     }
 }
 
 .pakcli-pin-btn {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
+    background: transparent;
+    border: none;
+    box-shadow: none;
     cursor: pointer;
-    font-size: 0.78rem !important;
-    padding: 4px 6px !important;
+    font-size: 0.78rem;
+    padding: 4px 6px;
     opacity: 0.35;
     transition: opacity 0.15s ease, transform 0.12s ease;
     flex-shrink: 0;
 
     &:hover {
-        opacity: 1 !important;
+        opacity: 1;
         transform: scale(1.15);
     }
 
     &.is-pinned {
-        opacity: 1 !important;
+        opacity: 1;
     }
 }
 
@@ -275,81 +275,81 @@
 .markdown-source-view.mod-cm6 .cm-content .cm-line.HyperMD-codeblock,
 .markdown-source-view.mod-cm6 .cm-line.HyperMD-codeblock,
 .cm-line.HyperMD-codeblock {
-    word-break: normal !important;
-    word-wrap: normal !important;
-    overflow-wrap: normal !important;
-    overflow-x: visible !important;
-    overflow-y: visible !important;
+    word-break: normal;
+    word-wrap: normal;
+    overflow-wrap: normal;
+    overflow-x: visible;
+    overflow-y: visible;
 }
 
 .markdown-rendered pre {
-    max-width: 100% !important;
+    max-width: 100%;
 }
 
 body.codeblock-flowclip {
     .markdown-rendered pre {
-        white-space: pre !important;
-        word-break: normal !important;
-        word-wrap: normal !important;
-        overflow-x: auto !important;
+        white-space: pre;
+        word-break: normal;
+        word-wrap: normal;
+        overflow-x: auto;
     }
 
     .markdown-rendered pre code {
-        white-space: pre !important;
-        word-break: normal !important;
-        overflow-x: visible !important;
+        white-space: pre;
+        word-break: normal;
+        overflow-x: visible;
     }
 
     .markdown-source-view.mod-cm6 .cm-content .cm-line.HyperMD-codeblock {
-        white-space: pre !important;
+        white-space: pre;
     }
 }
 
 body.codeblock-wrap {
     .markdown-rendered pre,
     .markdown-rendered pre code {
-        white-space: pre-wrap !important;
-        word-break: break-all !important;
-        overflow-wrap: anywhere !important;
-        overflow-x: hidden !important;
+        white-space: pre-wrap;
+        word-break: break-all;
+        overflow-wrap: anywhere;
+        overflow-x: hidden;
     }
 
     .markdown-source-view.mod-cm6 .cm-content .cm-line.HyperMD-codeblock {
-        white-space: pre-wrap !important;
-        word-break: break-all !important;
+        white-space: pre-wrap;
+        word-break: break-all;
     }
 }
 
 body.codeblock-scalefit {
     .markdown-rendered pre,
     .markdown-rendered pre code {
-        white-space: pre !important;
-        word-break: normal !important;
-        overflow-x: hidden !important;
-        font-family: var(--font-monospace), monospace !important;
+        white-space: pre;
+        word-break: normal;
+        overflow-x: hidden;
+        font-family: var(--font-monospace), monospace;
     }
 
     .markdown-source-view.mod-cm6 .cm-content .cm-line.HyperMD-codeblock {
-        white-space: pre !important;
-        font-family: var(--font-monospace), monospace !important;
+        white-space: pre;
+        font-family: var(--font-monospace), monospace;
     }
 }
 
 .pakcli-codeblock-slider {
-    display: block !important;
-    max-width: 100% !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    margin: 6px 0 !important;
-    padding: 0 !important;
-    box-sizing: border-box !important;
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin: 6px 0;
+    padding: 0;
+    box-sizing: border-box;
 
     .cm-line.HyperMD-codeblock {
-        white-space: pre !important;
-        word-break: normal !important;
-        word-wrap: normal !important;
-        overflow-x: visible !important;
-        overflow-y: visible !important;
+        white-space: pre;
+        word-break: normal;
+        word-wrap: normal;
+        overflow-x: visible;
+        overflow-y: visible;
     }
 }
 
@@ -631,9 +631,9 @@ body.codeblock-scalefit {
 
 .pakcli-codeblock-body {
     pre {
-        margin: 0 !important;
-        border-radius: 0 !important;
-        border: none !important;
+        margin: 0;
+        border-radius: 0;
+        border: none;
     }
 }
 
@@ -691,9 +691,9 @@ body.codeblock-scalefit {
 /* --- Scan Dashboard Modal --- */
 .pakcli-scan-modal-window {
     .modal {
-        width: 850px !important;
-        max-width: 90vw !important;
-        max-height: 85vh !important;
+        width: 850px;
+        max-width: 90vw;
+        max-height: 85vh;
     }
 }
 
@@ -1259,8 +1259,8 @@ body.codeblock-scalefit {
     min-height: 32px;
 
     &.tablite-th-row-num {
-        width: 55px !important;
-        min-width: 45px !important;
+        width: 55px;
+        min-width: 45px;
         text-align: center;
         justify-content: center;
         color: var(--text-faint);
@@ -1304,8 +1304,8 @@ body.codeblock-scalefit {
     }
 
     &.tablite-col-drag-over {
-        border-left: 2px solid var(--interactive-accent) !important;
-        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.18) !important;
+        border-left: 2px solid var(--interactive-accent);
+        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.18);
     }
 }
 
@@ -1483,13 +1483,13 @@ body.codeblock-scalefit {
     }
 
     &.tablite-td-active {
-        outline: 2px solid var(--interactive-accent) !important;
-        outline-offset: -2px !important;
-        background-color: rgba(var(--interactive-accent-rgb, 100, 100, 255), 0.12) !important;
+        outline: 2px solid var(--interactive-accent);
+        outline-offset: -2px;
+        background-color: rgba(var(--interactive-accent-rgb, 100, 100, 255), 0.12);
     }
 
     &.tablite-td-selected {
-        background-color: rgba(var(--interactive-accent-rgb, 100, 100, 255), 0.18) !important;
+        background-color: rgba(var(--interactive-accent-rgb, 100, 100, 255), 0.18);
     }
 
     &.tablite-td-cross {
@@ -1497,20 +1497,20 @@ body.codeblock-scalefit {
     }
 
     &.tablite-row-num-selected {
-        background-color: var(--background-modifier-active-hover) !important;
-        color: var(--text-accent) !important;
+        background-color: var(--background-modifier-active-hover);
+        color: var(--text-accent);
         font-weight: 600;
     }
 }
 
 .tablite-frozen-cell {
-    position: sticky !important;
-    z-index: 5 !important;
+    position: sticky;
+    z-index: 5;
     background-color: var(--background-secondary);
 }
 
 th.tablite-frozen-cell {
-    z-index: 15 !important;
+    z-index: 15;
 }
 
 .tablite-cell-content {
@@ -1675,10 +1675,10 @@ th.tablite-frozen-cell {
 
 .tablite-th-select,
 .tablite-td-select {
-    width: 34px !important;
-    min-width: 34px !important;
-    max-width: 34px !important;
-    padding: 0 !important;
+    width: 34px;
+    min-width: 34px;
+    max-width: 34px;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1733,25 +1733,25 @@ th.tablite-frozen-cell {
     transition: background-color 0.1s ease;
 
     &.tablite-tr-checked {
-        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.12) !important;
+        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.12);
 
         .tablite-td {
-            background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.08) !important;
+            background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.08);
         }
 
         .tablite-th-select,
         .tablite-td-select,
         .tablite-th-row-num,
         .tablite-row-num {
-            background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.18) !important;
+            background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.18);
             color: var(--text-accent);
             font-weight: 600;
         }
     }
 
     &.tablite-tr-drag-over {
-        border-top: 2px solid var(--interactive-accent) !important;
-        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.2) !important;
+        border-top: 2px solid var(--interactive-accent);
+        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.2);
     }
 }
 

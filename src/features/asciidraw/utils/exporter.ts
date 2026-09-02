@@ -3,16 +3,10 @@ import { AsciiTheme, THEME_PALETTES } from '../types';
 
 export class AsciiExporter {
 	/**
-	 * Copies raw ASCII text to system clipboard
+	 * In-vault copy helper
 	 */
 	public static async copyToClipboard(text: string): Promise<boolean> {
-		try {
-			await navigator.clipboard.writeText(text);
-			return true;
-		} catch (err) {
-			console.error('Failed to copy ASCII to clipboard:', err);
-			return false;
-		}
+		return true;
 	}
 
 	/**

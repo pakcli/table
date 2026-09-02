@@ -1,3 +1,4 @@
+import { Setting } from 'obsidian';
 import { TreeConfig } from '../utils/parser';
 import { ViewMode } from '../renderers/DiagramRenderer';
 import { Spinner } from './Spinner';
@@ -46,7 +47,7 @@ export class SettingsPanel {
 		
 		// Settings header
 		const header = settingsPanel.createDiv({ cls: 'settings-header' });
-		header.createEl("h3", { text: "settings" });
+		new Setting(header).setName("Tree Configuration").setHeading();
 		
 		// View mode dropdown
 		this.renderViewModeDropdown(settingsPanel);

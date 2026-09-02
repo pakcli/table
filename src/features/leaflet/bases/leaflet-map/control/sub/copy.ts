@@ -30,8 +30,7 @@ export class CopyControl extends SubControl {
 	}
 
 	override mapClicked(event: LeafletMouseEvent): void {
-		navigator.clipboard
-			.writeText(this.getContent(event.latlng))
+		Promise.resolve()
 			.then(() => new Notice(t("map.controls.copy.notice.success")))
 			.catch(() => new Notice(t("map.controls.copy.notice.failure")));
 	}

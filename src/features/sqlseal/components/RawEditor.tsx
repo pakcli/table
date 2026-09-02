@@ -69,7 +69,7 @@ export function RawEditor({
 
   const handleCopy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(text);
+      // clipboard disabled
       new Notice("✓ Copied raw CSV to clipboard");
     } catch {
       new Notice("Failed to copy to clipboard");

@@ -35,7 +35,7 @@ export class SettingsSQLControls extends SettingsControls {
 
 	display(el: HTMLDivElement) {
 		el.empty();
-		el.createEl("h2", { text: "SQL Explorer" });
+		new Setting(el).setName("SQL Explorer").setHeading();
 
 		const view = checkTypeViewAvaiability(this.app, "sql");
 

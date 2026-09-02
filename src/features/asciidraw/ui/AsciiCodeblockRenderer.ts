@@ -69,10 +69,12 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 		const palette = THEME_PALETTES[this.theme] || THEME_PALETTES.default;
 
 		this.containerCard = this.containerEl.createDiv({ cls: 'asciidraw-inline-card' });
-		this.containerCard.style.setProperty('--card-bg', palette.bg);
-		this.containerCard.style.setProperty('--card-fg', palette.fg);
-		this.containerCard.style.setProperty('--card-border', palette.border);
-		this.containerCard.style.setProperty('--card-accent', palette.accent);
+		this.containerCard.setCssProps({
+			'--card-bg': palette.bg,
+			'--card-fg': palette.fg,
+			'--card-border': palette.border,
+			'--card-accent': palette.accent
+		});
 
 		// 1. Unified Header Toolbar (Contains all 6 controls)
 		const header = this.containerCard.createDiv({ cls: 'asciidraw-inline-header' });

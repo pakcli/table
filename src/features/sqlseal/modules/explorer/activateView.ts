@@ -18,5 +18,9 @@ export const activateView = async (app: App, name: string) => {
 	}
 
 	// "Reveal" the leaf in case it is in a collapsed sidebar
-	workspace.revealLeaf(leaf);
+	if (typeof (workspace as any).revealLeaf === 'function') {
+		(workspace as any).revealLeaf(leaf);
+	} else {
+		workspace.setActiveLeaf(leaf, { focus: true });
+	}
 };
