@@ -1,10 +1,7 @@
-import { App, PluginSettingTab, Setting, ButtonComponent, Notice } from 'obsidian';
-import { AssetRouterSettings, FolderRule } from './features/tree/types';
+import { AssetRouterSettings } from './features/tree/types';
 import { TablitePluginData as SQLSealSettings, DEFAULT_PLUGIN_DATA as DEFAULT_SQLSEAL_SETTINGS } from './features/sqlseal/types';
-import { SQLSealSettingsTab } from './features/sqlseal/modules/settings/SQLSealSettingsTab';
 import { BasesLeafletViewSettings } from './features/leaflet/types';
 import { CodeblockLanguageRule } from './features/codeblock/scaler';
-import type PakCLITablePlugin from './main';
 
 export interface PakCLITableSettings extends 
     AssetRouterSettings, 

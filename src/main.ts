@@ -1,4 +1,4 @@
-import { App, Plugin, Notice, TFile, Setting } from 'obsidian';
+import { App, Plugin, Notice, Setting } from 'obsidian';
 import { PakCLITableSettings, DEFAULT_TABLE_SETTINGS } from './settings';
 
 // Hub Imports

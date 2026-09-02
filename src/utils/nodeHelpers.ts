@@ -1,4 +1,3 @@
-import { Platform } from 'obsidian';
 
 /**
  * Pure JavaScript path utility functions that work cross-platform
