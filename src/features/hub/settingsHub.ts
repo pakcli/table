@@ -122,6 +122,7 @@ export class VaultConfigActionModal extends Modal {
 }
 
 export class MasterDetailSettingsTab extends PluginSettingTab {
+  private isMobileSidebarOpen: boolean = false;
   plugin: Plugin;
   activeSectionId = "";
   searchQuery = "";
@@ -343,7 +344,32 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       selectEl.setAttribute("disabled", "true");
     }
 
-    const layoutContainer = containerEl.createDiv({ cls: "pakcli-master-detail-layout" });
+    // Mobile Toggle Bar
+    const activeModObj = ECOSYSTEM_MODULES.find((m) => m.id === this.activeSectionId);
+    const activeTitle = activeModObj ? activeModObj.title : "Settings";
+    
+    const mobileBar = containerEl.createDiv({ cls: "pakcli-mobile-toggle-bar" });
+    const mobileTitleEl = mobileBar.createDiv({ cls: "pakcli-mobile-current-title" });
+    mobileTitleEl.createSpan({ text: "Current: ", cls: "pakcli-mobile-label" });
+    mobileTitleEl.createSpan({ text: activeTitle, cls: "pakcli-mobile-value" });
+    
+    const mobileToggleBtn = mobileBar.createEl("button", {
+      text: this.isMobileSidebarOpen ? "✕ Close Menu" : "☰ Switch Module",
+      cls: "pakcli-mobile-toggle-btn"
+    });
+    mobileToggleBtn.onclick = () => {
+      this.isMobileSidebarOpen = !this.isMobileSidebarOpen;
+      mobileToggleBtn.setText(this.isMobileSidebarOpen ? "✕ Close Menu" : "☰ Switch Module");
+      if (this.isMobileSidebarOpen) {
+        layoutContainer.addClass("mobile-sidebar-open");
+      } else {
+        layoutContainer.removeClass("mobile-sidebar-open");
+      }
+    };
+
+    const layoutContainer = containerEl.createDiv({ 
+      cls: `pakcli-master-detail-layout ${this.isMobileSidebarOpen ? "mobile-sidebar-open" : ""}` 
+    });
 
     // 1. LEFT SIDEBAR
     const sidebarEl = layoutContainer.createDiv({ cls: "pakcli-sidebar" });
@@ -456,6 +482,12 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
     itemEl.onclick = () => {
       this.activeSectionId = id;
+      this.isMobileSidebarOpen = false;
+      layoutContainer.removeClass("mobile-sidebar-open");
+      const mobileBtn = this.containerEl.querySelector(".pakcli-mobile-toggle-btn");
+      if (mobileBtn) mobileBtn.setText("☰ Switch Module");
+      const mobileVal = this.containerEl.querySelector(".pakcli-mobile-value");
+      if (mobileVal) mobileVal.setText(title);
       const sidebar = layoutContainer.querySelector(".pakcli-nav-list");
       if (sidebar) this.updateSidebarItems(sidebar as HTMLElement, layoutContainer);
 
@@ -466,6 +498,18 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
   private renderContent(contentEl: HTMLElement): void {
     contentEl.empty();
+    
+    // Quick switch button on mobile
+    const quickSwitch = contentEl.createDiv({ cls: "pakcli-mobile-switch-btn" });
+    quickSwitch.setText("☰ Switch Module");
+    quickSwitch.onclick = () => {
+      this.isMobileSidebarOpen = true;
+      const root = contentEl.closest(".pakcli-master-detail-root");
+      const layout = root?.querySelector(".pakcli-master-detail-layout");
+      if (layout) layout.addClass("mobile-sidebar-open");
+      const toggleBtn = root?.querySelector(".pakcli-mobile-toggle-btn");
+      if (toggleBtn) toggleBtn.setText("✕ Close Menu");
+    };
 
     // 1. Diagnostics Wizard
     if (this.activeSectionId === "local-wizard") {
