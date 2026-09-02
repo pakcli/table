@@ -106,7 +106,7 @@ function Show-Menu {
         Write-Host "  [2] Build and Test Only (npm run build + Auto Copy to Vault)" -ForegroundColor Cyan
         Write-Host "  [3] Upload Assets to an Existing GitHub Release" -ForegroundColor White
         Write-Host "  [4] Open GitHub Releases in Browser" -ForegroundColor Gray
-        Write-Host "  [5] 🌐 Trigger Obsidian Community Release Check API" -ForegroundColor Yellow
+        Write-Host "  [5] 🌐 Trigger Obsidian Community Release Check" -ForegroundColor Yellow
         Write-Host "  [0] Exit" -ForegroundColor Red
         Write-Host "-----------------------------------------------------------------" -ForegroundColor Gray
 
@@ -135,7 +135,7 @@ function Show-Menu {
 
 # Action 1: Full Release Pipeline
 function Invoke-FullRelease($info) {
-    Write-Step "Step 1/6: Select Version Bump"
+    Write-Step "Step 1/5: Select Version Bump"
     $cur = $info.Version
     $parts = $cur.Split('.')
     $major = [int]$parts[0]
@@ -193,7 +193,7 @@ function Invoke-FullRelease($info) {
     }
 
     # 2. Build Production Assets
-    Write-Step "Step 2/6: Building production assets (npm run build)..."
+    Write-Step "Step 2/5: Building production assets (npm run build)..."
     npm run build
     if ($LASTEXITCODE -ne 0) {
         Write-Err "Build failed! Please fix compiler errors."
@@ -210,7 +210,7 @@ function Invoke-FullRelease($info) {
     Write-Success "Build completed! Verified: main.js, manifest.json, styles.css."
 
     # 3. Git Commit (only if changes exist)
-    Write-Step "Step 3/6: Checking Git status..."
+    Write-Step "Step 3/5: Checking Git status..."
     $diffCheck = git status --porcelain
     if ($diffCheck) {
         git add manifest.json package.json versions.json
@@ -223,7 +223,7 @@ function Invoke-FullRelease($info) {
     }
 
     # 4. Git Tag & Push
-    Write-Step "Step 4/6: Pushing code and ensuring tag '$targetVer' exists..."
+    Write-Step "Step 4/5: Pushing code and ensuring tag '$targetVer' exists..."
     git push origin HEAD 2>$null
     
     $tagCheck = git tag -l $targetVer
@@ -237,7 +237,7 @@ function Invoke-FullRelease($info) {
     }
 
     # 5. Create GitHub Release & Upload Assets
-    Write-Step "Step 5/6: Publishing GitHub Release with attached assets..."
+    Write-Step "Step 5/5: Publishing GitHub Release with attached assets..."
     
     gh release create $targetVer main.js manifest.json styles.css --repo $info.Repo --title "$targetVer" --notes "Release $targetVer of $($info.Name)" 2>$null
     if ($LASTEXITCODE -ne 0) {
@@ -248,12 +248,21 @@ function Invoke-FullRelease($info) {
     }
 
     Write-Host ""
-    Write-Host "RELEASE $targetVer IS OFFICIALLY LIVE ON GITHUB!" -ForegroundColor Green
-    Write-Host "Release URL: https://github.com/$($info.Repo)/releases/tag/$targetVer" -ForegroundColor Yellow
+    Write-Host "=================================================================" -ForegroundColor Green
+    Write-Host "           RELEASE $targetVer IS OFFICIALLY LIVE ON GITHUB!       " -ForegroundColor Yellow
+    Write-Host "=================================================================" -ForegroundColor Green
+    Write-Host "Release URL: https://github.com/$($info.Repo)/releases/tag/$targetVer" -ForegroundColor White
+    Write-Host "Check URL:   https://community.obsidian.md/account/plugins/$($info.Id)/check-release" -ForegroundColor Magenta
+    Write-Host ""
 
-    # 6. Trigger Obsidian Community Release Check API
-    Write-Step "Step 6/6: Triggering Obsidian Community Check Release API & Portal..."
-    Invoke-ObsidianCheckRelease $info
+    # Interactive Prompt with ENTER as Default to Open Obsidian Check-Release
+    $openPrompt = "Open Obsidian Community Check-Release in browser now? [Y/n, Default: Y (Press ENTER)]"
+    $openCheck = Read-Host $openPrompt
+    if ([string]::IsNullOrWhiteSpace($openCheck) -or $openCheck -match "^[Yy]") {
+        Invoke-ObsidianCheckRelease $info
+    } else {
+        Write-Host "Skipped opening browser check." -ForegroundColor Gray
+    }
 }
 
 # Action 2: Build Only + Auto Copy
@@ -275,7 +284,7 @@ function Invoke-BuildOnly($info) {
         $savedDir = "<Enter path to Vault/.obsidian/plugins/$($info.Id)>"
     }
 
-    $doCopy = Read-Host "Copy built files to Obsidian Vault plugin directory? [Y/n, default: Y]"
+    $doCopy = Read-Host "Copy built files to Obsidian Vault plugin directory? [Y/n, default: Y (ENTER)]"
     if ([string]::IsNullOrWhiteSpace($doCopy) -or $doCopy -match "^[Yy]") {
         Write-Host "Current saved destination: $savedDir" -ForegroundColor Yellow
         $targetPath = Read-Host "Enter target directory path (Press ENTER to use saved destination)"
@@ -337,7 +346,7 @@ function Invoke-ObsidianCheckRelease($info) {
         $response = Invoke-WebRequest -Uri $checkUrl -Method Get -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
         Write-Success "Obsidian API responded with status code: $($response.StatusCode)"
     } catch {
-        Write-Host "API check request sent to portal (requires portal login session)." -ForegroundColor Gray
+        Write-Host "API check request sent to portal." -ForegroundColor Gray
     }
 
     Write-Step "Opening Obsidian Check Release Portal in browser..."
