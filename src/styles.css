@@ -405,7 +405,6 @@
 .tablite-cell-link {
   color: var(--link-external-color, var(--text-accent));
   text-decoration: underline;
-  text-decoration-color: var(--link-external-decoration-color, currentColor);
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;

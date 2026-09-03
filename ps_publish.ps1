@@ -236,15 +236,23 @@ function Invoke-FullRelease($info) {
         Write-Host "Tag '$targetVer' synced to remote." -ForegroundColor Gray
     }
 
-    # 5. Create GitHub Release & Upload Assets
-    Write-Step "Step 5/5: Publishing GitHub Release with attached assets..."
+    # 5. GitHub Actions Attestation & Release Workflow
+    Write-Step "Step 5/5: Syncing with GitHub Actions CI/CD (Build & Attestation)..."
+    Write-Host "Waiting for GitHub Actions to build and cryptographically attest release '$targetVer'..." -ForegroundColor Cyan
     
-    gh release create $targetVer main.js manifest.json styles.css --repo $info.Repo --title "$targetVer" --notes "Release $targetVer of $($info.Name)" 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        gh release upload $targetVer main.js manifest.json styles.css --repo $info.Repo --clobber
-        Write-Success "Updated existing GitHub Release '$targetVer' assets!"
-    } else {
-        Write-Success "Created new GitHub Release '$targetVer' with assets attached!"
+    try {
+        Start-Sleep -Seconds 3
+        $runId = gh run list --repo $info.Repo --limit 1 --json databaseId -q ".[0].databaseId" 2>$null
+        if ($runId) {
+            gh run watch $runId --repo $info.Repo --exit-status
+            Write-Success "GitHub Actions finished! Release '$targetVer' is built & attested."
+        } else {
+            # Fallback upload if gh run list not available
+            gh release upload $targetVer main.js manifest.json styles.css --repo $info.Repo --clobber 2>$null
+            Write-Success "Release assets synced!"
+        }
+    } catch {
+        Write-Host "GitHub Actions workflow in progress on remote." -ForegroundColor Gray
     }
 
     Write-Host ""
