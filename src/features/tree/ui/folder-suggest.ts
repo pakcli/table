@@ -11,17 +11,19 @@ export class FolderSuggest extends AbstractInputSuggest<string> {
 	getSuggestions(inputStr: string): string[] {
 		let folderPaths: string[] = [];
 		try {
-			if (typeof (this.app.vault as any).getAllFolders === 'function') {
-				const folders = (this.app.vault as any).getAllFolders(false);
+			const vaultRecord = this.app.vault as unknown as Record<string, unknown>;
+			if (typeof vaultRecord['getAllFolders'] === 'function') {
+				const getFoldersFn = vaultRecord['getAllFolders'] as (includeRoot: boolean) => TFolder[];
+				const folders = getFoldersFn(false);
 				folderPaths = folders.map((folder: TFolder) => folder.path);
 			} else {
 				const files = this.app.vault.getAllLoadedFiles();
-				folderPaths = files.filter(f => f instanceof TFolder).map(f => f.path);
+				folderPaths = files.filter((f): f is TFolder => f instanceof TFolder).map(f => f.path);
 			}
 		} catch {
 			try {
 				const files = this.app.vault.getAllLoadedFiles();
-				folderPaths = files.filter(f => f instanceof TFolder).map(f => f.path);
+				folderPaths = files.filter((f): f is TFolder => f instanceof TFolder).map(f => f.path);
 			} catch {
 				folderPaths = [];
 			}

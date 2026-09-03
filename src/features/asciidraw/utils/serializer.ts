@@ -11,12 +11,19 @@ export class AsciiSerializer {
 		// Try parsing as JSON project first
 		if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
 			try {
-				const json = JSON.parse(trimmed);
-				if (json.frames && Array.isArray(json.frames)) {
-					const firstFrame = json.frames[0] || '';
+				const json = JSON.parse(trimmed) as {
+					frames?: unknown[];
+					rows?: number;
+					cols?: number;
+					theme?: string;
+					layers?: LayerData[];
+				};
+				if (json && Array.isArray(json.frames)) {
+					const frameList: string[] = json.frames.map(f => typeof f === 'string' ? f : String(f ?? ''));
+					const firstFrame = frameList[0] || '';
 					const lines = firstFrame.split(/\r?\n/);
-					const rows = json.rows || Math.max(lines.length, 15);
-					const cols = json.cols || Math.max(...lines.map((l: string) => l.length), 40);
+					const rows = typeof json.rows === 'number' ? json.rows : Math.max(lines.length, 15);
+					const cols = typeof json.cols === 'number' ? json.cols : Math.max(...lines.map((l: string) => l.length), 40);
 
 					return {
 						version: 1,
@@ -25,8 +32,8 @@ export class AsciiSerializer {
 						rows,
 						fps: 8,
 						theme: (json.theme as AsciiTheme) || 'default',
-						frames: json.frames,
-						layers: json.layers || undefined
+						frames: frameList,
+						layers: Array.isArray(json.layers) ? json.layers : undefined
 					};
 				}
 			} catch {

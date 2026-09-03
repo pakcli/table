@@ -13,6 +13,20 @@ export interface SettingsSectionHandler {
   render: (containerEl: HTMLElement) => void;
 }
 
+export interface PluginWithSettings extends Plugin {
+  settings?: Record<string, unknown>;
+  saveSettings?: () => Promise<void>;
+  applyCodeblockStyle?: () => void;
+  applyBadgeSetting?: () => void;
+}
+
+export type AppWithPlugins = App & {
+  setting?: {
+    open?: () => void;
+    openTabById?: (id: string) => void;
+  };
+};
+
 // Global window memory history stack for live Undo / Redo across all tabs
 declare global {
   interface Window {
@@ -68,9 +82,14 @@ export class VaultConfigActionModal extends Modal {
       const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
       const restored = await loadVaultConfig(this.app, pluginId, this.selectedSnapshot.path);
       if (restored) {
-        Object.assign((this.plugin as any).settings, restored);
-        if (typeof (this.plugin as any).saveSettings === "function") {
-          await (this.plugin as any).saveSettings();
+        const pluginWithSettings = this.plugin as PluginWithSettings;
+        if (pluginWithSettings.settings) {
+          Object.assign(pluginWithSettings.settings, restored);
+        } else {
+          pluginWithSettings.settings = restored;
+        }
+        if (typeof pluginWithSettings.saveSettings === "function") {
+          await pluginWithSettings.saveSettings();
         }
         eventBus.emit("settings:updated", { pluginId });
         new Notice(`✅ Replaced active settings from ${this.selectedSnapshot.name}!`);
@@ -88,7 +107,8 @@ export class VaultConfigActionModal extends Modal {
     const overwriteBtn = overwriteCard.createEl("button", { text: "Overwrite Snapshot", cls: "pakcli-btn-overwrite" });
     overwriteBtn.onclick = async () => {
       const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
-      await saveVaultConfig(this.app, pluginId, (this.plugin as any).settings || {});
+      const pluginWithSettings = this.plugin as PluginWithSettings;
+      await saveVaultConfig(this.app, pluginId, pluginWithSettings.settings || {});
       new Notice("✅ Overwritten snapshot with current settings!");
       this.close();
       this.onComplete();
@@ -101,7 +121,8 @@ export class VaultConfigActionModal extends Modal {
     const duplicateBtn = duplicateCard.createEl("button", { text: "Duplicate New", cls: "pakcli-btn-duplicate" });
     duplicateBtn.onclick = async () => {
       const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
-      await saveVaultConfig(this.app, pluginId, (this.plugin as any).settings || {}, "copy");
+      const pluginWithSettings = this.plugin as PluginWithSettings;
+      await saveVaultConfig(this.app, pluginId, pluginWithSettings.settings || {}, "copy");
       new Notice("✅ Created a new duplicated snapshot in pakcli-vault-config!");
       this.close();
       this.onComplete();
@@ -135,7 +156,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     super(app, plugin);
     this.plugin = plugin;
     this.activeSectionId = plugin.manifest.id === "pakcli-table" ? "table-csv" : (plugin.manifest.id === "pakcli-agent" ? "agent-antigravity" : "local-wizard");
-    this.recordMemorySnapshot((plugin as any).settings || {});
+    const pluginWithSettings = plugin as PluginWithSettings;
+    this.recordMemorySnapshot(pluginWithSettings.settings || {});
   }
 
   registerLocalSection(handler: SettingsSectionHandler) {
@@ -143,25 +165,28 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   }
 
   private isPluginInstalled(pluginId: string): boolean {
-    const plugins = (this.app as any).plugins;
+    const appWithPlugins = this.app as AppWithPlugins;
+    const plugins = appWithPlugins.plugins;
     if (!plugins) return false;
-    return !!(plugins.manifests && plugins.manifests[pluginId]);
+    return Boolean(plugins.manifests && plugins.manifests[pluginId]);
   }
 
   private isPluginEnabled(pluginId: string): boolean {
-    const plugins = (this.app as any).plugins;
+    const appWithPlugins = this.app as AppWithPlugins;
+    const plugins = appWithPlugins.plugins;
     if (!plugins) return false;
-    return !!(plugins.plugins && plugins.plugins[pluginId]);
+    return Boolean(plugins.plugins && plugins.plugins[pluginId]);
   }
 
   private isLocalPresent(): boolean {
     return this.plugin.manifest.id === "pakcli-local" || this.isPluginEnabled("pakcli-local");
   }
 
-  private getPluginInstance(pluginId: string): any | null {
-    if (this.plugin.manifest.id === pluginId) return this.plugin;
-    const plugins = (this.app as any).plugins;
-    return (plugins && plugins.plugins) ? plugins.plugins[pluginId] : null;
+  private getPluginInstance(pluginId: string): PluginWithSettings | null {
+    if (this.plugin.manifest.id === pluginId) return this.plugin as PluginWithSettings;
+    const appWithPlugins = this.app as AppWithPlugins;
+    const plugins = appWithPlugins.plugins;
+    return plugins?.plugins ? (plugins.plugins[pluginId] as PluginWithSettings) || null : null;
   }
 
   // ── 1. In-Memory Undo/Redo Engine ───────────────────────────────────────
@@ -197,10 +222,12 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     if (history.index > 0) {
       history.index--;
       const targetEntry = history.stack[history.index];
-      const parsed = JSON.parse(targetEntry.state);
+      const parsed = JSON.parse(targetEntry.state) as Record<string, unknown>;
 
-      const targetPlugin = this.getPluginInstance(targetEntry.pluginId) || this.plugin;
-      Object.assign(targetPlugin.settings, parsed);
+      const targetPlugin: PluginWithSettings = this.getPluginInstance(targetEntry.pluginId) || (this.plugin as PluginWithSettings);
+      if (targetPlugin.settings && parsed) {
+        Object.assign(targetPlugin.settings, parsed);
+      }
 
       if (typeof targetPlugin.saveSettings === "function") {
         await targetPlugin.saveSettings();
@@ -224,10 +251,12 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     if (history.index < history.stack.length - 1) {
       history.index++;
       const targetEntry = history.stack[history.index];
-      const parsed = JSON.parse(targetEntry.state);
+      const parsed = JSON.parse(targetEntry.state) as Record<string, unknown>;
 
-      const targetPlugin = this.getPluginInstance(targetEntry.pluginId) || this.plugin;
-      Object.assign(targetPlugin.settings, parsed);
+      const targetPlugin: PluginWithSettings = this.getPluginInstance(targetEntry.pluginId) || (this.plugin as PluginWithSettings);
+      if (targetPlugin.settings && parsed) {
+        Object.assign(targetPlugin.settings, parsed);
+      }
 
       if (typeof targetPlugin.saveSettings === "function") {
         await targetPlugin.saveSettings();
@@ -301,7 +330,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     
     if (isLocalActive) {
       exportBtn.onclick = async () => {
-        await saveVaultConfig(this.app, pluginId, (this.plugin as any).settings || {});
+        const pluginWithSettings = this.plugin as PluginWithSettings;
+        await saveVaultConfig(this.app, pluginId, pluginWithSettings.settings || {});
         new Notice(`✅ ${this.plugin.manifest.name} settings saved to pakcli-vault-config!`);
         eventBus.emit("pl:vault-config-saved", { plugin: this.plugin.manifest.id });
         this.display();
@@ -532,7 +562,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     if (mod) {
       const targetPluginInstance = this.getPluginInstance(mod.storeId);
       if (targetPluginInstance) {
-        this.renderLiveCrossPluginSettings(contentEl, mod, targetPluginInstance);
+        this.renderLiveCrossPluginSettings(contentEl, mod, targetPluginInstance as PluginWithSettings);
       } else {
         this.renderBlueprintPreview(contentEl, mod);
       }
@@ -547,7 +577,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     }
   }
 
-  private renderLiveCrossPluginSettings(contentEl: HTMLElement, blueprint: BlueprintSection, targetPlugin: any): void {
+  private renderLiveCrossPluginSettings(contentEl: HTMLElement, blueprint: BlueprintSection, targetPlugin: PluginWithSettings): void {
     new Setting(contentEl)
       .setName(blueprint.title)
       .setDesc(blueprint.description)
@@ -567,7 +597,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
     blueprint.fields.forEach((field) => {
       const s = new Setting(form).setName(field.name).setDesc(field.desc);
-      const settingsObj = targetPlugin.settings || {};
+      const settingsObj = (targetPlugin.settings || {}) as Record<string, unknown>;
       const currentVal = settingsObj[field.key] !== undefined ? settingsObj[field.key] : field.defaultVal;
 
       if (field.type === "toggle") {
@@ -578,11 +608,11 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
             }
-            if (typeof targetPlugin.applyCodeblockStyle === "function") {
-              targetPlugin.applyCodeblockStyle();
+            if (typeof (targetPlugin as any).applyCodeblockStyle === "function") {
+              (targetPlugin as any).applyCodeblockStyle();
             }
-            if (typeof targetPlugin.applyBadgeSetting === "function") {
-              targetPlugin.applyBadgeSetting();
+            if (typeof (targetPlugin as any).applyBadgeSetting === "function") {
+              (targetPlugin as any).applyBadgeSetting();
             }
             this.recordMemorySnapshot(targetPlugin.settings);
             eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
@@ -598,8 +628,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
             }
-            if (typeof targetPlugin.applyCodeblockStyle === "function") {
-              targetPlugin.applyCodeblockStyle();
+            if (typeof (targetPlugin as any).applyCodeblockStyle === "function") {
+              (targetPlugin as any).applyCodeblockStyle();
             }
             this.recordMemorySnapshot(targetPlugin.settings);
             eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
@@ -759,7 +789,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   private openObsidianStore(pluginId: string): void {
     new Notice(`Opening community plugins for ${pluginId}...`);
     try {
-      const setting = (this.app as any).setting;
+      const appWithPlugins = this.app as AppWithPlugins;
+      const setting = appWithPlugins.setting;
       if (setting && typeof setting.open === "function") {
         setting.open();
         if (typeof setting.openTabById === "function") {
@@ -771,7 +802,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     }
   }
 
-  private renderAgentDependenciesBox(containerEl: HTMLElement, targetPlugin: any): void {
+  private renderAgentDependenciesBox(containerEl: HTMLElement, targetPlugin: PluginWithSettings): void {
     const setupSection = containerEl.createDiv({ cls: "pakcli-deps-section" });
     new Setting(setupSection)
       .setName("⚙️ Setup & Dependencies")
