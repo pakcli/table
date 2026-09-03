@@ -1,0 +1,3 @@
+﻿"Plugin","Version","Type","Workflow","Run_ID","Commit","File_Location","Rule_Or_Step","Message","Severity"
+"pakcli/table","1.0.28","GitHub-Action","Release Obsidian plugin","33720436409","4137608",".github/workflows/release.yml","Install dependencies (Step 4)","Step 4 failed: npm error ERESOLVE could not resolve peer dependency esbuild-sass-plugin vs esbuild. Process completed with exit code 1.","Error"
+"pakcli/table","1.0.28","GitHub-Action","Release Obsidian plugin","33720436409","4137608",".github/workflows/release.yml","Actions Runner Runtime","Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4.","Warning"
