@@ -1,7 +1,7 @@
 {
     "id":  "pakcli-table",
     "name":  "PakCLI Table",
-    "version":  "1.0.26",
+    "version":  "1.0.27",
     "minAppVersion":  "1.5.8",
     "description":  "Visual tables, interactive SQL database explorer, ASCII canvas drawing, and interactive Leaflet maps.",
     "author":  "PakCLI",
