@@ -477,7 +477,7 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 
 		modal.open();
 
-		setTimeout(() => {
+		window.setTimeout(() => {
 			modal.modalEl.addClass('is-fullscreen-immersive');
 		}, 30);
 	}

@@ -517,7 +517,7 @@ export function Table({
         menu.remove();
         document.removeEventListener("click", removeMenu);
       };
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         document.addEventListener("click", removeMenu);
       });
     },

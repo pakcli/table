@@ -59,7 +59,7 @@ function openAsciiStudioModal(plugin: Plugin, startFullscreen = false): void {
 	modal.open();
 
 	if (startFullscreen) {
-		setTimeout(() => {
+		window.setTimeout(() => {
 			modal.modalEl.addClass('is-fullscreen-immersive');
 		}, 50);
 	}

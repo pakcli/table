@@ -53,7 +53,7 @@ export function RawEditor({
         const nextVal = text.substring(0, start) + insertChar + text.substring(end);
         setText(nextVal);
         onChange(nextVal);
-        setTimeout(() => {
+        window.setTimeout(() => {
           textarea.selectionStart = textarea.selectionEnd = start + insertChar.length;
         }, 0);
       }

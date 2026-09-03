@@ -924,6 +924,6 @@ export class AsciiDrawModal extends Modal {
 				document.removeEventListener('click', closeDropdown);
 			}
 		};
-		setTimeout(() => document.addEventListener('click', closeDropdown), 10);
+		window.setTimeout(() => document.addEventListener('click', closeDropdown), 10);
 	}
 }

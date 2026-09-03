@@ -150,7 +150,7 @@ export class AnimationEngine {
 			this.nextFrame();
 		}
 
-		this.animationFrameId = requestAnimationFrame(this.tickLoop);
+		this.animationFrameId = window.requestAnimationFrame(this.tickLoop);
 	};
 
 	public onTick(cb: AnimationTickCallback): () => void {
