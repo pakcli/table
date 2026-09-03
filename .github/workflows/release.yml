@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - '*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (leave empty to use version from manifest.json)'
+        required: false
+        default: ''
 
 jobs:
   build:
@@ -38,8 +44,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="${GITHUB_REF#refs/tags/}"
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            tag="${{ github.event.inputs.tag_name }}"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+          else
+            tag=$(node -p "require('./manifest.json').version")
+          fi
+          
+          echo "Publishing release tag: $tag"
           mkdir -p tablite
           cp main.js styles.css manifest.json tablite/
           zip -r tablite-${tag}.zip tablite/
-          gh release create "$tag"             --title="Tablite ${tag}"             --generate-notes             tablite-${tag}.zip main.js styles.css manifest.json || gh release upload "$tag" tablite-${tag}.zip main.js styles.css manifest.json --clobber
+          gh release create "$tag" \
+            --title="Tablite ${tag}" \
+            --generate-notes \
+            tablite-${tag}.zip main.js styles.css manifest.json || gh release upload "$tag" tablite-${tag}.zip main.js styles.css manifest.json --clobber
