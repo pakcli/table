@@ -107,6 +107,8 @@ function Show-Menu {
         Write-Host "  [3] Upload Assets to an Existing GitHub Release" -ForegroundColor White
         Write-Host "  [4] Open GitHub Releases in Browser" -ForegroundColor Gray
         Write-Host "  [5] 🌐 Trigger Obsidian Community Release Check" -ForegroundColor Yellow
+        Write-Host "  [6] 🔄 Zero-Risk Scorecard Audit & Auto-Remediation Loop (Single Pass)" -ForegroundColor Magenta
+        Write-Host "  [7] 💓 Heartbeat Daemon Loop (Publish -> Wait 25m -> Extract -> Fix -> Restart)" -ForegroundColor Red
         Write-Host "  [0] Exit" -ForegroundColor Red
         Write-Host "-----------------------------------------------------------------" -ForegroundColor Gray
 
@@ -123,8 +125,10 @@ function Show-Menu {
             "3" { Invoke-UploadExistingRelease $info }
             "4" { Invoke-OpenWeb $info }
             "5" { Invoke-ObsidianCheckRelease $info }
+            "6" { & "$PSScriptRoot/auto_audit_loop.ps1" }
+            "7" { & "$PSScriptRoot/heartbeat_audit_loop.ps1" }
             "0" { Write-Host "Goodbye!"; exit 0 }
-            default { Write-Warn "Invalid choice. Please choose 0 to 5." }
+            default { Write-Warn "Invalid choice. Please choose 0 to 7." }
         }
 
         Write-Host ""

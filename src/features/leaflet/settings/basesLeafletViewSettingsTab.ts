@@ -15,6 +15,10 @@ export class BasesLeafletViewSettingsTab extends PluginSettingTab {
 		super(plugin.app, plugin);
 	}
 
+	getSettingDefinitions(): any[] {
+		return [];
+	}
+
 	override display(containerEl: HTMLElement = this.containerEl): void {
 		this.containerEl = containerEl;
 		this.containerEl.empty();

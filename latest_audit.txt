@@ -1,0 +1,202 @@
+﻿
+Search...
+ 
+
+pakcli
+PakCLI Table
+pakcli
+pakcli
+38 downloads
+Visual tables, interactive SQL database explorer, ASCII canvas drawing, and interactive Leaflet maps.
+
+Work in progress
+Scorecards are new and may contain errors. If you notice anything inaccurate, please let us know. Learn more.
+Health
+Excellent
+This plugin is actively maintained.
+Hygiene	Has readme, license, description. Missing contributing guide.
+Maintenance	Last commit 11 minutes ago. 116 commits in the past year. Last release 10 minutes ago.
+Responsiveness	No issues filed.
+Adoption	9 installations.
+Review
+Risks
+13079 issues found by automated scans of the latest release.
+Passed
+6
+Build verified against source.
+The main.js release asset has a verified GitHub artifact attestation.
+The styles.css release asset has a verified GitHub artifact attestation.
+Vault Read: Reads individual vault files via the Obsidian API (vault.read, vault.cachedRead)
+Vault Write: Creates or modifies vault files via the Obsidian API (vault.modify, vault.create, etc.)
+No vulnerable dependencies found.
+Disclosures
+6
+Number of network request calls
+Code uses runtime base64 encode or decode calls
+WASM module (inline WASM blob #1) exports its linear memory
+Malware scan not available.
+Obfuscation scan not available.
+Network requests scan not available.
+Warnings
+13071
+Unsafe member access on an error or any typed value
+4746
+Unsafe call of an error or any typed value
+4244
+Unsafe assignment of an error or any typed value
+2431
+Passes unsafe values into typed parameters
+545
+Returns unsafe values from typed code
+477
+Unexpected any. Specify a different type.
+289
+Uses document.createElement instead of Obsidian's createEl helpers
+87
+This assertion is unnecessary since it does not change the type of the expression.
+73
+Avoid !important — override styles by increasing selector specificity or using CSS variables instead.
+57
+Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the void operator.
+46
+'error' type that acts as 'any' and overrides all other types in this union type
+26
+This assertion is unnecessary since the receiver accepts the original type of the expression.
+15
+Empty block statement.
+5
+Unnecessary escape character: \/.
+5
+Promise returned in function argument where a void return was expected.
+4
+This PluginSettingTab does not implement getSettingDefinitions(); its settings will not appear in Obsidian's settings search for users on 1.13.0 or later. Consider adopting the declarative settings API.
+3
+Avoid unnecessary logging to console
+3
+Unexpected browser feature "extended-system-fonts" is not supported by Obsidian 1.5.8
+3
+Use 'window.requestAnimationFrame()' instead of 'requestAnimationFrame()' for popout window compatibility.
+2
+Expected non-Promise value in a boolean conditional.
+2
+Promise-returning function provided to property where a void return was expected.
+2
+Unexpected browser feature "css-scrollbar" is only partially supported by Obsidian 1.5.8
+2
+"single" | "double" | "ascii" | "dashed" is overridden by string in this union type.
+Obsidian's configuration folder is not necessarily .obsidian, it can be configured by the user. Use Vault#configDir to get the current value
+Promise-returning function provided to attribute where a void return was expected.
+Unexpected browser feature "text-decoration" is only partially supported by Obsidian 1.5.8
+Other
+8
+Vault Enumeration: Enumerates all files in the vault (vault.getFiles, getMarkdownFiles, etc.). Gives the plugin access to every file path in the vault.
+Clipboard Access: Reads or writes the system clipboard. May expose content copied from outside Obsidian.
+Dynamic Code Execution: Executes dynamically generated code via eval() or new Function(). Prevents full static analysis of plugin behavior.
+'BubbleEdge' is defined but never used.
+'InspectorData' is defined but never used.
+'maxWaveR' is assigned a value but never used.
+'App' is defined but never used.
+'Notice' is defined but never used.
+Health
+Excellent
+Review
+Risks
+Details
+Current version
+1.0.31
+Last updated
+10 minutes ago
+Created
+3 days ago
+Updates
+24 releases
+Downloads
+38
+Compatible with
+Obsidian 1.5.8+
+Platforms
+Desktop, Mobile
+License
+MIT
+Author
+pakcli
+pakcli
+pakcli
+pakcli
+Related plugins
+Notebook Navigator
+A better file browser and calendar inspired by Apple Notes, Bear, Evernote and Day One.
+
+Advanced Canvas
+Supercharge your canvas experience. Create presentations, flowcharts and more.
+
+Minimal Theme Settings
+Control the colors and fonts in Minimal Theme.
+
+Importer
+Convert your data to Markdown files you can use in Obsidian. Works with Apple Notes, OneNote, Evernote, Notion, Google Keep, and many other formats.
+
+Homepage
+Open a note, base, or workspace on startup, or set it for quick access later.
+
+Claudian
+Embeds Claude Code/Codex and other local Agents as AI collaborators in your vault.
+
+TaskNotes
+Note-based task management with calendar, pomodoro and time-tracking integration.
+
+Hider
+Hide interface elements such as tooltips, status bar, titlebar, and more.
+
+BRAT
+Easily install a beta version of a plugin for testing.
+
+LanguageTool Integration
+Advanced grammar and spell checking, powered by LanguageTool.
+
+Community
+Plugins
+PakCLI Table
+Get started
+Download
+Pricing
+Enterprise
+Account
+Obsidian
+Overview
+Sync
+Publish
+Canvas
+Mobile
+Web Clipper
+CLI
+Learn
+Help
+Developers
+Changelog
+About
+Roadmap
+Blog
+Resources
+System status
+License overview
+Terms of service
+Privacy policy
+Security
+Community
+Plugins
+Themes
+Discord
+Forum / 中文论坛
+Merch store
+Brand guidelines
+Follow us
+Discord
+Twitter
+Bluesky
+Threads
+Mastodon
+YouTube
+GitHub
+© 2026 Obsidian
+

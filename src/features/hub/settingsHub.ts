@@ -164,6 +164,10 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     this.localHandlers.set(handler.id, handler);
   }
 
+  getSettingDefinitions(): any[] {
+    return [];
+  }
+
   private isPluginInstalled(pluginId: string): boolean {
     const appWithPlugins = this.app as AppWithPlugins;
     const plugins = appWithPlugins.plugins;

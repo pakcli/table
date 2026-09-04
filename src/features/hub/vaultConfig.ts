@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 
 function getVaultConfigDir(app: App): string {
-  const configDir = (app.vault as { configDir?: string }).configDir || ".obsidian";
+  const configDir = (app.vault as { configDir?: string }).configDir;
   return `${configDir}/plugins/pakcli-vault-config`;
 }
 

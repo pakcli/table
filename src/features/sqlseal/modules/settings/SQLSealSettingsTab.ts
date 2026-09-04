@@ -58,6 +58,10 @@ export class SQLSealSettingsTab extends PluginSettingTab {
         this.controls = controls
     }
 
+    getSettingDefinitions(): any[] {
+        return [];
+    }
+
     display(containerEl: HTMLElement = this.containerEl): void {
         containerEl.empty();
 
