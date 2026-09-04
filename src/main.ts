@@ -27,6 +27,9 @@ import { registerAsciiDrawFeature } from './features/asciidraw';
 // Codeblock Auto-Scaler
 import { CodeblockScaler } from './features/codeblock/scaler';
 
+// Bubble Graph View (Spec v18)
+import { BUBBLE_GRAPH_VIEW_TYPE, BubbleGraphView } from './features/bubblegraph';
+
 export default class PakCLITablePlugin extends Plugin {
 	declare settings: PakCLITableSettings;
 	router!: AssetRouter;
@@ -36,6 +39,37 @@ export default class PakCLITablePlugin extends Plugin {
 	leafletTabInstance: any = null;
 	settingsPanelStates: Map<string, boolean> = new Map();
 	vaultRoot: string = '';
+	bubbleRibbonEl: HTMLElement | null = null;
+
+	async openBubbleGraphView(): Promise<void> {
+		const existing = this.app.workspace.getLeavesOfType(BUBBLE_GRAPH_VIEW_TYPE);
+		if (existing.length > 0) {
+			this.app.workspace.revealLeaf(existing[0]);
+			return;
+		}
+		const leaf = this.app.workspace.getLeaf('tab');
+		await leaf.setViewState({
+			type: BUBBLE_GRAPH_VIEW_TYPE,
+			active: true
+		});
+		this.app.workspace.revealLeaf(leaf);
+	}
+
+	updateBubbleRibbon(): void {
+		if (this.bubbleRibbonEl) {
+			this.bubbleRibbonEl.remove();
+			this.bubbleRibbonEl = null;
+		}
+
+		if (this.settings.bubbleGraphMode === 'second') {
+			const icon = this.settings.bubbleRibbonIcon || 'circle-dot';
+			this.bubbleRibbonEl = this.addRibbonIcon(
+				icon,
+				'Open Bubble Graph View',
+				() => { this.openBubbleGraphView(); }
+			);
+		}
+	}
 
 	async onload(): Promise<void> {
 		console.log('[PakCLI Table] Loading plugin...');
@@ -101,13 +135,47 @@ export default class PakCLITablePlugin extends Plugin {
 		// 8. Initialize ASCII Draw & Motion Studio
 		registerAsciiDrawFeature(this as any);
 
-		// 9. Register Master-Detail Settings Tab
+		// 9. Initialize Graph Topology & Bubble View (Spec v18)
+		this.registerView(BUBBLE_GRAPH_VIEW_TYPE, (leaf) => new BubbleGraphView(leaf, this));
+
+		this.addCommand({
+			id: 'open-bubble-graph',
+			name: 'Open Bubble Graph View (Spec v18)',
+			callback: () => {
+				this.openBubbleGraphView();
+			}
+		});
+
+		this.updateBubbleRibbon();
+
+		// Replace Vanilla GraphView listener if enabled
+		this.registerEvent(
+			this.app.workspace.on('layout-change', () => {
+				if (this.settings.bubbleGraphMode === 'replace') {
+					const graphLeaves = this.app.workspace.getLeavesOfType('graph');
+					for (const leaf of graphLeaves) {
+						leaf.setViewState({
+							type: BUBBLE_GRAPH_VIEW_TYPE,
+							active: true
+						});
+					}
+				}
+			})
+		);
+
+		// 10. Register Master-Detail Settings Tab
 		this.registerSettingsHub();
 
 		console.log('[PakCLI Table] Loaded successfully.');
 	}
 
 	async onunload() {
+		// 1. Remove ribbon icon if present
+		if (this.bubbleRibbonEl) {
+			this.bubbleRibbonEl.remove();
+			this.bubbleRibbonEl = null;
+		}
+
 		// 2. Persistent Snapshot on App Close / Unload
 		try { await saveVaultConfig(this.app, 'pakcli-table', this.settings, 'session-close'); } catch {}
 		console.log('[PakCLI Table] Unloading plugin...');
@@ -157,6 +225,214 @@ export default class PakCLITablePlugin extends Plugin {
 
 	private registerSettingsHub() {
 		const settingsTab = new MasterDetailSettingsTab(this.app, this);
+
+		// 0. Bubble Graph & Venn Topology Handler (table-bubble-graph)
+		settingsTab.registerLocalSection({
+			id: 'table-bubble-graph',
+			category: 'table',
+			title: 'Graph Topology & Bubble View',
+			icon: 'circle-dot',
+			isInstalled: true,
+			render: (containerEl) => {
+				new Setting(containerEl)
+					.setName('Graph Topology & Bubble View (Spec v18)')
+					.setDesc('Organized Venn-like cluster topology, organic contour hulls, smart 3-tier link hierarchy, and interactive graph inspector.')
+					.setHeading();
+
+				// Quick launch button
+				new Setting(containerEl)
+					.setName('Launch Bubble Graph View')
+					.setDesc('Open the full-screen interactive Bubble Graph workspace.')
+					.addButton((b) => {
+						b.setButtonText('Open Bubble Graph ↗')
+							.setCta()
+							.onClick(() => {
+								this.openBubbleGraphView();
+							});
+					});
+
+				// Integration Mode Radio Cards (DEACTIVATE, REPLACE, SECOND)
+				new Setting(containerEl)
+					.setName('Bubble Graph Integration Mode')
+					.setDesc('Choose how Bubble Graph View is integrated into your Obsidian workspace.')
+					.setHeading();
+
+				const radioContainer = containerEl.createDiv({ cls: 'pakcli-radio-cards-container' });
+
+				const modes: Array<{
+					id: 'deactivate' | 'replace' | 'second';
+					title: string;
+					desc: string;
+				}> = [
+					{
+						id: 'deactivate',
+						title: 'Deactivate',
+						desc: 'Bubble Graph feature is completely disabled. No ribbon icons or view overrides.'
+					},
+					{
+						id: 'replace',
+						title: 'Replace Vanilla GraphView',
+						desc: 'Automatically route and replace Obsidian standard graph view with Bubble Graph.'
+					},
+					{
+						id: 'second',
+						title: 'Add New as Second GraphView',
+						desc: 'Keep vanilla graph intact and add a dedicated icon to the Obsidian ribbon bar.'
+					}
+				];
+
+				const ribbonSettingContainer = containerEl.createDiv({ cls: 'pakcli-ribbon-setting-wrap' });
+
+				const updateRibbonDropdownVisibility = () => {
+					ribbonSettingContainer.empty();
+					if (this.settings.bubbleGraphMode === 'second') {
+						new Setting(ribbonSettingContainer)
+							.setName('Ribbon Bar Icon')
+							.setDesc('Choose which icon represents the Bubble Graph in the Obsidian ribbon.')
+							.addDropdown((d) => {
+								d.addOption('circle-dot', 'Circle Dot (Bubble Dot)')
+									.addOption('bubbles', 'Bubbles (Cluster Bubbles)')
+									.addOption('dot-network', 'Dot Network (Network Mesh)')
+									.addOption('git-fork', 'Git Fork (Branching Fork)')
+									.addOption('network', 'Network (Network Web)')
+									.addOption('sparkles', 'Sparkles (Magic Glow)')
+									.addOption('share-2', 'Share 2 (Connected Nodes)')
+									.addOption('boxes', 'Boxes (Clustered Cells)')
+									.addOption('compass', 'Compass (Atlas Compass)')
+									.addOption('orbit', 'Orbit (Planetary Orbits)')
+									.setValue(this.settings.bubbleRibbonIcon || 'circle-dot')
+									.onChange(async (v) => {
+										this.settings.bubbleRibbonIcon = v;
+										await this.saveSettings();
+										this.updateBubbleRibbon();
+									});
+							});
+					}
+				};
+
+				const renderRadioCards = () => {
+					radioContainer.empty();
+					modes.forEach((m) => {
+						const isSelected = (this.settings.bubbleGraphMode || 'second') === m.id;
+						const card = radioContainer.createDiv({
+							cls: `pakcli-radio-card ${isSelected ? 'is-selected' : ''}`
+						});
+
+						const cardHeader = card.createDiv({ cls: 'pakcli-radio-card-header' });
+						cardHeader.createSpan({ cls: 'pakcli-radio-circle' });
+						cardHeader.createSpan({ text: m.title, cls: 'pakcli-radio-card-title' });
+
+						card.createDiv({ text: m.desc, cls: 'pakcli-radio-card-desc' });
+
+						card.onclick = async () => {
+							this.settings.bubbleGraphMode = m.id;
+							await this.saveSettings();
+							this.updateBubbleRibbon();
+							renderRadioCards();
+							updateRibbonDropdownVisibility();
+						};
+					});
+				};
+
+				renderRadioCards();
+				updateRibbonDropdownVisibility();
+
+				new Setting(containerEl)
+					.setName('Topology & Physics Controls')
+					.setHeading();
+
+				new Setting(containerEl)
+					.setName('Max Drag Depth Limit')
+					.setDesc('Configure how dragging interacts with hierarchy (0 = Lock all, 1 = Folder only, 2 = Subfolder, 3 = Child node).')
+					.addDropdown((d) => {
+						d.addOption('0', '0: Lock all positions (Pure physics)')
+							.addOption('1', '1: Folder only (Move parent cluster)')
+							.addOption('2', '2: Subfolder (Default: Contained items)')
+							.addOption('3', '3: Child (Deep note dragging)')
+							.setValue(String(this.settings.bubbleMaxDragDepth ?? 2))
+							.onChange(async (v) => {
+								this.settings.bubbleMaxDragDepth = parseInt(v, 10);
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Default Layout Mode')
+					.setDesc('Default layout view when opening graph.')
+					.addDropdown((d) => {
+						d.addOption('bubble', 'Venn-Cluster Bubble Topology')
+							.addOption('default', 'Standard Force-Directed Graph')
+							.setValue(this.settings.bubbleDefaultLayout || 'bubble')
+							.onChange(async (v: any) => {
+								this.settings.bubbleDefaultLayout = v;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Show Inter-Folder Venn Bridges')
+					.setDesc('Render high-contrast glowing neon bridge lines for links connecting different top-level folders.')
+					.addToggle((t) => {
+						t.setValue(this.settings.bubbleShowVennBridges !== false)
+							.onChange(async (v) => {
+								this.settings.bubbleShowVennBridges = v;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Inter-Folder Link Neon Glow')
+					.setDesc('Apply luminous neon glow shader on inter-cluster cross links.')
+					.addToggle((t) => {
+						t.setValue(this.settings.bubbleInterLinkGlow !== false)
+							.onChange(async (v) => {
+								this.settings.bubbleInterLinkGlow = v;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Bubble Contour Hull Opacity')
+					.setDesc('Adjust the glassmorphic background intensity for regional folder bubbles.')
+					.addSlider((s) => {
+						s.setLimits(0.04, 0.35, 0.02)
+							.setValue(this.settings.bubbleHullOpacity || 0.12)
+							.setDynamicTooltip()
+							.onChange(async (v) => {
+								this.settings.bubbleHullOpacity = v;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Timelapse Animation Mode')
+					.setDesc('Choose between Date-based time interpolation and Vanilla sequential node spawn.')
+					.addDropdown((d) => {
+						d.addOption('date', 'Default: Date-based timeline interpolation')
+							.addOption('vanilla', 'Vanilla: Sequential spawn (0.025s per node / folder in chronological order)')
+							.setValue(this.settings.bubbleTimelapseMode || 'date')
+							.onChange(async (v: any) => {
+								this.settings.bubbleTimelapseMode = v;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Vanilla Timelapse Spawn Speed')
+					.setDesc('Delay in seconds per node/folder in Vanilla sequential mode (Default: 0.025s / 25ms).')
+					.addText((t) => {
+						t.setValue((this.settings.bubbleTimelapseVanillaSpeed ?? 0.025).toString())
+							.setPlaceholder('0.025')
+							.onChange(async (v) => {
+								const parsed = parseFloat(v);
+								if (!isNaN(parsed) && parsed > 0) {
+									this.settings.bubbleTimelapseVanillaSpeed = parsed;
+									await this.saveSettings();
+								}
+							});
+					});
+			}
+		});
 
 		// 1. CSV & Tablite Editor Handler (table-csv)
 		settingsTab.registerLocalSection({

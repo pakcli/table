@@ -1,0 +1,626 @@
+/* ========================================================================= */
+/* Bubble Graph View & Venn Topology (Spec v18)                              */
+/* ========================================================================= */
+
+.pakcli-bubble-graph-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    user-select: none;
+}
+
+/* 1. Header Toolbar */
+.pakcli-bubble-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background-color: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    gap: 12px;
+    flex-wrap: wrap;
+    z-index: 10;
+}
+
+.pakcli-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.pakcli-brand-badge {
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    color: var(--text-accent);
+    background: rgba(56, 189, 248, 0.1);
+    padding: 4px 10px;
+    border-radius: var(--radius-s);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.pakcli-mode-tabs {
+    display: flex;
+    background: var(--background-modifier-form-field);
+    border-radius: var(--radius-m);
+    padding: 2px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.pakcli-tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+        color: var(--text-normal);
+    }
+
+    &.active {
+        background: var(--interactive-accent);
+        color: var(--text-on-accent);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+}
+
+/* Depth Scrubber */
+.pakcli-depth-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pakcli-depth-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.pakcli-depth-buttons {
+    display: flex;
+    background: var(--background-modifier-form-field);
+    border-radius: var(--radius-s);
+    padding: 2px;
+    gap: 2px;
+}
+
+.pakcli-depth-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+        color: var(--text-normal);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    &.active {
+        background: var(--interactive-accent);
+        color: var(--text-on-accent);
+        font-weight: 600;
+    }
+}
+
+/* Text & Typography Controls */
+.pakcli-text-controls-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pakcli-text-toggle-btn,
+.pakcli-lines-toggle-btn {
+    &.active {
+        background: var(--interactive-accent);
+        color: var(--text-on-accent);
+        border-color: transparent;
+    }
+}
+
+.pakcli-level-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.pakcli-level-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.pakcli-level-buttons {
+    display: flex;
+    background: var(--background-modifier-form-field);
+    border-radius: var(--radius-s);
+    padding: 2px;
+    gap: 2px;
+}
+
+.pakcli-level-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+        color: var(--text-normal);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    &.active {
+        background: var(--interactive-accent);
+        color: var(--text-on-accent);
+        font-weight: 600;
+    }
+}
+
+.pakcli-size-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pakcli-size-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.pakcli-font-slider {
+    width: 65px;
+    cursor: pointer;
+}
+
+.pakcli-size-display {
+    font-size: 10px;
+    font-weight: 600;
+    font-family: var(--font-monospace);
+    color: var(--text-accent);
+    min-width: 26px;
+}
+
+/* Stats Pill */
+.pakcli-stats-pill {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--background-primary);
+    padding: 4px 12px;
+    border-radius: var(--radius-m);
+    border: 1px solid var(--background-modifier-border);
+    white-space: nowrap;
+}
+
+/* Right Controls */
+.pakcli-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pakcli-wand-btn {
+    transition: all 0.2s ease;
+
+    &.active {
+        background: rgba(56, 189, 248, 0.2);
+        color: #38bdf8;
+        border-color: rgba(56, 189, 248, 0.6);
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+        animation: pakcli-pulse-glow 2s infinite ease-in-out;
+    }
+}
+
+@keyframes pakcli-pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 6px rgba(56, 189, 248, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
+    }
+}
+
+.pakcli-search-input {
+    background: var(--background-modifier-form-field);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--text-normal);
+    width: 160px;
+    transition: width 0.2s ease, border-color 0.2s ease;
+
+    &:focus {
+        width: 220px;
+        border-color: var(--interactive-accent);
+        outline: none;
+    }
+}
+
+.pakcli-icon-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    padding: 5px;
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+        background: var(--background-modifier-hover);
+        color: var(--text-normal);
+        border-color: var(--background-modifier-border);
+    }
+
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+/* 2. Workspace Split (Canvas + Inspector) */
+.pakcli-bubble-workspace {
+    display: flex;
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.pakcli-bubble-canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(circle at center, var(--background-primary) 0%, var(--background-secondary) 100%);
+}
+
+.pakcli-bubble-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+
+    &:active {
+        cursor: grabbing;
+    }
+}
+
+/* 3. Right Inspector Drawer */
+.pakcli-bubble-inspector {
+    width: 290px;
+    background: var(--background-secondary);
+    border-left: 1px solid var(--background-modifier-border);
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    overflow-y: auto;
+    transition: transform 0.2s ease, width 0.2s ease;
+
+    &.collapsed {
+        display: none;
+    }
+}
+
+.pakcli-inspector-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.pakcli-inspector-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-normal);
+}
+
+.pakcli-inspector-empty {
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
+    padding: 30px 10px;
+}
+
+.pakcli-inspector-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pakcli-inspector-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pakcli-row-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.pakcli-row-value {
+    font-size: 12px;
+    color: var(--text-normal);
+
+    &.primary {
+        font-size: 14px;
+        color: var(--text-accent);
+    }
+
+    &.highlight {
+        color: #34d399;
+        font-weight: 600;
+    }
+}
+
+.pakcli-inspector-section {
+    margin-top: 6px;
+
+    h4 {
+        font-size: 11px;
+        margin: 0 0 6px 0;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+}
+
+.pakcli-link-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.pakcli-link-item {
+    font-size: 11px;
+    color: var(--text-normal);
+    padding: 3px 6px;
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    transition: background 0.1s ease, color 0.1s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &:hover {
+        background: var(--background-modifier-hover);
+        color: var(--text-accent);
+    }
+}
+
+.pakcli-muted {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.pakcli-open-note-btn {
+    margin-top: 12px;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: var(--radius-m);
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+
+    &:hover {
+        filter: brightness(1.1);
+    }
+}
+
+/* 4. Bottom Timeline Minimap Scrubber */
+.pakcli-timeline-minimap {
+    display: flex;
+    align-items: center;
+    padding: 6px 16px;
+    background: var(--background-secondary);
+    border-top: 1px solid var(--background-modifier-border);
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.pakcli-timeline-label {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.pakcli-timeline-nav {
+    background: transparent;
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+    padding: 3px 8px;
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+        background: var(--background-modifier-hover);
+        color: var(--text-normal);
+    }
+
+    svg {
+        width: 13px;
+        height: 13px;
+    }
+}
+
+.pakcli-timeline-play-btn {
+    color: var(--text-accent);
+    border-color: rgba(56, 189, 248, 0.35);
+
+    &:hover {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+    }
+}
+
+.pakcli-timelapse-mode-group {
+    display: flex;
+    background: var(--background-modifier-form-field);
+    border-radius: var(--radius-s);
+    padding: 2px;
+    gap: 2px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.pakcli-timelapse-mode-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+
+    &:hover {
+        color: var(--text-normal);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    &.active {
+        background: var(--interactive-accent);
+        color: var(--text-on-accent);
+        font-weight: 600;
+    }
+}
+
+.pakcli-timeline-track-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.pakcli-timeline-slider {
+    width: 100%;
+    cursor: pointer;
+}
+
+.pakcli-timeline-date-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: #38bdf8;
+    background: var(--background-primary);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: var(--radius-s);
+    padding: 3px 10px;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+}
+
+/* ========================================================================= */
+/* Settings Hub - Integration Mode Radio Cards                               */
+/* ========================================================================= */
+
+.pakcli-radio-cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 10px 0 16px 0;
+}
+
+.pakcli-radio-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    background: var(--background-secondary);
+    border: 2px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+        border-color: var(--interactive-accent-hover);
+        background: var(--background-modifier-hover);
+    }
+
+    &.is-selected {
+        border-color: var(--interactive-accent);
+        background: rgba(56, 189, 248, 0.08);
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+    }
+}
+
+.pakcli-radio-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pakcli-radio-circle {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--text-muted);
+    position: relative;
+    display: inline-block;
+
+    .pakcli-radio-card.is-selected & {
+        border-color: var(--interactive-accent);
+
+        &::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--interactive-accent);
+        }
+    }
+}
+
+.pakcli-radio-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.pakcli-radio-card-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.4;
+    margin-left: 24px;
+}

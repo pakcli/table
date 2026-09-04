@@ -73,6 +73,21 @@ export const ECOSYSTEM_MODULES: BlueprintSection[] = [
 
   // ☐ TABLE MODULES
   {
+    id: "table-bubble-graph",
+    category: "table",
+    title: "Graph Topology & Bubble View",
+    icon: "circle-dot",
+    storeId: "pakcli-table",
+    repoUrl: "https://github.com/pakcli/table",
+    description: "Venn-cluster topology, organic contour hulls, smart 3-tier link hierarchy, and interactive graph inspector.",
+    fields: [
+      { key: "bubbleGraphMode", type: "dropdown", name: "Integration Mode", desc: "Choose whether to deactivate, replace vanilla graph, or add as a second graph view.", defaultVal: "second", options: ["second", "replace", "deactivate"] },
+      { key: "bubbleRibbonIcon", type: "dropdown", name: "Ribbon Icon", desc: "Select icon to display in the left ribbon bar.", defaultVal: "circle-dot", options: ["circle-dot", "bubbles", "dot-network", "git-fork", "network", "sparkles", "share-2", "boxes", "compass", "orbit"] },
+      { key: "bubbleMaxDragDepth", type: "dropdown", name: "Max Drag Depth", desc: "Depth constraint for dragging nodes and clusters.", defaultVal: "2", options: ["0", "1", "2", "3"] },
+      { key: "bubbleDefaultLayout", type: "dropdown", name: "Default Layout", desc: "Initial view mode.", defaultVal: "bubble", options: ["bubble", "default"] },
+    ],
+  },
+  {
     id: "table-csv",
     category: "table",
     title: "CSV & Tablite Table Editor",
