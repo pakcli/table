@@ -1,4 +1,4 @@
-import { App, Plugin, Notice, Setting } from 'obsidian';
+import { App, Plugin, Notice, Setting, PluginSettingTab } from 'obsidian';
 import { PakCLITableSettings, DEFAULT_TABLE_SETTINGS } from './settings';
 
 // Hub Imports
@@ -14,8 +14,9 @@ import { registerCommands as registerTreeCommands } from './features/tree/comman
 // SQLSeal & Database Imports
 import { mainModule } from './features/sqlseal/modules/main/module';
 import { SQLSealSettingsTab } from './features/sqlseal/modules/settings/SQLSealSettingsTab';
-import { ColumnConfig } from './features/sqlseal/types';
+import { ColumnConfig, CalcPreset, normalizeColumnConfig, createDefaultColumnConfig } from './features/sqlseal/types';
 import { CsvView, CSV_VIEW_TYPE } from './features/sqlseal/csv-view';
+import { CustomCalcModal } from './features/sqlseal/components/CustomCalcModal';
 
 // Leaflet Imports
 import { BasesLeafletViewPlugin } from './features/leaflet/plugin';
@@ -36,7 +37,7 @@ export default class PakCLITablePlugin extends Plugin {
 	codeblockScaler!: CodeblockScaler;
 	leafletPlugin!: BasesLeafletViewPlugin;
 	sqlsealTabInstance: SQLSealSettingsTab | null = null;
-	leafletTabInstance: any = null;
+	leafletTabInstance: unknown = null;
 	settingsPanelStates: Map<string, boolean> = new Map();
 	vaultRoot: string = '';
 	bubbleRibbonEl: HTMLElement | null = null;
@@ -96,18 +97,18 @@ export default class PakCLITablePlugin extends Plugin {
 		this.router.registerEvents(this);
 
 		this.registerMarkdownCodeBlockProcessor('tree', async (source, el, ctx) => {
-			ctx.addChild(new DiagramRenderer(this as any, source, el, ctx));
+			ctx.addChild(new DiagramRenderer(this, source, el, ctx));
 		});
 
-		registerTreeCommands(this as any);
+		registerTreeCommands(this);
 
 		// 6. Initialize SQLSeal & Database Explorer
 		try {
-			const container = mainModule.build({
+			const container = (mainModule as any).build({
 				'obsidian.app': (d: { value: (v: unknown) => unknown }) => d.value(this.app),
 				'obsidian.plugin': (d: { value: (v: unknown) => unknown }) => d.value(this),
 				'obsidian.vault': (d: { value: (v: unknown) => unknown }) => d.value(this.app.vault)
-			} as unknown as Parameters<typeof mainModule.build>[0]);
+			});
 
 			const init = await container.get('init');
 			init();
@@ -118,7 +119,7 @@ export default class PakCLITablePlugin extends Plugin {
 		}
 
 		// Register CSV View
-		this.registerView(CSV_VIEW_TYPE, (leaf) => new CsvView(leaf, this as any));
+		this.registerView(CSV_VIEW_TYPE, (leaf) => new CsvView(leaf, this));
 		this.registerExtensions(['csv'], CSV_VIEW_TYPE);
 
 		// 7. Initialize Leaflet Mapping Engine
@@ -133,7 +134,7 @@ export default class PakCLITablePlugin extends Plugin {
 		}
 
 		// 8. Initialize ASCII Draw & Motion Studio
-		registerAsciiDrawFeature(this as any);
+		registerAsciiDrawFeature(this);
 
 		// 9. Initialize Graph Topology & Bubble View (Spec v18)
 		this.registerView(BUBBLE_GRAPH_VIEW_TYPE, (leaf) => new BubbleGraphView(leaf, this));
@@ -202,24 +203,19 @@ export default class PakCLITablePlugin extends Plugin {
 	}
 
 	getFileColumnConfig(filePath: string, columnCount: number): ColumnConfig {
-		const fileConfigs = (this.settings as any).fileConfigs || {};
+		const fileConfigs = (this.settings.fileConfigs as Record<string, ColumnConfig>) || {};
 		const saved = fileConfigs[filePath];
 		if (saved && !Array.isArray(saved)) {
-			return saved;
+			return normalizeColumnConfig(saved, columnCount);
 		}
-		return {
-			order: Array.from({ length: columnCount }, (_, i) => i),
-			hidden: [],
-			sizing: {},
-			frozenCount: 0
-		};
+		return createDefaultColumnConfig(columnCount);
 	}
 
 	async setFileColumnConfig(filePath: string, nextColumnCount: number, config: ColumnConfig): Promise<void> {
-		if (!(this.settings as any).fileConfigs) {
-			(this.settings as any).fileConfigs = {};
+		if (!this.settings.fileConfigs) {
+			this.settings.fileConfigs = {};
 		}
-		(this.settings as any).fileConfigs[filePath] = config;
+		(this.settings.fileConfigs as Record<string, ColumnConfig>)[filePath] = config;
 		await this.saveSettings();
 	}
 
@@ -363,8 +359,8 @@ export default class PakCLITablePlugin extends Plugin {
 						d.addOption('bubble', 'Venn-Cluster Bubble Topology')
 							.addOption('default', 'Standard Force-Directed Graph')
 							.setValue(this.settings.bubbleDefaultLayout || 'bubble')
-							.onChange(async (v: any) => {
-								this.settings.bubbleDefaultLayout = v;
+							.onChange(async (v: string) => {
+								this.settings.bubbleDefaultLayout = v as 'bubble' | 'default';
 								await this.saveSettings();
 							});
 					});
@@ -411,8 +407,8 @@ export default class PakCLITablePlugin extends Plugin {
 						d.addOption('date', 'Default: Date-based timeline interpolation')
 							.addOption('vanilla', 'Vanilla: Sequential spawn (0.025s per node / folder in chronological order)')
 							.setValue(this.settings.bubbleTimelapseMode || 'date')
-							.onChange(async (v: any) => {
-								this.settings.bubbleTimelapseMode = v;
+							.onChange(async (v: string) => {
+								this.settings.bubbleTimelapseMode = v as 'date' | 'vanilla';
 								await this.saveSettings();
 							});
 					});
@@ -451,9 +447,9 @@ export default class PakCLITablePlugin extends Plugin {
 					.setName('Enable CSV Table Editor')
 					.setDesc('Open .csv files in the interactive AG-Grid / Tablite spreadsheet viewer.')
 					.addToggle((t) => {
-						t.setValue((this.settings as any).enableCsvEditor !== false)
+						t.setValue(this.settings.enableCsvEditor !== false)
 							.onChange(async (v) => {
-								(this.settings as any).enableCsvEditor = v;
+								this.settings.enableCsvEditor = v;
 								await this.saveSettings();
 							});
 					});
@@ -465,12 +461,102 @@ export default class PakCLITablePlugin extends Plugin {
 						d.addOption('ag-theme-quartz', 'Obsidian Dark Quartz')
 							.addOption('ag-theme-alpine', 'Alpine Crisp')
 							.addOption('ag-theme-balham', 'Compact Balham')
-							.setValue((this.settings as any).gridTheme || 'ag-theme-quartz')
+							.setValue(this.settings.gridTheme || 'ag-theme-quartz')
 							.onChange(async (v) => {
-								(this.settings as any).gridTheme = v;
+								this.settings.gridTheme = v;
 								await this.saveSettings();
 							});
 					});
+
+				new Setting(containerEl)
+					.setName('Calculation Engine & Aggregate Dashboards')
+					.setDesc('Configure standard aggregations (SUM, MID, AVG, MAX, MIN, COUNT) and custom math formulas.')
+					.setHeading();
+
+				new Setting(containerEl)
+					.setName('Default Calculation Row Position')
+					.setDesc('Default placement of the calculation row across CSV files.')
+					.addDropdown((d) => {
+						d.addOption('below', 'Below Last Row')
+							.addOption('above', 'Above Header')
+							.addOption('both', 'Both (Above & Below)')
+							.addOption('none', 'Off / Hidden')
+							.setValue(this.settings.defaultCalcPosition || 'above')
+							.onChange(async (v: string) => {
+								this.settings.defaultCalcPosition = v as 'below' | 'above' | 'both' | 'none';
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Freeze Calculation Row')
+					.setDesc('Pin calculation row to top or bottom while scrolling through table data.')
+					.addToggle((t) => {
+						t.setValue(this.settings.defaultCalcFreeze !== false)
+							.onChange(async (v) => {
+								this.settings.defaultCalcFreeze = v;
+								await this.saveSettings();
+							});
+					});
+
+				const renderPresetsList = (listContainer: HTMLElement) => {
+					listContainer.empty();
+
+					new Setting(listContainer)
+						.setName('Custom Calculation Presets (*preset_name)')
+						.setDesc('Formulas support arithmetic operators (+, -, *, /, %, ^) with tokens: SUM, MID, AVG, MAX, MIN, COUNT.')
+						.addButton((btn) => {
+							btn.setButtonText('+ Add Calc Preset')
+								.setCta()
+								.onClick(() => {
+									new CustomCalcModal(this.app, this, undefined, () => {
+										renderPresetsList(listContainer);
+									}).open();
+								});
+						});
+
+					const presets: CalcPreset[] = this.settings.calcPresets || [];
+					if (presets.length === 0) {
+						const emptyEl = listContainer.createEl('div', {
+							text: 'No custom calculation presets configured. Click "+ Add Calc Preset" to create one.',
+							cls: 'tablite-calc-empty-note'
+						});
+						emptyEl.style.fontSize = '0.85em';
+						emptyEl.style.color = 'var(--text-muted)';
+						emptyEl.style.padding = '8px 0';
+						return;
+					}
+
+					for (const preset of presets) {
+						const setting = new Setting(listContainer)
+							.setName(preset.name)
+							.setDesc(`Formula: ${preset.formula}${preset.description ? ` — ${preset.description}` : ''}`);
+
+						setting.addExtraButton((btn) => {
+							btn.setIcon('pencil')
+								.setTooltip('Edit Preset Formula')
+								.onClick(() => {
+									new CustomCalcModal(this.app, this, preset, () => {
+										renderPresetsList(listContainer);
+									}).open();
+								});
+						});
+
+						setting.addExtraButton((btn) => {
+							btn.setIcon('trash')
+								.setTooltip('Delete Preset')
+								.onClick(async () => {
+									this.settings.calcPresets = (this.settings.calcPresets || []).filter(p => p.id !== preset.id);
+									await this.saveSettings();
+									renderPresetsList(listContainer);
+									new Notice(`Preset "${preset.name}" deleted.`);
+								});
+						});
+					}
+				};
+
+				const presetsSectionEl = containerEl.createDiv({ cls: 'tablite-presets-settings-section' });
+				renderPresetsList(presetsSectionEl);
 			}
 		});
 
@@ -491,9 +577,9 @@ export default class PakCLITablePlugin extends Plugin {
 					.setName('Enable Tree Post-processor')
 					.setDesc('Render tree codeblocks as interactive diagrams and folder views.')
 					.addToggle((t) => {
-						t.setValue((this.settings as any).enableTreeProcessor !== false)
+						t.setValue(this.settings.enableTreeProcessor !== false)
 							.onChange(async (v) => {
-								(this.settings as any).enableTreeProcessor = v;
+								this.settings.enableTreeProcessor = v;
 								await this.saveSettings();
 							});
 					});
@@ -505,9 +591,9 @@ export default class PakCLITablePlugin extends Plugin {
 						d.addOption('Left-to-Right', 'Left-to-Right (Horizontal)')
 							.addOption('Top-to-Bottom', 'Top-to-Bottom (Vertical)')
 							.addOption('Folder Box', 'Folder Box (Nested)')
-							.setValue((this.settings as any).defaultTreeLayout || 'Left-to-Right')
+							.setValue(this.settings.defaultTreeLayout || 'Left-to-Right')
 							.onChange(async (v) => {
-								(this.settings as any).defaultTreeLayout = v;
+								this.settings.defaultTreeLayout = v;
 								await this.saveSettings();
 							});
 					});
@@ -547,8 +633,8 @@ export default class PakCLITablePlugin extends Plugin {
 							.addOption('wrap', 'Word Wrap (Wrap Lines)')
 							.addOption('scalefit', 'Scale Fit (Auto Font Scaling)')
 							.setValue(this.settings.codeblockWrapMode || 'flowclip')
-							.onChange(async (v: any) => {
-								this.settings.codeblockWrapMode = v;
+							.onChange(async (v: string) => {
+								this.settings.codeblockWrapMode = v as 'flowclip' | 'wrap' | 'scalefit';
 								this.applyCodeblockStyle();
 								await this.saveSettings();
 							});
@@ -615,7 +701,7 @@ export default class PakCLITablePlugin extends Plugin {
 				icon: 'database',
 				isInstalled: true,
 				render: (containerEl) => {
-					(this.sqlsealTabInstance as any)?.display(containerEl);
+					(this.sqlsealTabInstance as PluginSettingTab)?.display();
 				}
 			});
 		}
@@ -629,7 +715,7 @@ export default class PakCLITablePlugin extends Plugin {
 				icon: 'map-pin',
 				isInstalled: true,
 				render: (containerEl) => {
-					(this.leafletTabInstance as any)?.display(containerEl);
+					(this.leafletTabInstance as PluginSettingTab)?.display();
 				}
 			});
 		}

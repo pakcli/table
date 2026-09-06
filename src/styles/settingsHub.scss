@@ -374,52 +374,52 @@
 /* ========================================================================= */
 
 @media (max-width: 768px), (max-device-width: 768px) {
-    .vertical-tab-content.pakcli-settings-hub {
-    padding: 8px 10px !important;
+  .vertical-tab-content.pakcli-settings-hub {
+    padding: 8px 10px;
   }
 
   .pakcli-master-detail-root {
-    width: 100% !important;
-    max-width: 100% !important;
-    gap: 8px !important;
+    width: 100%;
+    max-width: 100%;
+    gap: 8px;
   }
 
   .pakcli-topbar {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 8px !important;
-    padding: 10px !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px;
 
     .setting-item {
-      width: 100% !important;
+      width: 100%;
     }
 
     .pakcli-topbar-actions {
-      display: flex !important;
-      flex-wrap: wrap !important;
-      gap: 6px !important;
-      width: 100% !important;
-      justify-content: flex-start !important;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      width: 100%;
+      justify-content: flex-start;
 
       .pakcli-history-btn-wrap {
-        flex: 1 1 auto !important;
-        justify-content: flex-start !important;
+        flex: 1 1 auto;
+        justify-content: flex-start;
       }
 
       .pakcli-action-btn {
-        flex: 1 1 auto !important;
-        justify-content: center !important;
+        flex: 1 1 auto;
+        justify-content: center;
       }
     }
   }
 
   /* Show Mobile Toggle Bar */
   .pakcli-mobile-toggle-bar {
-    display: flex !important;
+    display: flex;
   }
 
   .pakcli-mobile-switch-btn {
-    display: inline-flex !important;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
@@ -442,74 +442,74 @@
 
   /* Mobile Master-Detail Layout */
   .pakcli-master-detail-layout {
-    flex-direction: column !important;
-    gap: 10px !important;
-    min-height: auto !important;
+    flex-direction: column;
+    gap: 10px;
+    min-height: auto;
 
     /* If sidebar is NOT open on mobile: hide sidebar, show detail pane 100% width */
     &:not(.mobile-sidebar-open) {
       .pakcli-sidebar {
-        display: none !important;
+        display: none;
       }
 
       .pakcli-content-pane,
       .pakcli-detail-panel {
-        display: flex !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        padding: 12px !important;
+        display: flex;
+        width: 100%;
+        max-width: 100%;
+        padding: 12px;
       }
     }
 
     /* If sidebar IS open on mobile: show full-width drawer list, hide detail pane */
     &.mobile-sidebar-open {
       .pakcli-sidebar {
-        display: flex !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        flex: none !important;
-        min-width: 0 !important;
+        display: flex;
+        width: 100%;
+        max-width: 100%;
+        flex: none;
+        min-width: 0;
         animation: pakcli-slide-down 0.2s ease-out;
       }
 
       .pakcli-content-pane,
       .pakcli-detail-panel {
-        display: none !important;
+        display: none;
       }
     }
   }
 
   .pakcli-modal-actions-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 }
 
 /* Obsidian native mobile container classes */
 .is-mobile, .is-phone {
   .pakcli-mobile-toggle-bar {
-    display: flex !important;
+    display: flex;
   }
 
   .pakcli-master-detail-layout:not(.mobile-sidebar-open) .pakcli-sidebar {
-    display: none !important;
+    display: none;
   }
 
   .pakcli-master-detail-layout.mobile-sidebar-open .pakcli-sidebar {
-    display: flex !important;
-    width: 100% !important;
-    max-width: 100% !important;
+    display: flex;
+    width: 100%;
+    max-width: 100%;
   }
 
   .pakcli-master-detail-layout.mobile-sidebar-open .pakcli-content-pane {
-    display: none !important;
+    display: none;
   }
 
   .pakcli-topbar {
-    flex-direction: column !important;
-    align-items: stretch !important;
+    flex-direction: column;
+    align-items: stretch;
 
     .pakcli-topbar-actions {
-      flex-wrap: wrap !important;
+      flex-wrap: wrap;
     }
   }
 }

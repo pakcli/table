@@ -106,9 +106,8 @@ function Show-Menu {
         Write-Host "  [2] Build and Test Only (npm run build + Auto Copy to Vault)" -ForegroundColor Cyan
         Write-Host "  [3] Upload Assets to an Existing GitHub Release" -ForegroundColor White
         Write-Host "  [4] Open GitHub Releases in Browser" -ForegroundColor Gray
-        Write-Host "  [5] 🌐 Trigger Obsidian Community Release Check" -ForegroundColor Yellow
-        Write-Host "  [6] 🔄 Zero-Risk Scorecard Audit & Auto-Remediation Loop (Single Pass)" -ForegroundColor Magenta
-        Write-Host "  [7] 💓 Heartbeat Daemon Loop (Publish -> Wait 25m -> Extract -> Fix -> Restart)" -ForegroundColor Red
+        Write-Host "  [5] [Web] Trigger Obsidian Community Release Check" -ForegroundColor Yellow
+        Write-Host "  [6] [Audit] Zero-Risk Scorecard Audit & Auto-Remediation Loop (Single Pass)" -ForegroundColor Magenta
         Write-Host "  [0] Exit" -ForegroundColor Red
         Write-Host "-----------------------------------------------------------------" -ForegroundColor Gray
 
@@ -126,9 +125,8 @@ function Show-Menu {
             "4" { Invoke-OpenWeb $info }
             "5" { Invoke-ObsidianCheckRelease $info }
             "6" { & "$PSScriptRoot/auto_audit_loop.ps1" }
-            "7" { & "$PSScriptRoot/heartbeat_audit_loop.ps1" }
             "0" { Write-Host "Goodbye!"; exit 0 }
-            default { Write-Warn "Invalid choice. Please choose 0 to 7." }
+            default { Write-Warn "Invalid choice. Please choose 0 to 6." }
         }
 
         Write-Host ""
@@ -217,7 +215,7 @@ function Invoke-FullRelease($info) {
     Write-Step "Step 3/5: Checking Git status..."
     $diffCheck = git status --porcelain
     if ($diffCheck) {
-        git add manifest.json package.json versions.json
+        git add -A
         git commit -m "chore: release $targetVer" 2>$null
         if ($LASTEXITCODE -eq 0) {
             Write-Success "Committed release metadata."

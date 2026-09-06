@@ -25,7 +25,7 @@ export const loadConfig = async (file: TFile, vault: Vault): Promise<ConfigObjec
     }
 
     // Now loading saved one
-    const configPath = file!.path + '.sqlsealconfig'
+    const configPath = file.path + '.sqlsealconfig'
     const configFile = vault.getFileByPath(configPath)
     if (!configFile) {
         return config
@@ -46,7 +46,7 @@ export const saveConfig = async (file: TFile, content: object, vault: Vault) => 
     const serialised = jsonStringify(content, null, 2)
 
     // Check if exists
-    const configPath = file!.path + '.sqlsealconfig'
+    const configPath = file.path + '.sqlsealconfig'
     const configFile = vault.getFileByPath(configPath)
     if (!configFile) {
         // CREATE NEW

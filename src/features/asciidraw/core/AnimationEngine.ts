@@ -104,7 +104,7 @@ export class AnimationEngine {
 	public pause(): void {
 		this.isPlaying = false;
 		if (this.animationFrameId !== null) {
-			cancelAnimationFrame(this.animationFrameId);
+			window.cancelAnimationFrame(this.animationFrameId);
 			this.animationFrameId = null;
 		}
 	}

@@ -38,27 +38,29 @@ export class ListRenderer implements RendererConfig {
 
     render(config: ListRendererConfig, el: HTMLElement, { cellParser }: RendererContext) {
         return {
-            render: ({ columns, data }: any) => {
+            render: ({ columns, data }: { columns: string[]; data: Record<string, any>[] }) => {
                 el.empty()
                 const container = el.createDiv({
                     cls: ['sqlseal-list-container', 'sqlseal-list', ...config.classNames]
                 })
 
-
                 const list = container.createEl("ul", {
                     cls: ['sqlseal-list-main']
                 })
 
-                data.forEach((d: any) => {
+                data.forEach((d: Record<string, any>) => {
 					const singleCol = columns.length == 1; // Only one column, do not nest lists
                     const row = singleCol ? list : list.createEl("li", { cls: ['sqlseal-list-element'] }).createEl('ul')
-                    columns.forEach((c: any) => {
+                    columns.forEach((c: string) => {
                         const el = row.createEl("li", {
-                            text: createEl('span', { text: c, cls: 'sqlseal-column-name' }) as any, // FIXME: this should be properly typed
                             cls: singleCol ? ['sqlseal-list-element', 'sqlseal-list-element-single'] : ['sqlseal-list-element-single']
                         })
-                        const val: any = cellParser!.render(d[c])
-                        el.append(val)
+                        el.createSpan({ text: c, cls: 'sqlseal-column-name' })
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const val = cellParser?.render(d[c] as any)
+                        if (val instanceof Node || typeof val === 'string') {
+                            el.append(val)
+                        }
                         el.dataset.sqlsealColumn = c
                     })
                 })

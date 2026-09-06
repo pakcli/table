@@ -142,7 +142,7 @@ export class BubbleGraphView extends ItemView {
 
     async onClose(): Promise<void> {
         if (this.animFrameId !== null) {
-            cancelAnimationFrame(this.animFrameId);
+            window.cancelAnimationFrame(this.animFrameId);
             this.animFrameId = null;
         }
     }
@@ -515,7 +515,7 @@ export class BubbleGraphView extends ItemView {
         const backSection = details.createDiv({ cls: 'pakcli-inspector-section' });
         const backlinks = this.graphData.edges
             .filter(e => e.target === node.id && e.sourceNode)
-            .map(e => e.sourceNode!);
+            .map(e => e.sourceNode);
         backSection.createEl('h4', { text: `Backlinks (${backlinks.length}):` });
         const backList = backSection.createDiv({ cls: 'pakcli-link-list' });
         if (backlinks.length === 0) {
@@ -531,7 +531,7 @@ export class BubbleGraphView extends ItemView {
         const outSection = details.createDiv({ cls: 'pakcli-inspector-section' });
         const outgoing = this.graphData.edges
             .filter(e => e.source === node.id && e.targetNode)
-            .map(e => e.targetNode!);
+            .map(e => e.targetNode);
         outSection.createEl('h4', { text: `Outgoing (${outgoing.length}):` });
         const outList = outSection.createDiv({ cls: 'pakcli-link-list' });
         if (outgoing.length === 0) {
@@ -763,7 +763,7 @@ export class BubbleGraphView extends ItemView {
                     renderVisibleNodeIds = new Set(this.sortedNodes.slice(0, count).map(n => n.id));
                 } else {
                     renderCutoff = this.timelapseMinCtime + (this.timelapseMaxCtime - this.timelapseMinCtime) * this.timelapseProgress;
-                    renderVisibleNodeIds = new Set(this.graphData.nodes.filter(n => n.ctime <= renderCutoff!).map(n => n.id));
+                    renderVisibleNodeIds = new Set(this.graphData.nodes.filter(n => n.ctime <= renderCutoff).map(n => n.id));
                 }
             }
 
@@ -807,10 +807,10 @@ export class BubbleGraphView extends ItemView {
                 this.renderer.render(this.transform, renderState, time);
             }
 
-            this.animFrameId = requestAnimationFrame(renderLoop);
+            this.animFrameId = window.requestAnimationFrame(renderLoop);
         };
 
-        this.animFrameId = requestAnimationFrame(renderLoop);
+        this.animFrameId = window.requestAnimationFrame(renderLoop);
     }
 
     private screenToWorld(clientX: number, clientY: number): { x: number; y: number } {

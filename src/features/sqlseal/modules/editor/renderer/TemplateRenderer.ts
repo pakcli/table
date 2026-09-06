@@ -39,10 +39,10 @@ export class TemplateRenderer implements RendererConfig {
 
     render(config: TemplateRendererConfig, el: HTMLElement, { cellParser }: RendererContext) {
         return {
-            render: ({ columns, data, frontmatter }: any) => {
+            render: ({ columns, data, frontmatter }: { columns: string[]; data: Record<string, any>[]; frontmatter?: Record<string, any> }) => {
                 el.empty()
                 
-                const parser = new ParseResults(cellParser!, (el) => new Handlebars.SafeString(el.outerHTML))
+                const parser = new ParseResults(cellParser, (el) => new Handlebars.SafeString(el.outerHTML))
 
                 const htmlString = config.template({
                     data: parser.parse(data, columns),

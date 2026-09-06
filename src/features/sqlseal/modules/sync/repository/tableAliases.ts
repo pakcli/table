@@ -49,7 +49,7 @@ export class TableAliasesRepository extends Repository {
     }
 
     async getAll() {
-        const { data } = (await this.db.select('SELECT * FROM TABLE_ALIASES', {}))!
+        const { data } = (await this.db.select('SELECT * FROM TABLE_ALIASES', {}))
         return data as unknown as TableAlias[]
     }
 
@@ -59,29 +59,29 @@ export class TableAliasesRepository extends Repository {
                 AND alias_name=@alias_name`, {
                     'source_file_name': sourceFileName,
                     'alias_name': aliasName
-                }))!
+                }))
         if (!data || data.length < 0) {
             return null
         }
-        return data[0] as unknown as TableAlias
+        return data[0] as TableAlias
     }
 
     async getByTableName(tableName: string) {
         const { data } = (await this.db.select(`SELECT * FROM TABLE_ALIASES
             WHERE table_name = @table_name`, {
                 table_name: tableName
-        }))!
+        }))
         if (!data) {
             return []
         }
-        return data as unknown[] as TableAlias[]
+        return data as TableAlias[]
     }
 
 
     async getByContext(sourceFileName: string) {
         const { data } = (await this.db.select(`SELECT * FROM TABLE_ALIASES
             WHERE source_file_name=@source_file_name
-            `, { source_file_name: sourceFileName }))!
+            `, { source_file_name: sourceFileName }))
         if (!data) {
             return []
         }

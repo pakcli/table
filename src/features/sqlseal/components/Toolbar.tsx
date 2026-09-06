@@ -32,9 +32,10 @@ interface ToolbarProps {
   onFrozenCountChange: (count: number) => void;
   onUndo: () => void;
   onRedo: () => void;
-  views?: Record<string, any>;
+  views?: Record<string, unknown>;
   activeView?: string;
   onViewChange?: (viewName: string) => void;
+  onResetView?: () => void;
   onAddView?: (viewName: string) => void;
   onDuplicateView?: (viewName: string) => void;
   onDeleteView?: () => void;
@@ -44,6 +45,11 @@ interface ToolbarProps {
   onDownloadThumbnails?: () => void;
   isFindOpen?: boolean;
   onToggleFindReplace?: () => void;
+  calcPosition?: "below" | "above" | "both" | "none";
+  calcFreeze?: boolean;
+  onCalcPositionChange?: (pos: "below" | "above" | "both" | "none") => void;
+  onCalcFreezeChange?: (freeze: boolean) => void;
+  onOpenAddCalcPreset?: () => void;
 }
 
 const DELIMITER_LABELS: Record<string, string> = {
@@ -85,6 +91,7 @@ export function Toolbar({
   views,
   activeView,
   onViewChange,
+  onResetView,
   onAddView,
   onDuplicateView,
   onDeleteView,
@@ -94,6 +101,11 @@ export function Toolbar({
   onDownloadThumbnails,
   isFindOpen,
   onToggleFindReplace,
+  calcPosition = "above",
+  calcFreeze = true,
+  onCalcPositionChange,
+  onCalcFreezeChange,
+  onOpenAddCalcPreset,
 }: ToolbarProps) {
   const undoBtnRef = useRef<HTMLButtonElement>(null);
   const redoBtnRef = useRef<HTMLButtonElement>(null);
@@ -139,8 +151,19 @@ export function Toolbar({
     const handleViewSelect = () => {
       if (!viewSelect) return;
       const val = viewSelect.value;
-      if (val === "__action_add") {
-        const globalApp = (window as any).app;
+      if (val === "__action_reset") {
+        const confirmed =
+          typeof window !== "undefined" && window.confirm
+            ? window.confirm(
+                `Reset view "${activeView || "Default"}" to default settings?`
+              )
+            : true;
+        if (confirmed) {
+          onResetView?.();
+        }
+        viewSelect.value = activeView || "Default";
+      } else if (val === "__action_add") {
+        const globalApp = window.app;
         if (globalApp) {
           const modal = new PromptModal(
             globalApp,
@@ -157,7 +180,7 @@ export function Toolbar({
         }
         viewSelect.value = activeView || "Default";
       } else if (val === "__action_duplicate") {
-        const globalApp = (window as any).app;
+        const globalApp = window.app;
         if (globalApp) {
           const modal = new PromptModal(
             globalApp,
@@ -174,7 +197,7 @@ export function Toolbar({
         }
         viewSelect.value = activeView || "Default";
       } else if (val === "__action_delete") {
-        const confirmed = typeof window !== "undefined" && (window as any).confirm ? (window as any).confirm(`Are you sure you want to delete the view "${activeView}"?`) : true;
+        const confirmed = typeof window !== "undefined" && window.confirm ? window.confirm(`Are you sure you want to delete the view "${activeView}"?`) : true;
         if (confirmed) {
           onDeleteView?.();
         }
@@ -281,6 +304,7 @@ export function Toolbar({
               </option>
             ))}
             <option disabled>──────────</option>
+            <option value="__action_reset">🔄 Reset current view to default</option>
             <option value="__action_add">+ Add new view...</option>
             <option value="__action_duplicate">📄 Duplicate current...</option>
             <option value="__action_delete">🗑️ Delete current</option>
@@ -335,6 +359,46 @@ export function Toolbar({
             ))}
           </select>
         </label>
+
+        {onCalcPositionChange && (
+          <label class="tablite-freeze-control" title="Calculation row position (Above header, Below rows, Both, or Off)">
+            <span class="tablite-freeze-label">∑ Calc</span>
+            <select
+              class="tablite-select"
+              value={calcPosition}
+              onChange={(e) => onCalcPositionChange((e.target as HTMLSelectElement).value as 'below' | 'above' | 'both' | 'none')}
+            >
+              <option value="below">Below</option>
+              <option value="above">Above</option>
+              <option value="both">Both</option>
+              <option value="none">Off</option>
+            </select>
+          </label>
+        )}
+
+        {onCalcFreezeChange && calcPosition !== "none" && (
+          <label class="tablite-toggle-label" title="Freeze/sticky calculation row on scroll">
+            <input
+              type="checkbox"
+              checked={calcFreeze !== false}
+              onChange={(e) => onCalcFreezeChange((e.target as HTMLInputElement).checked)}
+              class="tablite-toggle-input"
+            />
+            <span class="tablite-toggle-track" />
+            <span class="tablite-toggle-text">Freeze Calc</span>
+          </label>
+        )}
+
+        {onOpenAddCalcPreset && (
+          <button
+            type="button"
+            class="tablite-btn"
+            onClick={onOpenAddCalcPreset}
+            title="Create custom calculation preset formula (*preset_nama)"
+          >
+            ➕ Calc Preset
+          </button>
+        )}
 
         {onToggleViewMode && (
           <>

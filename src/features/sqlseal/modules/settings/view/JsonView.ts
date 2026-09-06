@@ -20,7 +20,7 @@ class JsonRenderer {
         Array.from(doc.body.firstChild?.childNodes || []).forEach(child => codeElement.appendChild(child.cloneNode(true)));
     }
     
-    renderFormattedJson(container: HTMLElement, parsedData: any): void {
+    renderFormattedJson(container: HTMLElement, parsedData: unknown): void {
         container.empty();
         const pre = container.createEl('pre');
         const code = pre.createEl('code', { cls: 'language-json' });
@@ -44,7 +44,7 @@ class JsonRenderer {
 class TableRenderer {
     processTablePreview(
         container: HTMLElement, 
-        parsedData: any, 
+        parsedData: unknown, 
         jsonPath: string, 
         isLargeFile: boolean
     ): void {
@@ -92,7 +92,7 @@ class TableRenderer {
         }
     }
     
-    private renderTable(container: HTMLElement, queryResult: any[], isLargeFile: boolean): void {
+    private renderTable(container: HTMLElement, queryResult: unknown[], isLargeFile: boolean): void {
         const maxRows = isLargeFile ? 50 : 100;
         const displayRows = queryResult.slice(0, maxRows);
         
@@ -124,7 +124,7 @@ class TableRenderer {
         });
     }
     
-    private createTableBody(table: HTMLElement, displayRows: any[], columns: string[]): void {
+    private createTableBody(table: HTMLElement, displayRows: unknown[], columns: string[]): void {
         const tbody = table.createEl('tbody');
         displayRows.forEach((row) => {
             const tableRow = tbody.createEl('tr');
@@ -236,7 +236,7 @@ function analyzeFileSize(content: string): { isLarge: boolean; sizeInMB: number 
 
 export class JsonView extends TextFileView {
     private content: string = '';
-    private parsedData: any = null;
+    private parsedData: unknown = null;
     private jsonPathInput: HTMLInputElement | undefined = undefined;
     private jsonContainer: HTMLElement | undefined = undefined;
     private tableContainer: HTMLElement | undefined = undefined;
@@ -309,7 +309,7 @@ export class JsonView extends TextFileView {
         this.contentEl.empty();
     }
 
-    api: any = null;
+    api: unknown = null;
 
     private async renderJson() {
         if (!this.content) {
@@ -338,7 +338,7 @@ export class JsonView extends TextFileView {
         
         if (!this.isLargeFile || this.isAnalyzed) {
             this.jsonPathInput.addEventListener('input', () => {
-                this.currentJsonPath = this.jsonPathInput!.value || '$';
+                this.currentJsonPath = this.jsonPathInput.value || '$';
                 this.updateTablePreview();
             });
         }
@@ -374,7 +374,7 @@ export class JsonView extends TextFileView {
         if (this.jsonPathInput) {
             this.jsonPathInput.disabled = false;
             this.jsonPathInput.addEventListener('input', () => {
-                this.currentJsonPath = this.jsonPathInput!.value || '$';
+                this.currentJsonPath = this.jsonPathInput.value || '$';
                 this.updateTablePreview();
             });
         }
@@ -385,7 +385,7 @@ export class JsonView extends TextFileView {
             
             this.parsedData = parse(this.content);
             this.isAnalyzed = true;
-            this.jsonRenderer.renderFormattedJson(this.jsonContainer!, this.parsedData);
+            this.jsonRenderer.renderFormattedJson(this.jsonContainer, this.parsedData);
             this.updateTablePreview();
             
             // Show generate code button for large files
@@ -401,8 +401,8 @@ export class JsonView extends TextFileView {
             
         } catch (e) {
             console.error('Error parsing JSON:', e);
-            this.jsonContainer!.empty();
-            this.jsonContainer!.createEl('div', {
+            this.jsonContainer.empty();
+            this.jsonContainer.createEl('div', {
                 cls: 'sqlseal-error',
                 text: `Error parsing JSON: ${e instanceof Error ? e.message : 'Unknown error'}`
             });
@@ -425,7 +425,7 @@ export class JsonView extends TextFileView {
             window.setTimeout(() => {
                 loadingDiv.remove();
                 this.tableRenderer.processTablePreview(
-                    this.tableContainer!, 
+                    this.tableContainer, 
                     this.parsedData, 
                     this.currentJsonPath, 
                     this.isLargeFile

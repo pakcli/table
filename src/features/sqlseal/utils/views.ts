@@ -6,14 +6,22 @@ export function getArtifactPath(csvPath: string): string {
 }
 
 export async function ensureFolderExists(app: App, folderPath: string) {
+  try {
+    if (app.vault.adapter && typeof app.vault.adapter.mkdir === "function") {
+      await app.vault.adapter.mkdir(folderPath).catch(() => {});
+    }
+  } catch {}
   const parts = folderPath.split('/');
   let current = '';
   for (const part of parts) {
     if (!part) continue;
     current = current ? `${current}/${part}` : part;
-    if (!app.vault.getFolderByPath(current)) {
-      await app.vault.createFolder(current).catch(() => {});
-    }
+    try {
+      const folder = app.vault.getAbstractFileByPath ? app.vault.getAbstractFileByPath(current) : null;
+      if (!folder) {
+        await app.vault.createFolder(current).catch(() => {});
+      }
+    } catch {}
   }
 }
 

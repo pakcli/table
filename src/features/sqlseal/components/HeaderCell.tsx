@@ -102,11 +102,11 @@ export function HeaderCell({
       onDragStart={(event) => {
         event.dataTransfer?.setData("text/tablite-column", String(colIndex));
         event.dataTransfer?.setData("text/plain", displayName || String(colIndex));
-        event.dataTransfer!.effectAllowed = "move";
+        event.dataTransfer.effectAllowed = "move";
       }}
       onDragOver={(event) => {
         event.preventDefault();
-        event.dataTransfer!.dropEffect = "move";
+        event.dataTransfer.dropEffect = "move";
         setIsDragOver(true);
       }}
       onDragLeave={() => {
@@ -117,7 +117,7 @@ export function HeaderCell({
         setIsDragOver(false);
         const sourceIndex = Number(event.dataTransfer?.getData("text/tablite-column"));
         if (!Number.isNaN(sourceIndex) && sourceIndex !== colIndex) {
-          const globalApp = (window as any).app;
+          const globalApp = window.app;
           if (globalApp) {
             new ConfirmReorderModal(
               globalApp,

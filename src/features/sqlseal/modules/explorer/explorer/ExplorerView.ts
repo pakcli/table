@@ -41,34 +41,33 @@ export class ExplorerView extends ItemView {
 	async onOpen() {
 		const content = this.contentEl;
 
-
-		const codeblockProcessorGenerator = async (el: HTMLElement, source: string, variables?: Record<string, any>) => {
+		const codeblockProcessorGenerator = async (el: HTMLElement, source: string, variables?: Record<string, unknown>) => {
 			const ctx: MarkdownPostProcessorContext = {
-			docId: "",
-			sourcePath: "",
-			frontmatter: variables || {},
-		} as any;
+				docId: "",
+				sourcePath: "",
+				frontmatter: variables || {},
+			} as unknown as MarkdownPostProcessorContext;
 
 			const processor = new CodeblockProcessor(
-			el,
-			source,
-			ctx,
-			this.rendererRegistry,
-			this.db,
-			this.cellParser,
-			this.settings,
-			this.app,
-			this.sync,
-		);
+				el,
+				source,
+				ctx,
+				this.rendererRegistry,
+				this.db,
+				this.cellParser,
+				this.settings,
+				this.app,
+				this.sync,
+			);
 			await processor.onload();
 
-
 			// Resizing and layout configuration for explorer
-			const renderer = processor.renderer
-			if ('communicator' in renderer && 'gridApi' in (renderer as any)['communicator']) {
-				const api: GridApi = (renderer.communicator as any).gridApi
-				api.setGridOption('paginationAutoPageSize', true)
-				api.setGridOption('domLayout', 'normal') // Override autoHeight for proper pagination
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const renderer = processor.renderer as any;
+			if (renderer?.communicator?.gridApi) {
+				const api: GridApi = renderer.communicator.gridApi;
+				api.setGridOption('paginationAutoPageSize', true);
+				api.setGridOption('domLayout', 'normal'); // Override autoHeight for proper pagination
 			}
 
 			await processor.render();

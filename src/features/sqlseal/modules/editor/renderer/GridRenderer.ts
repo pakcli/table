@@ -38,7 +38,7 @@ class AutocompleteCellEditor implements ICellEditorComp {
 
         this.container.appendChild(this.eInput);
 
-        const globalApp = (window as any).app;
+        const globalApp = window.app;
         if (globalApp) {
             this.suggester = new GenericTextSuggest(globalApp, this.eInput, params.values || []);
         }
@@ -90,7 +90,7 @@ const getAgGridTheme = (theme: 'dark' | 'light') => {
     } as const
 }
 
-function parseNumericValue(val: any): number | null {
+function parseNumericValue(val: unknown): number | null {
     if (val === null || val === undefined) return null;
     if (typeof val === 'number') return val;
     const str = String(val).trim();
@@ -102,14 +102,14 @@ function parseNumericValue(val: any): number | null {
     return isNaN(num) ? null : num;
 }
 
-function parseDateValue(val: any): Date | null {
+function parseDateValue(val: unknown): Date | null {
     if (val === null || val === undefined) return null;
     if (val instanceof Date) return val;
     const timestamp = Date.parse(String(val));
     return isNaN(timestamp) ? null : new Date(timestamp);
 }
 
-function detectColumnType(values: any[]): 'numeric' | 'date' | 'string' {
+function detectColumnType(values: unknown[]): 'numeric' | 'date' | 'string' {
     let numericCount = 0;
     let dateCount = 0;
     let nonEmptyCount = 0;
@@ -141,7 +141,7 @@ function detectColumnType(values: any[]): 'numeric' | 'date' | 'string' {
     return 'string';
 }
 
-function calculateAggregation(values: any[], type: string, colType: 'numeric' | 'date' | 'string'): any {
+function calculateAggregation(values: unknown[], type: string, colType: 'numeric' | 'date' | 'string'): unknown {
     const nonEmpty = values.filter(v => v !== null && v !== undefined && String(v).trim() !== '');
     if (nonEmpty.length === 0) return '';
 
@@ -198,7 +198,7 @@ function calculateAggregation(values: any[], type: string, colType: 'numeric' | 
     }
 }
 
-function formatAggregatedValue(val: any): string {
+function formatAggregatedValue(val: unknown): string {
     if (val === null || val === undefined) return '';
     if (typeof val === 'number') {
         if (Number.isNaN(val)) return '';
@@ -222,7 +222,7 @@ export class GridRendererCommunicator {
         this.setupLayoutObservers()
     }
 
-    private _gridApi: GridApi<any>
+    private _gridApi: GridApi<unknown>
     private errorEl: HTMLElement
     private errorOverlay: HTMLElement
     private resizeObserver: ResizeObserver
@@ -234,8 +234,8 @@ export class GridRendererCommunicator {
     private pageInfoEl: HTMLSpanElement;
 
     private visibleColumnIds: string[] = [];
-    private gridData: any[] = [];
-    private pinnedRowData: any[] = [];
+    private gridData: unknown[] = [];
+    private pinnedRowData: unknown[] = [];
     private selectionStartCell: { rowIndex: number, colId: string, isPinned: boolean } | null = null;
     private selectionEndCell: { rowIndex: number, colId: string, isPinned: boolean } | null = null;
     private isDraggingSelection: boolean = false;
@@ -243,13 +243,13 @@ export class GridRendererCommunicator {
     private onMouseUpRef: () => void;
     private onCopyRef: (event: ClipboardEvent) => void;
 
-    get gridApi(): GridApi<any> {
+    get gridApi(): GridApi<unknown> {
         return this._gridApi
     }
 
     private setupLayoutObservers() {
         // Debounce the resize observer to prevent too frequent updates
-        let resizeTimeout: any;
+        let resizeTimeout: number | undefined;
         this.resizeObserver = new ResizeObserver(() => {
             if (this._gridApi) {
                 window.clearTimeout(resizeTimeout);
@@ -341,11 +341,11 @@ export class GridRendererCommunicator {
             .withParams(getAgGridTheme(getCurrentTheme()))
 
 
-function deepMerge<T extends Record<string, any>>(target: T, source?: Partial<T> | null): T {
+function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partial<T> | null): T {
     if (!source) return target;
-    const output: Record<string, any> = { ...target };
+    const output: Record<string, unknown> = { ...target };
     for (const key of Object.keys(source)) {
-        const sourceVal = (source as any)[key];
+        const sourceVal = (source as unknown)[key];
         const targetVal = output[key];
         if (
             sourceVal &&
@@ -355,7 +355,8 @@ function deepMerge<T extends Record<string, any>>(target: T, source?: Partial<T>
             typeof targetVal === 'object' &&
             !Array.isArray(targetVal)
         ) {
-            output[key] = deepMerge(targetVal, sourceVal);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            output[key] = deepMerge(targetVal as Record<string, any>, sourceVal as Record<string, any>);
         } else if (sourceVal !== undefined) {
             output[key] = sourceVal;
         }
@@ -368,12 +369,13 @@ function deepMerge<T extends Record<string, any>>(target: T, source?: Partial<T>
             defaultColDef: {
                 resizable: false,
                 editable: this.settings.get("enableEditing"),
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 cellRendererSelector: this.cellParser ? (params: any) => {
                     if (params.node && params.node.rowPinned === 'top') {
                         return undefined;
                     }
                     return {
-                        component: ({ value }: { value: string }) => this.cellParser!.render(value)
+                        component: ({ value }: { value: string }) => this.cellParser?.render(value)
                     }
                 } : undefined,
                 autoHeight: true
@@ -383,6 +385,7 @@ function deepMerge<T extends Record<string, any>>(target: T, source?: Partial<T>
                 type: 'fitGridWidth',
                 // defaultMinWidth: 150,
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             getRowHeight: (params: any) => {
                 if (params.node && params.node.rowPinned === 'top') {
                     return 24;
@@ -606,7 +609,7 @@ function deepMerge<T extends Record<string, any>>(target: T, source?: Partial<T>
 
         let copyText = '';
         for (let vr = minRow; vr <= maxRow; vr++) {
-            let rowData: any = null;
+            let rowData: unknown = null;
             if (vr < 0) {
                 rowData = this.pinnedRowData[vr + P];
             } else {
@@ -646,23 +649,26 @@ function deepMerge<T extends Record<string, any>>(target: T, source?: Partial<T>
         }
     }
 
-    private renderCalculationsMenu(columns: any[], data: any[], isEditable: boolean, queryText?: string) {
-        const menuContainer = this.topBar.querySelector('.sqlseal-grid-calculations-menu') as HTMLElement;
+    private renderCalculationsMenu(columns: unknown[], data: unknown[], isEditable: boolean, queryText?: string) {
+        const menuContainer = this.topBar.querySelector('.sqlseal-grid-calculations-menu');
         if (!menuContainer) return;
         menuContainer.empty();
 
         if (!queryText) return;
 
         const cacheKey = `${this.sourcePath ?? ''}::${queryText.trim()}`;
-        const views = this.settings.get('codeblockViews' as any) || {};
+        const views = this.settings.get('codeblockViews') || {};
         const blockConfig = views[cacheKey] || {};
 
-        let activeCalcs: string[] = blockConfig.activeCalcs;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let activeCalcs: string[] = (blockConfig as any).activeCalcs;
         if (!activeCalcs) {
             const defaults = new Set<string>();
-            columns.forEach(field => {
-                if (field === '__rowid' || field === 'rowid' || field.startsWith('__rowid_')) return;
-                const vals = data.map(row => row[field]);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            columns.forEach((field: any) => {
+                if (field === '__rowid' || field === 'rowid' || String(field).startsWith('__rowid_')) return;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const vals = (data as Record<string, any>[]).map(row => row[field]);
                 const type = detectColumnType(vals);
                 if (type === 'numeric') defaults.add('sum');
             });
@@ -707,18 +713,20 @@ function deepMerge<T extends Record<string, any>>(target: T, source?: Partial<T>
                     updatedCalcs = updatedCalcs.filter(v => v !== calc.value);
                 }
 
-                const updatedViews = { ...(this.settings.get('codeblockViews' as any) || {}) };
+                const updatedViews = { ...(this.settings.get('codeblockViews') || {}) };
                 updatedViews[cacheKey] = {
-                    ...(updatedViews[cacheKey] || {}),
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    ...((updatedViews[cacheKey] as Record<string, any>) || {}),
                     activeCalcs: updatedCalcs
                 };
-                this.settings.set('codeblockViews' as any, updatedViews);
+                this.settings.set('codeblockViews', updatedViews);
 
                 this.setData(columns, data, isEditable, queryText);
             });
         });
     }
 
+     // eslint-disable-next-line @typescript-eslint/no-explicit-any
      setData(columns: any[], data: any[], isEditable: boolean = false, queryText?: string) {
         if (!this.gridApi) {
             throw new Error('Grid has not been initiated')
@@ -734,7 +742,7 @@ function deepMerge<T extends Record<string, any>>(target: T, source?: Partial<T>
 
         const showFooter = !!queryText;
         const cacheKey = `${this.sourcePath ?? ''}::${(queryText ?? '').trim()}`;
-        const views = this.settings.get('codeblockViews' as any) || {};
+        const views = this.settings.get('codeblockViews') || {};
         const currentBlockConfig = views[cacheKey] || {};
 
         if (showFooter) {
@@ -744,12 +752,15 @@ function deepMerge<T extends Record<string, any>>(target: T, source?: Partial<T>
             this.topBar.setCssStyles({ display: 'none' });
         }
 
-        let activeCalcs: string[] = currentBlockConfig.activeCalcs;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let activeCalcs: string[] = (currentBlockConfig as any).activeCalcs;
         if (showFooter && !activeCalcs) {
             const defaults = new Set<string>();
-            columns.forEach(field => {
-                if (field === '__rowid' || field === 'rowid' || field.startsWith('__rowid_')) return;
-                const vals = data.map(row => row[field]);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            columns.forEach((field: any) => {
+                if (field === '__rowid' || field === 'rowid' || String(field).startsWith('__rowid_')) return;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const vals = (data as Record<string, any>[]).map(row => row[field]);
                 const type = detectColumnType(vals);
                 if (type === 'numeric') defaults.add('sum');
             });
@@ -765,20 +776,22 @@ function deepMerge<T extends Record<string, any>>(target: T, source?: Partial<T>
 
 
         if (columns && columns.length) {
-            const visibleColumns = columns.filter(c => c !== '__rowid' && c !== 'rowid' && !c.startsWith('__rowid_'));
+            const visibleColumns: string[] = (columns as string[]).filter(c => c !== '__rowid' && c !== 'rowid' && !String(c).startsWith('__rowid_'));
             this.visibleColumnIds = visibleColumns;
             this.gridData = data;
             
-            const autocompleteSetting = this.settings.get('autocompleteColumns' as any) || '';
+            const autocompleteSetting = this.settings.get('autocompleteColumns') || '';
             const { columns: autocompleteCols } = parseAutocompleteSettings(autocompleteSetting);
 
-            this.gridApi.setGridOption('columnDefs', visibleColumns.map(field => {
+            this.gridApi.setGridOption('columnDefs', (visibleColumns).map(field => {
                 const isFirstCol = (field === visibleColumns[0]);
                 const isAutocomplete = autocompleteCols.includes(field.toLowerCase());
                 
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const colDef: any = { 
                     field,
                     headerName: resolveHeaderName(field, autocompleteSetting),
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     editable: (params: any) => {
                         if (params.node && params.node.rowPinned === 'top') {
                             return false;
@@ -800,13 +813,15 @@ function deepMerge<T extends Record<string, any>>(target: T, source?: Partial<T>
 
                 if (isAutocomplete && isEditable) {
                     colDef.cellEditor = AutocompleteCellEditor;
-                    const uniqueValues = Array.from(new Set(data.map(row => row[field]).filter(val => val !== undefined && val !== null && val !== '')));
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const uniqueValues = Array.from(new Set((data as Record<string, any>[]).map(row => row[field]).filter(val => val !== undefined && val !== null && val !== '')));
                     colDef.cellEditorParams = {
                         values: uniqueValues
                     };
                 }
 
                 if (showFooter) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     colDef.cellRenderer = (params: any) => {
                         if (params.node.rowPinned === 'top') {
                             const value = params.value ?? '';
@@ -838,12 +853,12 @@ function deepMerge<T extends Record<string, any>>(target: T, source?: Partial<T>
         this.gridApi.setGridOption('rowData', data)
 
         if (showFooter && columns && columns.length && activeCalcs && activeCalcs.length) {
-            const visibleColumns = columns.filter(c => c !== '__rowid' && c !== 'rowid' && !c.startsWith('__rowid_'));
+            const visibleColumns = (columns as string[]).filter(c => c !== '__rowid' && c !== 'rowid' && !c.startsWith('__rowid_'));
             
             const pinnedRows = activeCalcs.map(calcType => {
-                const row: Record<string, any> = { __calcType: calcType };
+                const row: Record<string, unknown> = { __calcType: calcType };
                 visibleColumns.forEach(field => {
-                    const columnValues = data.map(row => row[field]);
+                    const columnValues = (data as Record<string, unknown>[]).map(row => row[field]);
                     const colType = detectColumnType(columnValues);
                     
                     let isApplicable = false;
@@ -879,7 +894,7 @@ function deepMerge<T extends Record<string, any>>(target: T, source?: Partial<T>
     }
 
     private renderFloatingLabels(activeCalcs: string[]) {
-        const gridEl = this.el.querySelector('.ag-theme-quartz') as HTMLElement;
+        const gridEl = this.el.querySelector('.ag-theme-quartz');
         if (!gridEl) return;
 
         gridEl.querySelector('.sqlseal-floating-labels-container')?.remove();

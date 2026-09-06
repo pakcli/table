@@ -17,7 +17,7 @@ export class SqlocalDatabaseProxy {
     private connectingPromise?: Promise<void>;
     private worker?: Worker;
 
-    constructor(_app: any, private readonly dbName: string) {
+    constructor(_app: unknown, private readonly dbName: string) {
     }
 
     async connect(): Promise<void> {

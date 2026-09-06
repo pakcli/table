@@ -275,7 +275,7 @@ export class GridBuffer {
 		);
 
 		while (stack.length > 0) {
-			const pt = stack.pop()!;
+			const pt = stack.pop();
 			const { x, y } = pt;
 
 			if (!this.inBounds(x, y) || visited[y][x]) continue;

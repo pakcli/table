@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, Plugin, Notice } from 'obsidian';
+import { App, PluginSettingTab, Setting, Plugin, Notice, type SettingDefinitionItem } from 'obsidian';
 import { Settings } from './Settings';
 import { SettingsControls } from './settingsTabSection/SettingsControls';
 import { parseAutocompleteSettings, formatHeaderName } from '../../utils/views';
@@ -13,16 +13,18 @@ export interface SQLSealSettings {
     enableDynamicUpdates: boolean;
     enableSyntaxHighlighting: boolean;
     disableTagAutoDetection: boolean;
+    debug?: boolean;
     defaultView: 'grid' | 'markdown' | 'html';
     gridItemsPerPage: number;
     autocompleteColumns: string;
-    codeblockViews?: Record<string, Record<string, string>>;
+    codeblockViews?: Record<string, unknown>;
     scannerMerchantPath?: string;
     scannerMerchantCol?: string;
     scannerCategoryPath?: string;
     scannerCategoryCol?: string;
     scannerClearAfterSave?: boolean;
     scannerFinanceFolderPath?: string;
+    [key: string]: unknown;
 }
 
 export const DEFAULT_SETTINGS: SQLSealSettings = {
@@ -34,6 +36,7 @@ export const DEFAULT_SETTINGS: SQLSealSettings = {
     enableDynamicUpdates: true,
     enableSyntaxHighlighting: true,
     disableTagAutoDetection: false,
+    debug: false,
     defaultView: 'grid',
     gridItemsPerPage: 20,
     autocompleteColumns: 'item_name, merchant',
@@ -58,7 +61,7 @@ export class SQLSealSettingsTab extends PluginSettingTab {
         this.controls = controls
     }
 
-    getSettingDefinitions(): any[] {
+    getSettingDefinitions(): SettingDefinitionItem[] {
         return [];
     }
 
@@ -97,9 +100,9 @@ export class SQLSealSettingsTab extends PluginSettingTab {
             .setName('Debug mode')
             .setDesc('Enable console logging and screen notifications (Notices) during file operations to help troubleshoot saving issues.')
             .addToggle(toggle => toggle
-                .setValue(this.settings.get('debug' as any))
+                .setValue(!!this.settings.get('debug'))
                 .onChange(async (value) => {
-                    this.settings.set('debug' as any, !!value)
+                    this.settings.set('debug', !!value)
                     this.display();
                 }));
         new Setting(containerEl)
@@ -121,7 +124,7 @@ export class SQLSealSettingsTab extends PluginSettingTab {
 
 		const renderColumnList = () => {
 			listContainer.empty();
-			const settingStr = this.settings.get('autocompleteColumns' as any) || '';
+			const settingStr = this.settings.get('autocompleteColumns') || '';
 			const { configs } = parseAutocompleteSettings(settingStr);
 
 			configs.forEach((cfg, index) => {
@@ -146,7 +149,7 @@ export class SQLSealSettingsTab extends PluginSettingTab {
 						repInput.value = formatHeaderName(cfg.column);
 						cfg.replacement = repInput.value;
 					}
-					this.settings.set('autocompleteColumns' as any, JSON.stringify(configs.filter(c => c.column.trim())));
+					this.settings.set('autocompleteColumns', JSON.stringify(configs.filter(c => c.column.trim())));
 				});
 
 				// Text Replacement Toggle
@@ -166,7 +169,7 @@ export class SQLSealSettingsTab extends PluginSettingTab {
 				repCheckbox.addEventListener('change', () => {
 					cfg.replacementEnabled = repCheckbox.checked;
 					repInput.disabled = !cfg.replacementEnabled;
-					this.settings.set('autocompleteColumns' as any, JSON.stringify(configs.filter(c => c.column.trim())));
+					this.settings.set('autocompleteColumns', JSON.stringify(configs.filter(c => c.column.trim())));
 				});
 
 				// Replacement Input
@@ -179,7 +182,7 @@ export class SQLSealSettingsTab extends PluginSettingTab {
 				repInput.disabled = !cfg.replacementEnabled;
 				repInput.addEventListener('change', () => {
 					cfg.replacement = repInput.value.trim();
-					this.settings.set('autocompleteColumns' as any, JSON.stringify(configs.filter(c => c.column.trim())));
+					this.settings.set('autocompleteColumns', JSON.stringify(configs.filter(c => c.column.trim())));
 				});
 
 				// Wikilink-able Toggle
@@ -198,13 +201,13 @@ export class SQLSealSettingsTab extends PluginSettingTab {
 				
 				wikiCheckbox.addEventListener('change', () => {
 					cfg.wikilinkEnabled = wikiCheckbox.checked;
-					this.settings.set('autocompleteColumns' as any, JSON.stringify(configs.filter(c => c.column.trim())));
+					this.settings.set('autocompleteColumns', JSON.stringify(configs.filter(c => c.column.trim())));
 				});
 
 				const deleteBtn = row.createEl('button', { text: 'Delete', cls: 'mod-warning' });
 				deleteBtn.addEventListener('click', () => {
 					configs.splice(index, 1);
-					this.settings.set('autocompleteColumns' as any, JSON.stringify(configs));
+					this.settings.set('autocompleteColumns', JSON.stringify(configs));
 					renderColumnList();
 				});
 			});
@@ -230,7 +233,7 @@ export class SQLSealSettingsTab extends PluginSettingTab {
 						replacement: formatHeaderName(newVal),
 						wikilinkEnabled: true
 					});
-					this.settings.set('autocompleteColumns' as any, JSON.stringify(configs));
+					this.settings.set('autocompleteColumns', JSON.stringify(configs));
 					renderColumnList();
 				}
 			};

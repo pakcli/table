@@ -45,8 +45,8 @@ export class ImageParser implements CellFunction<Args> {
            let resourcePath = this.getResourcePath(href, path)
             return this.create('img', { attr: { src: resourcePath } });
 
-        } catch (e) {
-            return e as any
+        } catch (e: unknown) {
+            return e instanceof Error ? e.message : String(e);
         }
     }
 

@@ -15,23 +15,23 @@ export class Logger {
 
     private console: Pick<typeof console, 'log' | 'error' | 'warn' | 'debug' | 'trace'>
 
-    log(...args: any[]) {
+    log(...args: unknown[]) {
         this.console.log(...args)
     }
 
-    error(...args: any[]) {
+    error(...args: unknown[]) {
         this.console.error(...args)
     }
 
-    warn(...args: any[]) {
+    warn(...args: unknown[]) {
         this.console.warn(...args)
     }
 
-    debug(...args: any[]) {
+    debug(...args: unknown[]) {
         this.console.debug(...args)
     }
 
-    trace(...args: any[]) {
+    trace(...args: unknown[]) {
         this.console.trace(...args)
     }
 }

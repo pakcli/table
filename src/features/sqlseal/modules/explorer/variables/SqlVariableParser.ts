@@ -54,8 +54,8 @@ export class SqlVariableParser {
      * @param values - Map of variable names to their string values
      * @returns Parameter object compatible with frontmatter format
      */
-    static createParameterObject(values: Record<string, string>): Record<string, any> {
-        const params: Record<string, any> = {};
+    static createParameterObject(values: Record<string, string>): Record<string, unknown> {
+        const params: Record<string, unknown> = {};
         
         for (const [key, value] of Object.entries(values)) {
             // Don't add @ prefix - the system will add it automatically

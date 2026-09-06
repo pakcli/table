@@ -72,7 +72,7 @@ export class InlineProcessor extends MarkdownRenderChild {
             const { data, columns } = (await this.db.select(
                 transformedQuery.sql,
                 variables
-            ))!; // FIXME: better code here.
+            )); // FIXME: better code here.
 
             this.el.empty()
             let value = data[0][columns[0]] ?? ''

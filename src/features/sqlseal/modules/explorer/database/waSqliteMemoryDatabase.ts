@@ -6,7 +6,7 @@ import { MemoryAsyncVFS } from 'wa-sqlite/src/examples/MemoryAsyncVFS.js';
 // @ts-ignore - Virtual module from esbuild
 import wasmBinary from 'virtual:wa-sqlite-wasm-url';
 
-type ParamsObject = Record<string, any>;
+type ParamsObject = Record<string, unknown>;
 
 /**
  * WaSqliteMemoryDatabase - reads external .db files using wa-sqlite
@@ -16,6 +16,7 @@ type ParamsObject = Record<string, any>;
  */
 export class WaSqliteMemoryDatabase {
     private connection: number | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private sqlite3: any = null;
     private vfs: MemoryAsyncVFS | null = null;
     private readonly dbName = 'external.db';
@@ -57,7 +58,7 @@ export class WaSqliteMemoryDatabase {
         );
     }
 
-    private async runQuery<T = ParamsObject>(sql: string, params: any[] = []): Promise<{ data: T[], columns: string[] }> {
+    private async runQuery<T = ParamsObject>(sql: string, params: unknown[] = []): Promise<{ data: T[], columns: string[] }> {
         if (!this.connection || !this.sqlite3) {
             throw new Error('Database not connected');
         }
@@ -84,7 +85,7 @@ export class WaSqliteMemoryDatabase {
 
                     // Fetch all rows
                     while (await this.sqlite3.step(prepared.stmt) === SQLite.SQLITE_ROW) {
-                        const row: any = {};
+                        const row: Record<string, any> = {};
                         for (let i = 0; i < columnCount; i++) {
                             row[columns[i]] = await this.sqlite3.column(prepared.stmt, i);
                         }
@@ -104,17 +105,17 @@ export class WaSqliteMemoryDatabase {
         }
     }
 
-    query<T = ParamsObject>(_query: string, _params: Record<string, any> | null = null): { data: T[], columns: string[] } {
+    query<T = ParamsObject>(_query: string, _params: Record<string, unknown> | null = null): { data: T[], columns: string[] } {
         // This is a sync method in the original API, but we need async for wa-sqlite
         throw new Error('Synchronous query() not supported in wa-sqlite implementation. Use queryAsync() instead.');
     }
 
-    async queryAsync<T = ParamsObject>(query: string, params: Record<string, any> | null = null): Promise<{ data: T[], columns: string[] }> {
+    async queryAsync<T = ParamsObject>(query: string, params: Record<string, unknown> | null = null): Promise<{ data: T[], columns: string[] }> {
         const paramArray = params && typeof params === 'object' && !Array.isArray(params) ? Object.values(params) : [];
         return this.runQuery<T>(query, paramArray);
     }
 
-    async select<T = ParamsObject>(query: string, params: Record<string, any> | null = null) {
+    async select<T = ParamsObject>(query: string, params: Record<string, unknown> | null = null) {
         return this.queryAsync<T>(query, params);
     }
 
@@ -138,7 +139,7 @@ export class WaSqliteMemoryDatabase {
             name: string,
             type: string,
             pk: number,
-            dflt_value: any,
+            dflt_value: unknown,
             notnull: number
         }>(`
             SELECT name, type, pk, dflt_value, [notnull]

@@ -93,7 +93,7 @@ export class MarkerManager {
 	}
 
 	updateMarkers(data: { data: BasesEntry[] }): void {
-		this.markerEntries = (data.data as BasesEntry[])
+		this.markerEntries = (data.data)
 			.flatMap((entry) => markersFromEntry(entry.getValue("note.marker"), entry.file))
 			.filter(isNotNull)
 			.filter((entry) => entry.mapName === undefined || entry.mapName === this.mapName);

@@ -297,7 +297,7 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 
 		const frag = document.createDocumentFragment();
 		for (let r = 0; r < rows; r++) {
-			const rowDiv = createDiv({ cls: 'ascii-row' });
+			const rowDiv = frag.createDiv({ cls: 'ascii-row' });
 			for (let c = 0; c < cols; c++) {
 				const cell = this.buffer.getCell(c, r);
 				const ch = cell ? cell.char : ' ';
@@ -306,7 +306,6 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 				cellSpan.setAttribute('data-row', String(r));
 				cellSpan.textContent = ch === ' ' ? '\u00A0' : ch;
 			}
-			frag.appendChild(rowDiv);
 		}
 
 		this.gridSurfaceEl.empty();
@@ -417,8 +416,8 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 	private debouncedSave(): void {
 		if (this.saveTimeout) window.clearTimeout(this.saveTimeout);
 
-		this.saveTimeout = window.setTimeout(async () => {
-			await this.saveContentToNote();
+		this.saveTimeout = window.setTimeout(() => {
+			void this.saveContentToNote();
 		}, 400);
 	}
 

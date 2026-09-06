@@ -37,7 +37,7 @@ export class TableRenderer implements RendererConfig {
 
     render(config: HTMLRendererConfig, el: HTMLElement, { cellParser }: RendererContext) {
         return {
-            render: ({ columns, data }: any) => {
+            render: ({ columns, data }: { columns: string[]; data: Record<string, any>[] }) => {
                 el.empty()
 
                 let tableClasses = ['sqlseal']
@@ -69,10 +69,11 @@ export class TableRenderer implements RendererConfig {
                 })
 
                 const body = table.createEl("tbody", { cls: adjustLayout ? ['table-view-tbody'] : [] })
-                data.forEach((d: any) => {
+                data.forEach((d: Record<string, any>) => {
                     const row = body.createEl("tr")
-                    columns.forEach((c: any) => {
-                        const parsed = cellParser!.render(d[c]) as string
+                    columns.forEach((c: string) => {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const parsed = cellParser?.render(d[c] as any) as string
                         if (adjustLayout) {
                             const td = row.createEl("td")
                             td.createSpan({ text: parsed })

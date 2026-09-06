@@ -3,7 +3,7 @@ import { ModernCellParser } from "./ModernCellParser";
 let uniqueIdCounter = 0;
 const uniqueId = (prefix = "") => `${prefix}${++uniqueIdCounter}`;
 
-type OnSerialisation = (el: HTMLElement) => any;
+type OnSerialisation = (el: HTMLElement) => unknown;
 
 export class ParseResults {
 
@@ -14,12 +14,13 @@ export class ParseResults {
         private readonly serialise?: OnSerialisation
     ) { }
 
-    parse(data: Record<string, any>[], columns: string[]) {
+    parse(data: Record<string, unknown>[], columns: string[]) {
         this.functions = []
         return data.map(d => {
-            const res: any = {}
+            const res: Record<string, unknown> = {}
             for (const col of columns) {
-                const data = this.cellParser.prepare(d[col])
+                const rawVal = d[col];
+                const data = this.cellParser.prepare(rawVal !== undefined && rawVal !== null ? String(rawVal) : "")
                 if (data instanceof Element) {
                     if (this.serialise) {
                         res[col] = this.serialise(data)
@@ -45,7 +46,7 @@ export class ParseResults {
                         data.element.id = id
                         res[col] = this.serialise(data.element)
                         this.functions.push((parentEl: HTMLElement) => {
-                            const resultingElement = parentEl.find('#' + id)
+                            const resultingElement = parentEl.querySelector<HTMLElement>('#' + id)
                             if (!resultingElement) {
                                 return
                             }
@@ -61,11 +62,12 @@ export class ParseResults {
         })
     }
 
-    renderAsString(data: Record<string, any>[], columns: string[]) {
+    renderAsString(data: Record<string, unknown>[], columns: string[]) {
         return data.map(d => {
             const res: Record<string, string> = {}
             for (const col of columns) {
-                res[col] = this.cellParser.renderAsString(d[col])
+                const rawVal = d[col];
+                res[col] = this.cellParser.renderAsString(rawVal !== undefined && rawVal !== null ? String(rawVal) : "")
             }
             return res
         })

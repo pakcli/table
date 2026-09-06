@@ -253,7 +253,7 @@ export class CodeblockProcessor extends MarkdownRenderChild {
 						const mouseEvent = event.event as MouseEvent;
 						if (mouseEvent && (mouseEvent.ctrlKey || mouseEvent.metaKey)) {
 							const field = event.colDef.field;
-							const autocompleteSetting = this.settings.get('autocompleteColumns' as any) || '';
+							const autocompleteSetting = (this.settings.get('autocompleteColumns' as any) as string) || '';
 							const { columns: autocompleteCols } = parseAutocompleteSettings(autocompleteSetting);
 							
 							if (field && autocompleteCols.includes(field.toLowerCase())) {
@@ -271,7 +271,7 @@ export class CodeblockProcessor extends MarkdownRenderChild {
 						const mouseEvent = event.event as MouseEvent;
 						if (mouseEvent && (mouseEvent.ctrlKey || mouseEvent.metaKey)) {
 							const field = event.colDef.field;
-							const autocompleteSetting = this.settings.get('autocompleteColumns' as any) || '';
+							const autocompleteSetting = (this.settings.get('autocompleteColumns' as any) as string) || '';
 							const { columns: autocompleteCols } = parseAutocompleteSettings(autocompleteSetting);
 							
 							if (field && autocompleteCols.includes(field.toLowerCase())) {
@@ -473,7 +473,7 @@ export class CodeblockProcessor extends MarkdownRenderChild {
 						await this.render();
 					} catch (e) {
 						console.error("SQLSeal: Error saving edits:", e);
-						new Notice(`Failed to save: ${e.message}`);
+						new Notice(`Failed to save: ${(e as Error).message}`);
 						// Revert the cell value in the grid
 						event.node.setDataValue(field, oldValue);
 					}
@@ -486,7 +486,7 @@ export class CodeblockProcessor extends MarkdownRenderChild {
 			modal.open();
 		} catch (e) {
 			console.error("SQLSeal: Error during handleCellValueChanged preparation:", e);
-			new Notice(`Failed to initiate save: ${e.message}`);
+			new Notice(`Failed to initiate save: ${(e as Error).message}`);
 			event.node.setDataValue(field, oldValue);
 		}
 	}

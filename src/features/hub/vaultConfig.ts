@@ -14,7 +14,7 @@ export interface VaultConfigPayload {
   version: string;
   lastSaved: string;
   name?: string;
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
 }
 
 export interface SnapshotItem {
@@ -192,7 +192,7 @@ export async function listVaultSnapshots(
 export async function saveVaultConfig(
   app: App,
   pluginName: "pakcli-local" | "pakcli-table" | "pakcli-agent",
-  settings: Record<string, any>,
+  settings: Record<string, unknown>,
   customName?: string
 ): Promise<void> {
   await ensureConfigDir(app);
@@ -238,7 +238,7 @@ export async function loadVaultConfig(
   app: App,
   pluginName: "pakcli-local" | "pakcli-table" | "pakcli-agent",
   targetPath?: string
-): Promise<Record<string, any> | null> {
+): Promise<Record<string, unknown> | null> {
   const filePath = targetPath || `${getVaultConfigDir(app)}/latest-${pluginName.replace("pakcli-", "")}.json`
   try {
     if (await app.vault.adapter.exists(filePath)) {

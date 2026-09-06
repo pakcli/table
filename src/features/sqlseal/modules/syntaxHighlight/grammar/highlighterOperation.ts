@@ -23,7 +23,7 @@ const computeNodeHighlight = (node: ohm.Node) => {
     const results = []
     if (nodes.has(node.ctorName)) {
         results.push({
-            type: nodes.get(node.ctorName)!.type,
+            type: nodes.get(node.ctorName).type,
             start: node._baseInterval.startIdx,
             end: node._baseInterval.endIdx
         })
@@ -52,7 +52,7 @@ const computeNodeHighlight = (node: ohm.Node) => {
 export const highlighterOperation = (grammar: ohm.Grammar) => {
     const s = grammar.createSemantics()
 
-    s.addOperation<any>('highlight', {
+    s.addOperation<unknown>('highlight', {
         _terminal() {
             return [
                 ...computeNodeHighlight(this),
@@ -158,8 +158,8 @@ const parseStatement = (node: ohm.Node) => {
     const literal = (x: Literal) => {
         results.push({
             type: 'literal',
-            start: offset + x.range![0],
-            end: offset + x.range![1]
+            start: offset + x.range[0],
+            end: offset + x.range[1]
         })
     }
 
@@ -181,22 +181,22 @@ const parseStatement = (node: ohm.Node) => {
         identifier: (identifier) => {
             results.push({
                 type: 'function',
-                start: offset + identifier.range![0],
-                end: offset + identifier.range![1]
+                start: offset + identifier.range[0],
+                end: offset + identifier.range[1]
             })
         },
         keyword: (keyword) => {
             results.push({
                 type: 'keyword',
-                start: offset + keyword.range![0],
-                end: offset + keyword.range![1]
+                start: offset + keyword.range[0],
+                end: offset + keyword.range[1]
             })
         },
         parameter: (vari) => {
             results.push({
                 type: 'parameter',
-                start: offset + vari.range![0],
-                end: offset + vari.range![1]
+                start: offset + vari.range[0],
+                end: offset + vari.range[1]
             })
         }
     })

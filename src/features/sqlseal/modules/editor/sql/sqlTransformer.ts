@@ -27,9 +27,10 @@ export function rewriteTagsMacro(sql: string): string {
 /**
  * Recursively flattens a left-associative AND chain into a flat array of leaf nodes.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function flattenAnd(node: any): any[] {
-  const opName = typeof node.operator === 'string' ? node.operator : node.operator?.name
-  if (node.type === 'binary_expr' && opName === 'AND') {
+  const opName = typeof node?.operator === 'string' ? node.operator : node?.operator?.name
+  if (node?.type === 'binary_expr' && opName === 'AND') {
     return [...flattenAnd(node.left), ...flattenAnd(node.right)]
   }
   return [node]
@@ -39,8 +40,9 @@ function flattenAnd(node: any): any[] {
  * If the node is a tag comparison (`tag = '#value'` or `tags.tag = '#value'`),
  * returns the tag value string. Otherwise returns null.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractTagValue(node: any): string | null {
-  if (node.type !== 'binary_expr' || node.operator !== '=') return null
+  if (node?.type !== 'binary_expr' || node?.operator !== '=') return null
   const { left, right } = node
 
   const isTagCol =
@@ -66,7 +68,7 @@ function extractTagValue(node: any): string | null {
  *   - The TAGS() macro was already used (no tag AND patterns remain)
  */
 export function autoDetectTagAndPattern(sql: string): string {
-  let parsed: any
+  let parsed: unknown
   try {
     parsed = parse(sql, {
       dialect: 'sqlite',
@@ -90,8 +92,9 @@ export function autoDetectTagAndPattern(sql: string): string {
   const candidates: Candidate[] = []
 
   const visitor = cstVisitor({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     binary_expr: (node: any) => {
-      const opName = typeof node.operator === 'string' ? node.operator : node.operator?.name
+      const opName = typeof node?.operator === 'string' ? node.operator : node?.operator?.name
       if (opName !== 'AND' || !node.range) return
 
       const leaves = flattenAnd(node)
@@ -113,7 +116,8 @@ export function autoDetectTagAndPattern(sql: string): string {
     }
   })
 
-  visitor(parsed)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  visitor(parsed as any)
 
   if (candidates.length === 0) return sql
 

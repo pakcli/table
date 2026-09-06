@@ -23,12 +23,12 @@ export const apiInit = (
 			rendererRegistry,
 			db,
 		);
-		(window as any)[SQLSEAL_API_KEY] = api;
+		(window as unknown)[SQLSEAL_API_KEY] = api;
 		plugin.register(() => {
-			delete (window as any)[SQLSEAL_API_KEY];
+			delete (window as unknown)[SQLSEAL_API_KEY];
 		});
 
-		const queuedPlugins = (window as any)[SQLSEAL_QUEUED_PLUGINS] as
+		const queuedPlugins = (window as unknown)[SQLSEAL_QUEUED_PLUGINS] as
 			| PluginRegister[]
 			| undefined;
 		if (!queuedPlugins) {
@@ -39,6 +39,6 @@ export const apiInit = (
 			api.registerForPluginNew(pl);
 		});
 
-		(window as any)[SQLSEAL_QUEUED_PLUGINS] = [];
+		(window as unknown)[SQLSEAL_QUEUED_PLUGINS] = [];
 	};
 };

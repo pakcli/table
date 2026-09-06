@@ -10,7 +10,6 @@
 @use 'autocomplete';
 @use 'global-tables';
 @use 'jsonViewer';
-@use 'receiptScanner';
 @use 'profiles';
 @use 'asciidraw';
 @use 'settingsHub';
@@ -1894,23 +1893,165 @@ th.tablite-frozen-cell {
 /* Touch Action and ASCII SVG Elements */
 .asciidraw-inline-grid,
 .asciidraw-grid-surface {
-  touch-action: none !important;
+  touch-action: none;
 }
 
 .pakcli-ascii-svg-wrapper {
-  width: 100% !important;
-  max-width: 100% !important;
-  overflow: hidden !important;
-  display: block !important;
-  margin: 4px 0 !important;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  display: block;
+  margin: 4px 0;
 }
 
 .pakcli-ascii-svg-element {
-  display: block !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  height: auto !important;
-  background: transparent !important;
-  user-select: text !important;
-  margin: 4px 0 !important;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  background: transparent;
+  user-select: text;
+  margin: 4px 0;
 }
+
+/* ==========================================================================
+   Tablite CSV Calculation Engine & Aggregation Rows
+   ========================================================================== */
+.tablite-calc-row {
+  background-color: var(--background-secondary-alt);
+  min-height: 48px;
+  height: auto;
+  box-sizing: border-box;
+
+  &.tablite-calc-row-below {
+    border-top: 2px solid var(--background-modifier-border);
+    border-bottom: 1px solid var(--background-modifier-border);
+  }
+
+  &.tablite-calc-row-above {
+    border-bottom: 2px solid var(--background-modifier-border);
+    border-top: 1px solid var(--background-modifier-border);
+  }
+}
+
+.tablite-tfoot {
+  background-color: var(--background-secondary);
+  border-top: 2px solid var(--background-modifier-border);
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.08);
+
+  &.tablite-calc-frozen {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+  }
+}
+
+.tablite-calc-cell {
+  background-color: var(--background-secondary-alt);
+  border-right: 1px solid var(--background-modifier-border);
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  box-sizing: border-box;
+
+  .tablite-calc-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-accent);
+    text-align: center;
+  }
+}
+
+.tablite-calc-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+}
+
+.tablite-calc-select {
+  width: 100%;
+  font-size: 11px;
+  font-weight: 500;
+  height: 22px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: var(--interactive-accent);
+  }
+
+  &:focus {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--color-accent-rgb), 0.2);
+  }
+}
+
+.tablite-calc-badge-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.tablite-calc-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 11px;
+  font-family: var(--font-monospace);
+  background-color: rgba(var(--color-accent-rgb), 0.12);
+  border: 1px solid rgba(var(--color-accent-rgb), 0.3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--text-accent);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  .tablite-calc-badge-prefix {
+    font-size: 9px;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .tablite-calc-badge-val {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &.tablite-calc-badge-error {
+    background-color: rgba(var(--color-red-rgb), 0.15);
+    border-color: rgba(var(--color-red-rgb), 0.4);
+    color: var(--text-error);
+  }
+}
+
+.tablite-token-btn {
+  transition: all 0.15s ease;
+  &:hover {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+    transform: translateY(-1px);
+  }
+  &:active {
+    transform: translateY(0);
+  }
+}
+

@@ -107,7 +107,7 @@ export class ModernCellParser {
             if (content.startsWith('SQLSEALCUSTOM')) {
                 const parsedData = parse(content.slice('SQLSEALCUSTOM('.length, -1))
                 const renderer = this.getRenderer(parsedData)
-                return renderer!.renderAsString(parsedData.values)
+                return renderer.renderAsString(parsedData.values)
             }
 
             // FIXME: bring this one back
@@ -158,14 +158,14 @@ export class ModernCellParser {
         }
     }
 
-    private renderCustomElement(el: any) {
+    private renderCustomElement(el: { type: string; values: unknown }) {
         const renderer = this.getRenderer(el)
         return renderer?.prepare(el.values)
     }
 
-    private getRenderer(el: any) {
+    private getRenderer(el: { type: string; values?: unknown }) {
         if (this.functions.has(el.type)) {
-            return this.functions.get(el.type)!
+            return this.functions.get(el.type)
         } else {
             throw new Error(`Custom function processor ${el.type} is not registered`)
         }

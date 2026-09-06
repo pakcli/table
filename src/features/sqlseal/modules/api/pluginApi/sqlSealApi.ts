@@ -57,7 +57,7 @@ export class SQLSealRegisterApi {
 
 interface RegisteredView {
     name: string;
-    viewClass: any;
+    viewClass: unknown;
 }
 
 // TODO: use the type from registrator

@@ -120,7 +120,7 @@ export function Cell({
                   // Defer the navigation: a double-click means "edit this cell",
                   // and its first click must not also open the browser
                   cancelLinkOpen();
-                  const href = segment.href as string;
+                  const href = segment.href;
                   linkTimerRef.current = window.setTimeout(() => {
                     linkTimerRef.current = null;
                     window.open(href, "_blank", "noopener,noreferrer");

@@ -184,7 +184,7 @@ export class Sync {
 
         const map = tables.reduce((acc, t) => ({
             ...acc,
-            [t.alias_name as string]: t.table_name
+            [t.alias_name]: t.table_name
         }), {})
 
         const result = {

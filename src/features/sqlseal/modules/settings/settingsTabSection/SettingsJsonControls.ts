@@ -32,10 +32,12 @@ export class SettingsJsonControls extends SettingsControls {
 
 	unregister() {
 		this.app.workspace.detachLeavesOfType(JSON_VIEW_TYPE);
-		(this.app as any).viewRegistry.unregisterExtensions([
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(this.app as any).viewRegistry?.unregisterExtensions([
 			...JSON_VIEW_EXTENSIONS,
 		]);
-		(this.app as any).viewRegistry.unregisterView(JSON_VIEW_TYPE);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(this.app as any).viewRegistry?.unregisterView(JSON_VIEW_TYPE);
 	}
 
 	display(el: HTMLDivElement) {

@@ -3,7 +3,7 @@ import { Plugin } from "obsidian";
 
 export const syntaxHighlightInit = (
 	plugin: Plugin,
-	viewPluginGenerator: () => ViewPlugin<any>,
+	viewPluginGenerator: () => ViewPlugin<unknown>,
 ) => {
 	return () => {
 		// FIXME: settings here.

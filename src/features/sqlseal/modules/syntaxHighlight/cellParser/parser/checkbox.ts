@@ -15,7 +15,7 @@ interface CheckboxProps {
     status?: string
 }
 
-const isCheckboxProp = (arg: any): arg is CheckboxProps => {
+const isCheckboxProp = (arg: unknown): arg is CheckboxProps => {
     return arg && arg['position'] && arg['path']
 }
 

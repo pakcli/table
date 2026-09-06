@@ -4,7 +4,7 @@ export interface DetailedColumnInfo {
     name: string
     type: string
     isPrimaryKey: boolean
-    defaultValue: any
+    defaultValue: unknown
     notNull: boolean
 }
 
@@ -32,6 +32,7 @@ export class SchemaVisualiser {
         this.initializeMermaid()
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private getMermaid(): any {
         if (typeof (window as any).mermaid !== 'undefined') {
             return (window as any).mermaid
@@ -553,7 +554,7 @@ export class SchemaVisualiser {
             row.insertCell().textContent = column.type
             row.insertCell().textContent = column.isPrimaryKey ? 'PK' : ''
             row.insertCell().textContent = column.notNull ? 'NO' : 'YES'
-            row.insertCell().textContent = column.defaultValue || ''
+            row.insertCell().textContent = column.defaultValue !== undefined && column.defaultValue !== null ? String(column.defaultValue) : ''
         })
         
         content.appendChild(columnsTable)

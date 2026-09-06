@@ -2,7 +2,7 @@ import { ModernCellParser } from "../../syntaxHighlight/cellParser/ModernCellPar
 import { ViewDefinition } from "../parser";
 
 export interface DataFormat {
-    data: Record<string, any>[],
+    data: Record<string, unknown>[],
     columns: string[]
 }
 
@@ -12,11 +12,11 @@ export interface RendererContext {
 }
 
 export interface RenderReturn {
-    render: (data: any) => void;
+    render: (data: unknown) => void;
     error: (errorMessage: string) => void;
     cleanup?: () => void;
 }
-export interface RendererConfig<T extends Record<string, any> = Record<string, any>> {
+export interface RendererConfig<T = unknown> {
 	rendererKey: string;
 	validateConfig: (config: string) => T,
 	render: (config: T, el: HTMLElement, context: RendererContext) => RenderReturn,
@@ -29,12 +29,12 @@ export interface Flag {
 }
 
 export class RendererRegistry {
-    renderers: Map<string, RendererConfig> = new Map()
-    renderersByKey: Map<string, RendererConfig> = new Map()
+    renderers: Map<string, RendererConfig<unknown>> = new Map()
+    renderersByKey: Map<string, RendererConfig<unknown>> = new Map()
     _extraFlags: Array<Flag> = []
     constructor() { }
 
-    register(uniqueName: string, config: RendererConfig) {
+    register(uniqueName: string, config: RendererConfig<unknown>) {
         if (this.renderers.has(uniqueName)) {
             throw new Error(`Renderer already registered for ${uniqueName}`)
         }
@@ -62,7 +62,7 @@ export class RendererRegistry {
         if (!this.renderers.has(uniqueName)) {
             throw new Error(`Renderer not registered: ${uniqueName}`)
         }
-        const config = this.renderers.get(uniqueName)!
+        const config = this.renderers.get(uniqueName)
         this.renderersByKey.delete(config.rendererKey)
         this.renderers.delete(uniqueName)
     }
@@ -71,7 +71,7 @@ export class RendererRegistry {
         if (!this.renderersByKey.has(type)) {
             throw new Error(`Renderer does not exist for ${type}`)
         }
-        const rendererConfig = this.renderersByKey.get(type.toLowerCase())!
+        const rendererConfig = this.renderersByKey.get(type.toLowerCase())
         const elConfig = rendererConfig.validateConfig(config)
         return (el: HTMLElement, context: RendererContext) => {
             return rendererConfig.render(elConfig, el, context)

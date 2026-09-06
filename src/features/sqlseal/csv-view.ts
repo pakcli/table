@@ -89,6 +89,7 @@ export class CsvView extends TextFileView {
         initialDelimiter: delimiter,
         initialEncoding: this.detectedEncoding,
         filePath,
+        plugin: this.plugin,
         initialColumnConfig: this.plugin.getFileColumnConfig(filePath, columnCount),
         autocompleteColumns: this.plugin.settings.autocompleteColumns,
         onColumnConfigChange: async (config, nextColumnCount) => {

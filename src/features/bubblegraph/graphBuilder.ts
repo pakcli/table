@@ -63,7 +63,7 @@ export function buildVaultGraph(app: App, activeFilePath: string | null = null):
         if (!folderToFiles.has(folder)) {
             folderToFiles.set(folder, []);
         }
-        folderToFiles.get(folder)!.push(file);
+        folderToFiles.get(folder).push(file);
     }
 
     // 3. Build Nodes
@@ -191,14 +191,14 @@ export function buildVaultGraph(app: App, activeFilePath: string | null = null):
             if (!topFolderMap.has(node.topLevelFolder)) {
                 topFolderMap.set(node.topLevelFolder, []);
             }
-            topFolderMap.get(node.topLevelFolder)!.push(node.id);
+            topFolderMap.get(node.topLevelFolder).push(node.id);
         }
 
         if (node.folderPath && node.folderPath !== node.topLevelFolder) {
             if (!subFolderMap.has(node.folderPath)) {
                 subFolderMap.set(node.folderPath, []);
             }
-            subFolderMap.get(node.folderPath)!.push(node.id);
+            subFolderMap.get(node.folderPath).push(node.id);
         }
     }
 

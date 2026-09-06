@@ -28,7 +28,8 @@ export class SettingsSQLControls extends SettingsControls {
 
 	unregister() {
 		this.app.workspace.detachLeavesOfType(SQLSEAL_FILE_VIEW);
-		(this.app as any).viewRegistry.unregisterExtensions([
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(this.app as any).viewRegistry?.unregisterExtensions([
 			'sql', 'sqlseal', 'sqlite', 'db'
 		]);
 	}

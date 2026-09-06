@@ -38,7 +38,7 @@ export class AutocompleteInput {
     render() {
         this.input.addEventListener('keydown', e => {
             window.requestAnimationFrame(() => {
-                this.dropdownValues = this.getFilesForInput((e.target! as any).value)
+                this.dropdownValues = this.getFilesForInput((e.target as HTMLInputElement).value)
                 this.setDropdownValues()
             })
         })

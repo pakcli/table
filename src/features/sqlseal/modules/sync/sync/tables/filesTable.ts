@@ -52,7 +52,7 @@ async function getFileRowCount(app: App, file: TFile): Promise<number | null> {
     return null;
 }
 
-async function fileData(app: App, file: TFile, { ...frontmatter }: Record<string, any>) {
+async function fileData(app: App, file: TFile, { ...frontmatter }: Record<string, unknown>) {
     const rowCount = await getFileRowCount(app, file);
     return {
         ...frontmatter,

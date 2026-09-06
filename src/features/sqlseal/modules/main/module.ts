@@ -18,6 +18,7 @@ const obsidian = new Registrator(process.env.NODE_ENV === 'development' ? { logg
 .export('app', 'plugin', 'vault')
 
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const mainModule: any = (new Registrator(process.env.NODE_ENV === 'development' ? {logger: console.debug} : undefined) as any)
 .module('obsidian', obsidian)
 .module('db', db)

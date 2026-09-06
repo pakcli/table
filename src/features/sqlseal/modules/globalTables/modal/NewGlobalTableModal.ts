@@ -106,7 +106,7 @@ export class NewGlobalTableModal extends Modal {
     }
 
     renderCsvSection() {
-        const filename = new Setting(this.typeSectionEl!)
+        const filename = new Setting(this.typeSectionEl)
         .setName('Filename')
         const autocomplete = new AutocompleteInput(filename.controlEl, this.app.vault, ['csv'])
         autocomplete.bus.on('change', (path) => {
@@ -115,14 +115,14 @@ export class NewGlobalTableModal extends Modal {
     }
 
     renderJsonSection() {
-        const filename = new Setting(this.typeSectionEl!)
+        const filename = new Setting(this.typeSectionEl)
         .setName('Filename')
         const autocomplete = new AutocompleteInput(filename.controlEl, this.app.vault, ['json', 'json5'])
         autocomplete.bus.on('change', (path) => {
             this.data.config.filename = path
         })
 
-        new Setting(this.typeSectionEl!)
+        new Setting(this.typeSectionEl)
             .setName('Selector')
             .addText(c => c.setPlaceholder('$.[0]')
             .onChange(e => {

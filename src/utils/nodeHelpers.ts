@@ -8,9 +8,9 @@ export const PathUtils = {
 		return parts
 			.map((part, index) => {
 				if (index === 0) {
-					return part.trim().replace(/[\/\\]+$/, '');
+					return part.trim().replace(/[/\\]+$/, '');
 				}
-				return part.trim().replace(/^[\/\\]+|[\/\\]+$/g, '');
+				return part.trim().replace(/^[/\\]+|[/\\]+$/g, '');
 			})
 			.filter(part => part.length > 0)
 			.join('/');
@@ -35,7 +35,7 @@ export const PathUtils = {
 	},
 
 	isAbsolute(pathStr: string): boolean {
-		if (/^[a-zA-Z]:[\\\/]/.test(pathStr)) return true;
+		if (/^[a-zA-Z]:[\\/]/.test(pathStr)) return true;
 		if (pathStr.startsWith('/') || pathStr.startsWith('\\\\')) return true;
 		return false;
 	},
@@ -52,7 +52,7 @@ export const PathUtils = {
 		const normTo = to.replace(/\\/g, '/').toLowerCase();
 		if (normTo.startsWith(normFrom)) {
 			const rel = to.slice(normFrom.length);
-			return rel.replace(/^[\/\\]+/, '');
+			return rel.replace(/^[/\\]+/, '');
 		}
 		return to;
 	},

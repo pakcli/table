@@ -17,7 +17,7 @@
 		"strictNullChecks": false,
 		"strictBindCallApply": true,
 		"allowSyntheticDefaultImports": true,
-		"useUnknownInCatchVariables": false,
+		"useUnknownInCatchVariables": true,
 		"jsx": "react-jsx",
 		"jsxImportSource": "preact",
 		"skipLibCheck": true,

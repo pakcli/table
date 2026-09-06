@@ -20,6 +20,9 @@ import { ConfirmReorderModal } from "../utils/confirmModal";
 import { serializeCSV } from "../parser/csv-engine";
 import { downloadAllYtThumbnails } from "../utils/youtubeThumbnail";
 import { Notice } from "obsidian";
+import { CalculationRow } from "./CalculationRow";
+import type { CalcPreset } from "../types";
+import type TablitePlugin from "../../../main";
 
 interface ActiveCell {
   row: number;
@@ -63,8 +66,14 @@ interface TableProps {
   filePath?: string;
   sorting: SortingState;
   columnFilters: ColumnFiltersState;
-  onSortingChange: (updater: any) => void;
-  onColumnFiltersChange: (updater: any) => void;
+  onSortingChange: (updater: unknown) => void;
+  onColumnFiltersChange: (updater: unknown) => void;
+  plugin?: TablitePlugin;
+  calcPosition?: "below" | "above" | "both" | "none";
+  calcFreeze?: boolean;
+  columnCalcs?: Record<string, string>;
+  calcPresets?: CalcPreset[];
+  onColumnCalcChange?: (colIndex: number, calcType: string) => void;
 }
 
 interface RangeFilterValue {
@@ -212,6 +221,12 @@ export function Table({
   columnFilters,
   onSortingChange,
   onColumnFiltersChange,
+  plugin,
+  calcPosition = "above",
+  calcFreeze = true,
+  columnCalcs = {},
+  calcPresets = [],
+  onColumnCalcChange,
 }: TableProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
@@ -379,11 +394,11 @@ export function Table({
                 e.dataTransfer?.setData("text/tablite-rows", JSON.stringify(indicesToDrag));
                 e.dataTransfer?.setData("text/tablite-row", String(row.index));
                 e.dataTransfer?.setData("text/plain", `[Row ${row.index + 1}]`);
-                e.dataTransfer!.effectAllowed = "move";
+                e.dataTransfer.effectAllowed = "move";
               }}
               onDragOver={(e) => {
                 e.preventDefault();
-                e.dataTransfer!.dropEffect = "move";
+                e.dataTransfer.dropEffect = "move";
                 setDragOverRow(row.index);
               }}
               onDragLeave={() => {
@@ -413,7 +428,7 @@ export function Table({
                       ? `Are you sure you want to move Row #${sourceIndices[0] + 1} to position #${targetPos}?`
                       : `Are you sure you want to move ${count} selected rows to position #${targetPos}?`;
 
-                  const globalApp = (window as any).app;
+                  const globalApp = window.app;
                   const executeMove = () => {
                     if (onMoveRows) {
                       onMoveRows(sourceIndices, row.index);
@@ -863,6 +878,21 @@ export function Table({
               })}
             </tr>
           ))}
+          {(calcPosition === "above" || calcPosition === "both") && table.getHeaderGroups()[0] && (
+            <CalculationRow
+              headers={table.getHeaderGroups()[0].headers}
+              data={data}
+              plugin={plugin}
+              columnCalcs={columnCalcs}
+              onColumnCalcChange={onColumnCalcChange || (() => {})}
+              calcPresets={calcPresets}
+              frozenCount={frozenCount}
+              frozenOffsets={frozenOffsets}
+              totalWidth={totalWidth}
+              position="above"
+              calcFreeze={calcFreeze}
+            />
+          )}
         </thead>
         <tbody
           style={{
@@ -927,7 +957,7 @@ export function Table({
                         ? `Are you sure you want to move Row #${sourceIndices[0] + 1} to position #${targetPos}?`
                         : `Are you sure you want to move ${count} selected rows to position #${targetPos}?`;
 
-                    const globalApp = (window as any).app;
+                    const globalApp = window.app;
                     const executeMove = () => {
                       if (onMoveRows) {
                         onMoveRows(sourceIndices, row.index);
@@ -1003,6 +1033,31 @@ export function Table({
             );
           })}
         </tbody>
+        {(calcPosition === "below" || calcPosition === "both") && table.getHeaderGroups()[0] && (
+          <tfoot
+            class="tablite-tfoot"
+            style={{
+              display: "grid",
+              position: (calcFreeze ? "sticky" : "relative"),
+              bottom: 0,
+              zIndex: 4,
+            }}
+          >
+            <CalculationRow
+              headers={table.getHeaderGroups()[0].headers}
+              data={data}
+              plugin={plugin}
+              columnCalcs={columnCalcs}
+              onColumnCalcChange={onColumnCalcChange || (() => {})}
+              calcPresets={calcPresets}
+              frozenCount={frozenCount}
+              frozenOffsets={frozenOffsets}
+              totalWidth={totalWidth}
+              position="below"
+              calcFreeze={calcFreeze}
+            />
+          </tfoot>
+        )}
       </table>
       {selectedRows.size > 0 && (
         <div class="tablite-floating-actions">
@@ -1031,7 +1086,7 @@ export function Table({
             onClick={() => {
               const selectedIndices = Array.from(selectedRows);
               const selectedData = selectedIndices.map((i) => data[i]);
-              const globalApp = (window as any).app;
+              const globalApp = window.app;
               if (globalApp) {
                 downloadAllYtThumbnails(globalApp, selectedData);
               }
@@ -1044,7 +1099,7 @@ export function Table({
             class="tablite-fa-btn tablite-fa-danger"
             title="Delete selected rows"
             onClick={() => {
-              const globalApp = (window as any).app;
+              const globalApp = window.app;
               const count = selectedRows.size;
               const doDelete = () => {
                 if (onDeleteRows) onDeleteRows(Array.from(selectedRows));

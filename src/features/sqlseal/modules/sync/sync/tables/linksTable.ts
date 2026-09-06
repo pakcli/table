@@ -27,7 +27,7 @@ export class LinksFileSyncTable extends AFileSyncTable {
             return []
         }
 
-		const links: any[] = (cache.links || []).map((l: LinkCache) => {
+		const links: unknown[] = (cache.links || []).map((l: LinkCache) => {
 			return {
 				targetLink: l.link,
 				position: l.position,
@@ -35,7 +35,7 @@ export class LinksFileSyncTable extends AFileSyncTable {
 			}
 		});
 
-		const frontmatterLinks: any[] = (cache.frontmatterLinks || []).map((l: FrontmatterLinkCache) => {
+		const frontmatterLinks: unknown[] = (cache.frontmatterLinks || []).map((l: FrontmatterLinkCache) => {
 			return {
 				targetLink: l.link,
 				position: { frontmatterKey: l.key },

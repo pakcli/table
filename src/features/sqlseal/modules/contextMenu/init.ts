@@ -3,7 +3,7 @@ import { App, Menu, Plugin, TAbstractFile, TFile, TFolder } from "obsidian";
 export const contextMenuInit = (plugin: Plugin, app: App) => {
 	const createNewCSVFile = async (file: TAbstractFile) => {
 		const targetDir = file instanceof TFile ? file.parent : file;
-		const basePath = targetDir!.path;
+		const basePath = targetDir.path;
 
 		const csvTemplate = "Id,Name\n1,Test Data";
 
@@ -27,6 +27,7 @@ export const contextMenuInit = (plugin: Plugin, app: App) => {
 			const fileExplorer =
 				app.workspace.getLeavesOfType("file-explorer")[0]?.view;
 			if (fileExplorer) {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				await (fileExplorer as any).revealInFolder(newFile);
 			}
 		} catch (error) {

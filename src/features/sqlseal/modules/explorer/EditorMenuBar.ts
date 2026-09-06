@@ -4,7 +4,7 @@ import { ButtonComponent } from "obsidian"
 export class EditorMenuBar {
     bus = new BusBuilder()
         .register('play', args<[]>())
-        .register('structure', args<[ButtonComponent]>())
+        .register('structure', args<[unknown]>())
         .register('globals', args<[]>())
         .build()
     constructor(private fileDatabasePreview: boolean = false) {
@@ -32,8 +32,7 @@ export class EditorMenuBar {
                 delay: 1
             })
             .onClick(() => {
-                const but = b
-                this.bus.trigger('structure', but as any)
+                this.bus.trigger('structure', b)
             })
         }
 

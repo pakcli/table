@@ -29,18 +29,18 @@ export class StatsRenderer implements ICellRendererComp {
     window.requestAnimationFrame(async () => { this.sync() })
 
     // Watching for the changes
-    this.setupWatchers(context, data!)
+    this.setupWatchers(context, data)
 
   }
 
   async setupWatchers(context: GlobalTablesView, data: TableConfiguration) {
     this.reg = context.sync.getRegistrator()
-    this.eventName = await context.sync.getEventNameForAlias('/', data!.name)
+    this.eventName = await context.sync.getEventNameForAlias('/', data.name)
     this.reg.on(this.eventName, this.syncFn)
   }
 
   async sync() {
-    const result = await this.context.sync.getStats('/', this.data!.name)
+    const result = await this.context.sync.getStats('/', this.data.name)
     this.eGui.textContent = `Rows: ${result.rows} / Columns: ${result.columns}`
   }
 

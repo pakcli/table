@@ -1,5 +1,7 @@
 import { AssetRouterSettings } from './features/tree/types';
-import { TablitePluginData as SQLSealSettings, DEFAULT_PLUGIN_DATA as DEFAULT_SQLSEAL_SETTINGS } from './features/sqlseal/types';
+import { TablitePluginData as SQLSealSettings, DEFAULT_PLUGIN_DATA as DEFAULT_SQLSEAL_SETTINGS, CalcPreset, DEFAULT_CALC_PRESETS } from './features/sqlseal/types';
+export type { CalcPreset };
+export { DEFAULT_CALC_PRESETS };
 import { BasesLeafletViewSettings } from './features/leaflet/types';
 import { CodeblockLanguageRule } from './features/codeblock/scaler';
 
@@ -31,6 +33,12 @@ export interface PakCLITableSettings extends
     codeblockWrapMode: 'flowclip' | 'wrap' | 'scalefit';
     codeblockLanguageRules: CodeblockLanguageRule[];
     enableAssetDrag: boolean;
+    enableCsvEditor?: boolean;
+    gridTheme?: string;
+    enableTreeProcessor?: boolean;
+    defaultTreeLayout?: string;
+    fileConfigs?: Record<string, unknown>;
+    [key: string]: unknown;
 }
 
 export const DEFAULT_ASSET_ROUTER_SETTINGS: AssetRouterSettings = {

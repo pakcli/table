@@ -126,11 +126,11 @@ export function HeaderCell({
       draggable
       onDragStart={(event) => {
         event.dataTransfer?.setData("text/tablite-column", String(colIndex));
-        event.dataTransfer!.effectAllowed = "move";
+        event.dataTransfer.effectAllowed = "move";
       }}
       onDragOver={(event) => {
         event.preventDefault();
-        event.dataTransfer!.dropEffect = "move";
+        event.dataTransfer.dropEffect = "move";
       }}
       onDrop={(event) => {
         event.preventDefault();

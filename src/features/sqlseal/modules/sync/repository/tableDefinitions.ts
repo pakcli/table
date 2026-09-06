@@ -54,33 +54,33 @@ export class TableDefinitionsRepository extends Repository {
         const { data } = (await this.db.select(
             `SELECT * FROM ${this.TABLE_NAME} WHERE source_file = @sourceFile`, 
             { sourceFile }
-        ))!
+        ))
 
         if (!data.length) {
             return null
         }
-        return (data as unknown[] as TableDefinition[]).map(parseDbEntry)
+        return (data as TableDefinition[]).map(parseDbEntry)
     }
 
     async getByRefreshId(refreshId: string) {
         const { data } = (await this.db.select(
             `SELECT * FROM ${this.TABLE_NAME} WHERE refresh_id= @refreshId`, 
             { refreshId }
-        ))!
+        ))
 
         if (!data.length) {
             return null
         }
-        const d = data[0]
+        const d = data[0] as Record<string, unknown>;
         return {
             ...d,
             arguments: JSON.parse(d.arguments ? d.arguments.toString() : '[]')
-        } as TableDefinition 
+        } as TableDefinition;
     }
 
     async getAll() {
-        const { data } = (await this.db.select(`SELECT * FROM ${this.TABLE_NAME}`, {}))!
-        return data.map(d => ({
+        const { data } = (await this.db.select(`SELECT * FROM ${this.TABLE_NAME}`, {}))
+        return (data as Record<string, unknown>[]).map(d => ({
             ...d,
             type: d.type ?? 'file',
             arguments: JSON.parse(d.arguments ? d.arguments.toString() : '[]')

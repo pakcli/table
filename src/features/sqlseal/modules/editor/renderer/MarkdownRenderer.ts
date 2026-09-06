@@ -6,7 +6,7 @@ import { displayError } from "../../../utils/ui";
 import { ViewDefinition } from "../parser";
 import { ParseResults } from "../../syntaxHighlight/cellParser/parseResults";
 
-const mapDataFromHeaders = (columns: string[], data: Record<string, any>[]) => {
+const mapDataFromHeaders = (columns: string[], data: Record<string, unknown>[]) => {
     return data.map(d => columns.map(c => String(d[c])))
 }
 
@@ -30,9 +30,9 @@ export class MarkdownRenderer implements RendererConfig {
     }
 
     render(config: ReturnType<typeof this.validateConfig>, el: HTMLElement, { cellParser } : RendererContext) {
-        const parseResult = new ParseResults(cellParser!)
+        const parseResult = new ParseResults(cellParser)
         return {
-            render: ({ columns, data }: any) => {
+            render: ({ columns, data }: { columns: string[]; data: Record<string, any>[] }) => {
                 const tab = getMarkdownTable({
                     table: {
                         head: columns,

@@ -111,17 +111,17 @@ export class SQLSealFileView extends TextFileView {
     }
 
     private async render(initialQuery: string) {
-        const codeblockProcessorGenerator = async (el: HTMLElement, source: string, variables?: Record<string, any>) => {
+        const codeblockProcessorGenerator = async (el: HTMLElement, source: string, variables?: Record<string, unknown>) => {
             const ctx: MarkdownPostProcessorContext = {
                 docId: "",
                 sourcePath: this.file?.path || "",
                 frontmatter: variables || {},
-            } as any;
+            } as unknown as MarkdownPostProcessorContext;
 
             // Create a database adapter to handle both MemoryDatabase and SqlocalDatabaseProxy
             const dbAdapter = this.fileDb ? {
                 select: async (statement: string, frontmatter: Record<string, unknown>) => {
-                    const result = await this.fileDb!.select(statement);
+                    const result = await this.fileDb.select(statement);
                     return {
                         data: result.data,
                         columns: Array.isArray(result.columns) ? result.columns : Object.keys(result.columns),
@@ -133,7 +133,7 @@ export class SQLSealFileView extends TextFileView {
                     throw new Error("Editing file views directly is not supported");
                 },
                 getColumns: async (name: string) => {
-                    const result = await this.fileDb!.getColumns(name);
+                    const result = await this.fileDb.getColumns(name);
                     return result.data.map(col => col.name);
                 }
             } : this.vaultDb;
@@ -152,9 +152,10 @@ export class SQLSealFileView extends TextFileView {
             await processor.onload();
 
             // Resizing and layout configuration for explorer
-            const renderer = processor.renderer;
-            if (renderer && 'communicator' in renderer && 'gridApi' in (renderer as any)['communicator']) {
-                const api: GridApi = (renderer.communicator as any).gridApi;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const renderer = processor.renderer as any;
+            if (renderer?.communicator?.gridApi) {
+                const api: GridApi = renderer.communicator.gridApi;
                 api.setGridOption('paginationAutoPageSize', true);
                 api.setGridOption('domLayout', 'normal'); // Override autoHeight for proper pagination
             }

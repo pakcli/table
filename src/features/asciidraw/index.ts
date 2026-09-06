@@ -1,4 +1,4 @@
-import { MarkdownView, Notice, Plugin } from 'obsidian';
+import { MarkdownView, Notice, Plugin, type MarkdownPostProcessorContext } from 'obsidian';
 import { AsciiCodeblockRenderer } from './ui/AsciiCodeblockRenderer';
 import { AsciiDrawModal } from './ui/AsciiDrawModal';
 
@@ -8,12 +8,13 @@ export function registerAsciiDrawFeature(plugin: Plugin): void {
 
 	asciiLangs.forEach(lang => {
 		try {
-			plugin.registerMarkdownCodeBlockProcessor(lang, (source, el, ctx) => {
+			plugin.registerMarkdownCodeBlockProcessor(lang, (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
 				const renderer = new AsciiCodeblockRenderer(el, source, lang, ctx, plugin.app);
 				ctx.addChild(renderer);
 			});
-		} catch (err) {
-			console.warn(`[ASCII Draw] Failed to register codeblock processor for "${lang}":`, err);
+		} catch (err: unknown) {
+			const msg = err instanceof Error ? err.message : String(err);
+			console.warn(`[ASCII Draw] Failed to register codeblock processor for "${lang}": ${msg}`);
 		}
 	});
 
@@ -46,7 +47,7 @@ function openAsciiStudioModal(plugin: Plugin, startFullscreen = false): void {
 
 	const modal = new AsciiDrawModal(plugin.app, {
 		initialContent: initialTemplate,
-		onSave: async (savedContent) => {
+		onSave: async (savedContent: string) => {
 			if (activeView && activeView.editor) {
 				const editor = activeView.editor;
 				const block = `\`\`\`asciidraw\n${savedContent}\n\`\`\`\n`;
@@ -76,7 +77,7 @@ function insertNewAsciiBlock(plugin: Plugin): void {
 
 	const modal = new AsciiDrawModal(plugin.app, {
 		initialContent,
-		onSave: (savedContent) => {
+		onSave: (savedContent: string) => {
 			const editor = activeView.editor;
 			const block = `\`\`\`asciidraw\n${savedContent}\n\`\`\`\n`;
 			editor.replaceRange(block, editor.getCursor());

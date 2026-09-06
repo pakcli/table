@@ -64,7 +64,7 @@ export class MarkdownTableSyncStrategy extends ISyncStrategy {
     }
 
     async returnData() {
-        const file = this.app.vault.getFileByPath(this.def.source_file)!;
+        const file = this.app.vault.getFileByPath(this.def.source_file);
         if (!file) {
             return { data: [], columns: [] };
         }
@@ -124,7 +124,7 @@ export class MarkdownTableSyncStrategy extends ISyncStrategy {
                             ? [currentElement as HTMLTableElement]
                             : Array.from(currentElement.querySelectorAll('table'));
                         
-                        tablesUnderHeader.push(...(tables as HTMLTableElement[]));
+                        tablesUnderHeader.push(...(tables));
                     }
                     currentElement = currentElement.nextElementSibling;
                 }

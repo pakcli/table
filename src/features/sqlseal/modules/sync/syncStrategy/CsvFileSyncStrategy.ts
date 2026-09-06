@@ -51,7 +51,7 @@ export class CsvFileSyncStrategy extends ISyncStrategy {
     }
 
     async returnData() {
-        const file = this.app.vault.getFileByPath(this.def.source_file)!
+        const file = this.app.vault.getFileByPath(this.def.source_file)
         const data = await this.app.vault.cachedRead(file)
 
         // TODO: PROBABLY SHOULD BE EXTRACTED SOMEWHERE FROM HERE later.
@@ -72,7 +72,7 @@ export class CsvFileSyncStrategy extends ISyncStrategy {
             })) ?? []
 
         const resultedData = parsed.data.map(d => {
-            const res: Record<string, any> = {}
+            const res: Record<string, unknown> = {}
             for (const c of columns) {
                 res[c.name] = d[c.name]
             }

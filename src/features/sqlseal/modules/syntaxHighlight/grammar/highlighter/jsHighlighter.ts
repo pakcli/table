@@ -46,7 +46,7 @@ function highlightJavaScript(source: string): Decorator[] {
         // Process comments (they're separate from the AST in Esprima)
         if (ast.comments) {
             for (const comment of ast.comments) {
-                addDecorator('comment', comment.range![0], comment.range![1]);
+                addDecorator('comment', comment.range[0], comment.range[1]);
             }
         }
 
@@ -119,7 +119,7 @@ function highlightJavaScript(source: string): Decorator[] {
 
         // Use estraverse to traverse the AST and identify more complex patterns
         estraverse.traverse(ast, {
-            enter: function (node: any, parent: any) {
+            enter: function (node: unknown, parent: unknown) {
                 switch (node.type) {
                     case 'FunctionDeclaration':
                         // Function name

@@ -82,7 +82,7 @@ function copySelectionToClipboard(
   const lines: string[] = [];
   for (const r of selectedRows) {
     const cells: string[] = [];
-    for (let c = minCol!; c <= maxCol!; c++) {
+    for (let c = minCol; c <= maxCol; c++) {
       cells.push(data[r]?.[c] ?? "");
     }
     lines.push(cells.join("\t"));
@@ -93,20 +93,21 @@ void lines;
 
 function ensureEditableState(state: TableState): TableState {
   const headerCount = Math.max(1, state.headers.length);
-  const headers =
+  const headers: string[] =
     state.headers.length > 0
       ? state.headers
       : Array.from({ length: headerCount }, (_, index) => `Column ${index + 1}`);
 
-  const data =
+  const data: string[][] =
     state.data.length > 0
-      ? state.data.map((row) => {
+      ? state.data.map((row): string[] => {
           if (row.length < headers.length) {
-            return [...row, ...new Array(headers.length - row.length).fill("")];
+            const filler: string[] = Array.from({ length: headers.length - row.length }, () => "");
+            return [...row, ...filler];
           }
           return row.slice(0, headers.length);
         })
-      : [new Array(headers.length).fill("")];
+      : [Array.from({ length: headers.length }, () => "")];
 
   return { headers, data };
 }

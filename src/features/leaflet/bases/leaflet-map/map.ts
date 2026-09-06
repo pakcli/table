@@ -199,7 +199,7 @@ export class MapManager {
     if (!coord) return [0, 0];
     const parts = coord.replace(/\s/g, "").split(",").map(parseFloat);
     if (parts.length === 2 && parts.every((n) => !isNaN(n))) {
-        return [parts[0]!, parts[1]!];
+        return [parts[0], parts[1]];
     }
     return [0, 0];
 	}	

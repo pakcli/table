@@ -17,7 +17,7 @@ import { RendererRegistry } from "../editor/renderer/rendererRegistry";
 type CodeblockProcessorWrapper = (
 	el: HTMLElement,
 	source: string,
-	variables?: Record<string, any>
+	variables?: Record<string, unknown>
 ) => Promise<CodeblockProcessor>;
 
 const DEFAULT_QUERY = "SELECT *\nFROM files\nLIMIT 10";
@@ -105,13 +105,13 @@ export class Editor {
 				// structure visible
 				structure.hide()
 				contentSidebar.show();
-				(b as any).setIcon('database')
+				(b as any).setIcon('database');
 
 			} else {
 				// structure invisible
 				structure.show()
 				contentSidebar.hide();
-				(b as any).setIcon('table')
+				(b as any).setIcon('table');
 			}
         })
 
@@ -120,7 +120,7 @@ export class Editor {
 		})
 	}
 
-	createCodeblockProcessor(el: HTMLElement, source: string, variables?: Record<string, any>) {
+	createCodeblockProcessor(el: HTMLElement, source: string, variables?: Record<string, unknown>) {
 		return this.codeblockProcessorGenerator(el, source, variables);
 	}
 

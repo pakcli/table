@@ -37,7 +37,7 @@ export class JsonFileSyncStrategy extends ISyncStrategy {
         }
 
     async returnData() {
-        const file = this.app.vault.getFileByPath(this.def.source_file)!
+        const file = this.app.vault.getFileByPath(this.def.source_file)
         const fileData = await this.app.vault.cachedRead(file)
 
         let data = parse(fileData)

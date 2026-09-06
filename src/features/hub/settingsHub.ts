@@ -1,4 +1,4 @@
-import { App, Plugin, PluginSettingTab, Setting, setIcon, Notice, Modal } from "obsidian";
+import { App, Plugin, PluginSettingTab, Setting, setIcon, Notice, Modal, type SettingDefinitionItem } from "obsidian";
 import { runSystemDiagnostics, SystemHealthStatus } from "./wizard";
 import { ECOSYSTEM_MODULES, BlueprintSection } from "./previewSchemas";
 import { saveVaultConfig, loadVaultConfig, listVaultSnapshots, SnapshotItem } from "./vaultConfig";
@@ -149,7 +149,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   searchQuery = "";
   healthStatus: SystemHealthStatus | null = null;
   localHandlers: Map<string, SettingsSectionHandler> = new Map();
-  private simulatedState: Record<string, Record<string, any>> = {};
+  private simulatedState: Record<string, Record<string, unknown>> = {};
   private unsubscribeBus: (() => void) | null = null;
 
   constructor(app: App, plugin: Plugin) {
@@ -164,7 +164,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     this.localHandlers.set(handler.id, handler);
   }
 
-  getSettingDefinitions(): any[] {
+  getSettingDefinitions(): SettingDefinitionItem[] {
     return [];
   }
 
@@ -195,9 +195,9 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
   // ── 1. In-Memory Undo/Redo Engine ───────────────────────────────────────
 
-  public recordMemorySnapshot(stateObj: Record<string, any>): void {
+  public recordMemorySnapshot(stateObj: Record<string, unknown>): void {
     if (typeof window === "undefined") return;
-    const history = window.__PakCLI_MemoryHistory__!;
+    const history = window.__PakCLI_MemoryHistory__;
     const stateStr = JSON.stringify(stateObj);
     const pluginId = this.plugin.manifest.id;
 
@@ -222,7 +222,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
   public async performMemoryUndo(): Promise<void> {
     if (typeof window === "undefined") return;
-    const history = window.__PakCLI_MemoryHistory__!;
+    const history = window.__PakCLI_MemoryHistory__;
     if (history.index > 0) {
       history.index--;
       const targetEntry = history.stack[history.index];
@@ -251,7 +251,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
   public async performMemoryRedo(): Promise<void> {
     if (typeof window === "undefined") return;
-    const history = window.__PakCLI_MemoryHistory__!;
+    const history = window.__PakCLI_MemoryHistory__;
     if (history.index < history.stack.length - 1) {
       history.index++;
       const targetEntry = history.stack[history.index];
@@ -285,7 +285,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
     if (!this.unsubscribeBus) {
       this.unsubscribeBus = eventBus.on("settings:updated", () => {
-        const activePane = containerEl.querySelector(".pakcli-content-pane") as HTMLElement;
+        const activePane = containerEl.querySelector<HTMLElement>(".pakcli-content-pane");
         if (activePane) {
           this.renderContent(activePane);
         }
@@ -466,6 +466,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       enableBtn.onclick = async (e) => {
         e.stopPropagation();
         try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await (this.app as any).plugins?.enablePlugin(targetPluginId);
           new Notice(`🟢 Enabled ${label}!`);
           this.display();
@@ -525,7 +526,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       const sidebar = layoutContainer.querySelector(".pakcli-nav-list");
       if (sidebar) this.updateSidebarItems(sidebar as HTMLElement, layoutContainer);
 
-      const contentPane = layoutContainer.querySelector(".pakcli-content-pane") as HTMLElement;
+      const contentPane = layoutContainer.querySelector<HTMLElement>(".pakcli-content-pane");
       if (contentPane) this.renderContent(contentPane);
     };
   }
@@ -553,7 +554,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
     // 2. Local registered handler (if current plugin registered custom handler)
     if (this.localHandlers.has(this.activeSectionId)) {
-      const handler = this.localHandlers.get(this.activeSectionId)!;
+      const handler = this.localHandlers.get(this.activeSectionId);
       new Setting(contentEl)
         .setName(handler.title)
         .setHeading();
@@ -566,7 +567,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     if (mod) {
       const targetPluginInstance = this.getPluginInstance(mod.storeId);
       if (targetPluginInstance) {
-        this.renderLiveCrossPluginSettings(contentEl, mod, targetPluginInstance as PluginWithSettings);
+        this.renderLiveCrossPluginSettings(contentEl, mod, targetPluginInstance);
       } else {
         this.renderBlueprintPreview(contentEl, mod);
       }
@@ -601,7 +602,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
     blueprint.fields.forEach((field) => {
       const s = new Setting(form).setName(field.name).setDesc(field.desc);
-      const settingsObj = (targetPlugin.settings || {}) as Record<string, unknown>;
+      const settingsObj = (targetPlugin.settings || {});
       const currentVal = settingsObj[field.key] !== undefined ? settingsObj[field.key] : field.defaultVal;
 
       if (field.type === "toggle") {
@@ -612,11 +613,11 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
             }
-            if (typeof (targetPlugin as any).applyCodeblockStyle === "function") {
-              (targetPlugin as any).applyCodeblockStyle();
+            if (typeof targetPlugin.applyCodeblockStyle === "function") {
+              targetPlugin.applyCodeblockStyle();
             }
-            if (typeof (targetPlugin as any).applyBadgeSetting === "function") {
-              (targetPlugin as any).applyBadgeSetting();
+            if (typeof targetPlugin.applyBadgeSetting === "function") {
+              targetPlugin.applyBadgeSetting();
             }
             this.recordMemorySnapshot(targetPlugin.settings);
             eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
@@ -632,8 +633,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
             if (typeof targetPlugin.saveSettings === "function") {
               await targetPlugin.saveSettings();
             }
-            if (typeof (targetPlugin as any).applyCodeblockStyle === "function") {
-              (targetPlugin as any).applyCodeblockStyle();
+            if (typeof targetPlugin.applyCodeblockStyle === "function") {
+              targetPlugin.applyCodeblockStyle();
             }
             this.recordMemorySnapshot(targetPlugin.settings);
             eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });

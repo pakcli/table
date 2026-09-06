@@ -1,17 +1,62 @@
+import type { App } from "obsidian";
 import { DEFAULT_SETTINGS as DEFAULT_SQLSEAL_SETTINGS, type SQLSealSettings } from "./modules/settings/SQLSealSettingsTab";
+
+declare global {
+  interface Window {
+    app: App;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mermaid?: any;
+  }
+}
+
+export interface CalcPreset {
+  id: string;
+  name: string; // e.g. "*preset_satu", "*preset_dua"
+  formula: string; // e.g. "SUM * 1.1", "MAX - MIN"
+  description?: string;
+}
+
+export const DEFAULT_CALC_PRESETS: CalcPreset[] = [
+  { id: 'preset_satu', name: '*preset_satu', formula: 'SUM * 1.1', description: 'Sum + 10% markup/tax' },
+  { id: 'preset_dua', name: '*preset_dua', formula: 'MAX - MIN', description: 'Range between Max and Min' },
+  {
+    id: 'preset_multi_count',
+    name: '*multi_item_count',
+    formula: 'count - word - laptop\ncount - word - phone\ncount - word - tablet',
+    description: 'Multiple count queries in a single preset',
+  },
+];
+
+export interface ColumnFilterItem {
+  id: string;
+  value: unknown;
+  [key: string]: unknown;
+}
+
+export interface ColumnSortItem {
+  id: string;
+  desc: boolean;
+  [key: string]: unknown;
+}
 
 export interface ColumnConfig {
   order: number[];
   hidden: number[];
   sizing: Record<string, number>;
   frozenCount: number;
-  filters?: any[];
-  sorting?: any[];
+  filters?: ColumnFilterItem[];
+  sorting?: ColumnSortItem[];
+  calcPosition?: 'below' | 'above' | 'both' | 'none';
+  calcFreeze?: boolean;
+  columnCalcs?: Record<string, string>;
 }
 
 export interface TablitePluginData extends SQLSealSettings {
   files: Record<string, ColumnConfig>;
   debug: boolean;
+  calcPresets: CalcPreset[];
+  defaultCalcPosition: 'below' | 'above' | 'both' | 'none';
+  defaultCalcFreeze: boolean;
   scannerApiProvider: "claude" | "gemini" | "openrouter";
   scannerApiKey: string;
   scannerApiModel: string;
@@ -32,6 +77,9 @@ export const DEFAULT_PLUGIN_DATA: TablitePluginData = {
   ...DEFAULT_SQLSEAL_SETTINGS,
   files: {},
   debug: false,
+  calcPresets: DEFAULT_CALC_PRESETS,
+  defaultCalcPosition: 'above',
+  defaultCalcFreeze: true,
   scannerApiProvider: "gemini",
   scannerApiKey: "",
   scannerApiModel: "gemini-2.5-flash",
@@ -56,6 +104,9 @@ export function createDefaultColumnConfig(columnCount: number): ColumnConfig {
     frozenCount: 0,
     filters: [],
     sorting: [],
+    calcPosition: 'above',
+    calcFreeze: true,
+    columnCalcs: {},
   };
 }
 
@@ -87,6 +138,21 @@ export function normalizeColumnConfig(
   const requestedFrozen = typeof config.frozenCount === "number" ? config.frozenCount : 0;
   const frozenCount = Math.max(0, Math.min(requestedFrozen, visibleCount));
 
+  const validCalcPositions = ['below', 'above', 'both', 'none'];
+  const calcPosition = (config.calcPosition && validCalcPositions.includes(config.calcPosition))
+    ? config.calcPosition
+    : 'above';
+  const calcFreeze = config.calcFreeze !== undefined ? Boolean(config.calcFreeze) : true;
+
+  const columnCalcs: Record<string, string> = {};
+  if (config.columnCalcs && typeof config.columnCalcs === "object") {
+    for (const [k, v] of Object.entries(config.columnCalcs)) {
+      if (typeof v === "string" && v.trim().length > 0) {
+        columnCalcs[k] = v;
+      }
+    }
+  }
+
   return {
     order,
     hidden,
@@ -94,6 +160,9 @@ export function normalizeColumnConfig(
     frozenCount,
     filters: config.filters ?? [],
     sorting: config.sorting ?? [],
+    calcPosition,
+    calcFreeze,
+    columnCalcs,
   };
 }
 
@@ -125,6 +194,18 @@ export function remapColumnConfigForInsert(
   const filters = (config.filters ?? []).map(f => ({ ...f, id: shiftId(f.id) }));
   const sorting = (config.sorting ?? []).map(s => ({ ...s, id: shiftId(s.id) }));
 
+  const columnCalcs: Record<string, string> = {};
+  if (config.columnCalcs) {
+    for (const [k, v] of Object.entries(config.columnCalcs)) {
+      const idx = Number(k);
+      if (!Number.isNaN(idx)) {
+        columnCalcs[String(shift(idx))] = v;
+      } else {
+        columnCalcs[k] = v;
+      }
+    }
+  }
+
   return normalizeColumnConfig(
     {
       order,
@@ -133,6 +214,9 @@ export function remapColumnConfigForInsert(
       frozenCount: config.frozenCount,
       filters,
       sorting,
+      calcPosition: config.calcPosition,
+      calcFreeze: config.calcFreeze,
+      columnCalcs,
     },
     columnCountAfterInsert,
   );
@@ -176,6 +260,20 @@ export function remapColumnConfigForDelete(
     .filter(s => s.id !== `col_${deleteIndex}`)
     .map(s => ({ ...s, id: shiftId(s.id) }));
 
+  const columnCalcs: Record<string, string> = {};
+  if (config.columnCalcs) {
+    for (const [k, v] of Object.entries(config.columnCalcs)) {
+      const idx = Number(k);
+      if (!Number.isNaN(idx)) {
+        if (idx !== deleteIndex) {
+          columnCalcs[String(shift(idx))] = v;
+        }
+      } else {
+        columnCalcs[k] = v;
+      }
+    }
+  }
+
   return normalizeColumnConfig(
     {
       order,
@@ -184,6 +282,9 @@ export function remapColumnConfigForDelete(
       frozenCount: config.frozenCount,
       filters,
       sorting,
+      calcPosition: config.calcPosition,
+      calcFreeze: config.calcFreeze,
+      columnCalcs,
     },
     columnCountAfterDelete,
   );

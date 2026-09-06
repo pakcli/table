@@ -1,4 +1,4 @@
-import { Notice, PluginSettingTab, Setting } from "obsidian";
+import { Notice, PluginSettingTab, Setting, type SettingDefinitionItem } from "obsidian";
 import { Constants as C } from "@plugin/constants";
 import { t } from "@plugin/i18n/locale";
 import { BasesLeafletViewPlugin } from "@plugin/plugin";
@@ -15,7 +15,7 @@ export class BasesLeafletViewSettingsTab extends PluginSettingTab {
 		super(plugin.app, plugin);
 	}
 
-	getSettingDefinitions(): any[] {
+	getSettingDefinitions(): SettingDefinitionItem[] {
 		return [];
 	}
 

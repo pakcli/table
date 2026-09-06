@@ -8,6 +8,7 @@ import { Table } from "./Table";
 import { RawEditor } from "./RawEditor";
 import { FindReplaceBar } from "./FindReplaceBar";
 import {
+  createDefaultColumnConfig,
   normalizeColumnConfig,
   remapColumnConfigForDelete,
   remapColumnConfigForInsert,
@@ -15,7 +16,9 @@ import {
 } from "../types";
 import { getArtifactPath, ensureFolderExists } from "../utils/views";
 import { downloadAllYtThumbnails } from "../utils/youtubeThumbnail";
-import { Notice } from "obsidian";
+import { Notice, TFile } from "obsidian";
+import { CustomCalcModal } from "./CustomCalcModal";
+import type TablitePlugin from "../../../main";
 
 interface AppProps {
   initialData: string;
@@ -23,6 +26,7 @@ interface AppProps {
   initialDelimiter: Delimiter;
   initialEncoding?: string;
   filePath: string;
+  plugin?: TablitePlugin;
   initialColumnConfig: ColumnConfig;
   onColumnConfigChange: (config: ColumnConfig, columnCount: number) => void | Promise<void>;
   onDataChange: (data: string) => void;
@@ -88,7 +92,7 @@ function copySelectionToClipboard(
   const lines: string[] = [];
   for (const r of selectedRows) {
     const cells: string[] = [];
-    for (let c = minCol!; c <= maxCol!; c++) {
+    for (let c = minCol; c <= maxCol; c++) {
       cells.push(data[r]?.[c] ?? "");
     }
     lines.push(cells.join("\t"));
@@ -99,20 +103,21 @@ void lines;
 
 function ensureEditableState(state: TableState): TableState {
   const headerCount = Math.max(1, state.headers.length);
-  const headers =
+  const headers: string[] =
     state.headers.length > 0
       ? state.headers
       : Array.from({ length: headerCount }, (_, index) => `Column ${index + 1}`);
 
-  const data =
+  const data: string[][] =
     state.data.length > 0
-      ? state.data.map((row) => {
+      ? state.data.map((row): string[] => {
           if (row.length < headers.length) {
-            return [...row, ...new Array(headers.length - row.length).fill("")];
+            const filler: string[] = Array.from({ length: headers.length - row.length }, () => "");
+            return [...row, ...filler];
           }
           return row.slice(0, headers.length);
         })
-      : [new Array(headers.length).fill("")];
+      : [Array.from({ length: headers.length }, () => "")];
 
   return { headers, data };
 }
@@ -123,6 +128,7 @@ export function App({
   initialDelimiter,
   initialEncoding,
   filePath,
+  plugin,
   initialColumnConfig,
   onColumnConfigChange,
   onDataChange,
@@ -224,71 +230,109 @@ export function App({
     normalizeColumnConfig(initialColumnConfig, initialState.headers.length),
   );
 
-  const saveViewsArtifact = useCallback(async (updatedViews: Record<string, ColumnConfig>, currentActive: string) => {
-    const globalApp = (window as any).app;
-    if (!globalApp || !filePath) return;
-    const artifactPath = getArtifactPath(filePath);
-    
-    const parentIndex = artifactPath.lastIndexOf('/');
-    if (parentIndex !== -1) {
-      const parentPath = artifactPath.substring(0, parentIndex);
-      await ensureFolderExists(globalApp, parentPath);
-    }
+  const isLoadedRef = useRef(false);
 
-    const payload = {
-      activeView: currentActive,
-      views: updatedViews
-    };
-    const content = JSON.stringify(payload, null, 2);
-    
-    const file = globalApp.vault.getFileByPath(artifactPath);
-    if (file) {
-      await globalApp.vault.modify(file, content);
-    } else {
-      await globalApp.vault.create(artifactPath, content);
-    }
-  }, [filePath]);
+  const saveViewsArtifact = useCallback(
+    async (updatedViews: Record<string, ColumnConfig>, currentActive: string) => {
+      const globalApp = window.app;
+      if (!globalApp || !filePath) return;
+      const artifactPath = getArtifactPath(filePath);
+
+      const parentIndex = artifactPath.lastIndexOf("/");
+      if (parentIndex !== -1) {
+        const parentPath = artifactPath.substring(0, parentIndex);
+        await ensureFolderExists(globalApp, parentPath);
+      }
+
+      const payload = {
+        activeView: currentActive,
+        views: updatedViews,
+      };
+      const content = JSON.stringify(payload, null, 2);
+
+      try {
+        if (globalApp.vault?.adapter?.write) {
+          await globalApp.vault.adapter.write(artifactPath, content);
+        } else {
+          const file = globalApp.vault.getAbstractFileByPath
+            ? globalApp.vault.getAbstractFileByPath(artifactPath)
+            : null;
+          if (file instanceof TFile) {
+            await globalApp.vault.modify(file, content);
+          } else {
+            await globalApp.vault.create(artifactPath, content);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to save view artifact:", err);
+      }
+    },
+    [filePath]
+  );
 
   useEffect(() => {
-    const loadViews = async () => {
-      const globalApp = (window as any).app;
+    const loadViewsArtifact = async () => {
+      const globalApp = window.app;
       if (!globalApp || !filePath) {
+        isLoadedRef.current = true;
         setIsViewsLoaded(true);
         return;
       }
       const artifactPath = getArtifactPath(filePath);
-      const file = globalApp.vault.getFileByPath(artifactPath);
-      if (file) {
+      let content: string | null = null;
+      try {
+        if (globalApp.vault?.adapter && (await globalApp.vault.adapter.exists(artifactPath))) {
+          content = await globalApp.vault.adapter.read(artifactPath);
+        } else {
+          const file = globalApp.vault.getAbstractFileByPath
+            ? globalApp.vault.getAbstractFileByPath(artifactPath)
+            : null;
+          if (file instanceof TFile) {
+            content = await globalApp.vault.read(file);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to read artifact", e);
+      }
+
+      if (content) {
         try {
-          const content = await globalApp.vault.read(file);
           const parsed = JSON.parse(content);
           if (parsed && parsed.views && parsed.activeView) {
-            setViews(parsed.views);
-            setActiveView(parsed.activeView);
-            if (parsed.views[parsed.activeView]) {
-              setColumnConfig(normalizeColumnConfig(parsed.views[parsed.activeView], headers.length));
+            const normalizedViews: Record<string, ColumnConfig> = {};
+            for (const [vName, vConfig] of Object.entries(parsed.views)) {
+              normalizedViews[vName] = normalizeColumnConfig(vConfig, headers.length);
             }
+            const active =
+              parsed.activeView in normalizedViews
+                ? parsed.activeView
+                : Object.keys(normalizedViews)[0] || "Default";
+            setViews(normalizedViews);
+            setActiveView(active);
+            setColumnConfig(normalizedViews[active]);
+            isLoadedRef.current = true;
             setIsViewsLoaded(true);
             return;
           }
         } catch (e) {
-          console.error("Failed to load view artifact", e);
+          console.error("Failed to parse view artifact", e);
         }
       }
-      
+
       const defaultViews = {
-        "Default": normalizeColumnConfig(initialColumnConfig, headers.length)
+        Default: normalizeColumnConfig(initialColumnConfig, headers.length),
       };
       setViews(defaultViews);
       setActiveView("Default");
+      isLoadedRef.current = true;
       setIsViewsLoaded(true);
     };
-    loadViews();
+    loadViewsArtifact();
   }, [filePath]);
 
   useEffect(() => {
-    if (!isViewsLoaded || !activeView) return;
-    
+    if (!isViewsLoaded || !activeView || !isLoadedRef.current) return;
+
     const stored = views[activeView];
     if (stored) {
       if (
@@ -297,7 +341,10 @@ export function App({
         JSON.stringify(stored.sizing) === JSON.stringify(columnConfig.sizing) &&
         stored.frozenCount === columnConfig.frozenCount &&
         JSON.stringify(stored.filters || []) === JSON.stringify(columnConfig.filters || []) &&
-        JSON.stringify(stored.sorting || []) === JSON.stringify(columnConfig.sorting || [])
+        JSON.stringify(stored.sorting || []) === JSON.stringify(columnConfig.sorting || []) &&
+        stored.calcPosition === columnConfig.calcPosition &&
+        stored.calcFreeze === columnConfig.calcFreeze &&
+        JSON.stringify(stored.columnCalcs || {}) === JSON.stringify(columnConfig.columnCalcs || {})
       ) {
         return;
       }
@@ -305,49 +352,84 @@ export function App({
 
     const nextViews = {
       ...views,
-      [activeView]: columnConfig
+      [activeView]: columnConfig,
     };
     setViews(nextViews);
-    saveViewsArtifact(nextViews, activeView);
+    void saveViewsArtifact(nextViews, activeView);
   }, [columnConfig, activeView, views, isViewsLoaded, saveViewsArtifact]);
 
-  const handleViewChange = useCallback((viewName: string) => {
-    if (views[viewName]) {
-      setActiveView(viewName);
-      setColumnConfig(normalizeColumnConfig(views[viewName], headers.length));
-      saveViewsArtifact(views, viewName);
+  const handleViewChange = useCallback(
+    (viewName: string) => {
+      if (views[viewName]) {
+        setActiveView(viewName);
+        const normalized = normalizeColumnConfig(views[viewName], headers.length);
+        setColumnConfig(normalized);
+        void saveViewsArtifact(views, viewName);
+      }
+    },
+    [views, headers.length, saveViewsArtifact]
+  );
+
+  const handleResetView = useCallback(() => {
+    if (!activeView) return;
+    const defaultCfg = createDefaultColumnConfig(headers.length);
+    if (plugin?.settings.defaultCalcPosition) {
+      defaultCfg.calcPosition = plugin.settings.defaultCalcPosition as 'below' | 'above' | 'both' | 'none';
     }
-  }, [views, headers.length, saveViewsArtifact]);
+    if (plugin?.settings.defaultCalcFreeze !== undefined) {
+      defaultCfg.calcFreeze = plugin.settings.defaultCalcFreeze;
+    }
 
-  const handleAddView = useCallback((viewName: string) => {
-    const cleanName = viewName.trim();
-    if (!cleanName) return;
     const nextViews = {
       ...views,
-      [cleanName]: normalizeColumnConfig({
-        order: Array.from({ length: headers.length }, (_, i) => i),
-        hidden: [],
-        sizing: {},
-        frozenCount: 0
-      }, headers.length)
+      [activeView]: defaultCfg,
     };
     setViews(nextViews);
-    setActiveView(cleanName);
-    setColumnConfig(nextViews[cleanName]);
-    saveViewsArtifact(nextViews, cleanName);
-  }, [views, headers.length, saveViewsArtifact]);
+    setColumnConfig(defaultCfg);
+    void saveViewsArtifact(nextViews, activeView);
+    new Notice(`Reset view "${activeView}" to default settings.`);
+  }, [activeView, headers.length, plugin, views, saveViewsArtifact]);
 
-  const handleDuplicateView = useCallback((viewName: string) => {
-    const cleanName = viewName.trim();
-    if (!cleanName) return;
-    const nextViews = {
-      ...views,
-      [cleanName]: { ...columnConfig }
-    };
-    setViews(nextViews);
-    setActiveView(cleanName);
-    saveViewsArtifact(nextViews, cleanName);
-  }, [views, columnConfig, saveViewsArtifact]);
+  const handleAddView = useCallback(
+    (viewName: string) => {
+      const cleanName = viewName.trim();
+      if (!cleanName) return;
+      const defaultCfg = createDefaultColumnConfig(headers.length);
+      if (plugin?.settings.defaultCalcPosition) {
+        defaultCfg.calcPosition = plugin.settings.defaultCalcPosition as 'below' | 'above' | 'both' | 'none';
+      }
+      if (plugin?.settings.defaultCalcFreeze !== undefined) {
+        defaultCfg.calcFreeze = plugin.settings.defaultCalcFreeze;
+      }
+      const nextViews = {
+        ...views,
+        [cleanName]: defaultCfg,
+      };
+      setViews(nextViews);
+      setActiveView(cleanName);
+      setColumnConfig(defaultCfg);
+      void saveViewsArtifact(nextViews, cleanName);
+    },
+    [views, headers.length, plugin, saveViewsArtifact]
+  );
+
+  const handleDuplicateView = useCallback(
+    (viewName: string) => {
+      const cleanName = viewName.trim();
+      if (!cleanName) return;
+      const nextViews = {
+        ...views,
+        [cleanName]: {
+          ...columnConfig,
+          columnCalcs: { ...(columnConfig.columnCalcs || {}) },
+        },
+      };
+      setViews(nextViews);
+      setActiveView(cleanName);
+      void saveViewsArtifact(nextViews, cleanName);
+    },
+    [views, columnConfig, saveViewsArtifact]
+  );
 
   const handleDeleteView = useCallback(() => {
     const viewKeys = Object.keys(views);
@@ -361,34 +443,131 @@ export function App({
     setViews(nextViews);
     setActiveView(nextActive);
     setColumnConfig(normalizeColumnConfig(nextViews[nextActive], headers.length));
-    saveViewsArtifact(nextViews, nextActive);
+    void saveViewsArtifact(nextViews, nextActive);
   }, [views, activeView, headers.length, saveViewsArtifact]);
 
-  const handleColumnFiltersChange = useCallback((updaterOrValue: any) => {
-    setColumnConfig((prev) => {
-      const nextFilters = typeof updaterOrValue === 'function'
-        ? updaterOrValue(prev.filters || [])
-        : updaterOrValue;
-      return {
-        ...prev,
-        filters: nextFilters
-      };
-    });
-  }, []);
+  const handleColumnFiltersChange = useCallback(
+    (updaterOrValue: unknown) => {
+      setColumnConfig((prev) => {
+        const nextFilters =
+          typeof updaterOrValue === "function" ? updaterOrValue(prev.filters || []) : updaterOrValue;
+        const updated = {
+          ...prev,
+          filters: nextFilters,
+        };
+        setViews((currViews) => {
+          const nextViews = {
+            ...currViews,
+            [activeView]: updated,
+          };
+          void saveViewsArtifact(nextViews, activeView);
+          return nextViews;
+        });
+        return updated;
+      });
+    },
+    [activeView, saveViewsArtifact]
+  );
 
-  const handleSortingChange = useCallback((updaterOrValue: any) => {
-    setColumnConfig((prev) => {
-      const nextSorting = typeof updaterOrValue === 'function'
-        ? updaterOrValue(prev.sorting || [])
-        : updaterOrValue;
-      return {
-        ...prev,
-        sorting: nextSorting
-      };
-    });
-  }, []);
+  const handleSortingChange = useCallback(
+    (updaterOrValue: unknown) => {
+      setColumnConfig((prev) => {
+        const nextSorting =
+          typeof updaterOrValue === "function" ? updaterOrValue(prev.sorting || []) : updaterOrValue;
+        const updated = {
+          ...prev,
+          sorting: nextSorting,
+        };
+        setViews((currViews) => {
+          const nextViews = {
+            ...currViews,
+            [activeView]: updated,
+          };
+          void saveViewsArtifact(nextViews, activeView);
+          return nextViews;
+        });
+        return updated;
+      });
+    },
+    [activeView, saveViewsArtifact]
+  );
 
+  const handleColumnCalcChange = useCallback(
+    (colIndex: number, calcType: string) => {
+      setColumnConfig((prev) => {
+        const nextCalcs = { ...(prev.columnCalcs || {}) };
+        if (!calcType) {
+          delete nextCalcs[String(colIndex)];
+        } else {
+          nextCalcs[String(colIndex)] = calcType;
+        }
+        const updatedConfig: ColumnConfig = { ...prev, columnCalcs: nextCalcs };
+        setViews((currViews) => {
+          const nextViews = {
+            ...currViews,
+            [activeView]: updatedConfig,
+          };
+          void saveViewsArtifact(nextViews, activeView);
+          return nextViews;
+        });
+        return updatedConfig;
+      });
+    },
+    [activeView, saveViewsArtifact]
+  );
 
+  const handleCalcPositionChange = useCallback(
+    (pos: "below" | "above" | "both" | "none") => {
+      setColumnConfig((prev) => {
+        const updatedConfig: ColumnConfig = { ...prev, calcPosition: pos };
+        setViews((currViews) => {
+          const nextViews = {
+            ...currViews,
+            [activeView]: updatedConfig,
+          };
+          void saveViewsArtifact(nextViews, activeView);
+          return nextViews;
+        });
+        return updatedConfig;
+      });
+    },
+    [activeView, saveViewsArtifact]
+  );
+
+  const handleCalcFreezeChange = useCallback(
+    (freeze: boolean) => {
+      setColumnConfig((prev) => {
+        const updatedConfig: ColumnConfig = { ...prev, calcFreeze: freeze };
+        setViews((currViews) => {
+          const nextViews = {
+            ...currViews,
+            [activeView]: updatedConfig,
+          };
+          void saveViewsArtifact(nextViews, activeView);
+          return nextViews;
+        });
+        return updatedConfig;
+      });
+    },
+    [activeView, saveViewsArtifact]
+  );
+
+  const [, setPresetUpdateTrigger] = useState(0);
+
+  const handleOpenAddCalcPreset = useCallback(() => {
+    if (!plugin) return;
+    const globalApp = window.app;
+    if (!globalApp) return;
+
+    new CustomCalcModal(
+      globalApp,
+      plugin,
+      undefined,
+      () => {
+        setPresetUpdateTrigger((v) => v + 1);
+      }
+    ).open();
+  }, [plugin]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -712,7 +891,7 @@ export function App({
   }, [viewMode, headers, data, delimiter, hasHeader, rawText, reset]);
 
   const handleDownloadThumbnails = useCallback(() => {
-    const globalApp = (window as any).app;
+    const globalApp = window.app;
     if (globalApp) {
       downloadAllYtThumbnails(globalApp, data);
     }
@@ -757,6 +936,7 @@ export function App({
         views={views}
         activeView={activeView}
         onViewChange={handleViewChange}
+        onResetView={handleResetView}
         onAddView={handleAddView}
         onDuplicateView={handleDuplicateView}
         onDeleteView={handleDeleteView}
@@ -766,6 +946,11 @@ export function App({
         onDownloadThumbnails={handleDownloadThumbnails}
         isFindOpen={isFindOpen}
         onToggleFindReplace={() => setIsFindOpen(!isFindOpen)}
+        calcPosition={columnConfig.calcPosition || (plugin?.settings.defaultCalcPosition as 'below' | 'above' | 'both' | 'none') || "above"}
+        calcFreeze={columnConfig.calcFreeze !== undefined ? columnConfig.calcFreeze : (plugin?.settings.defaultCalcFreeze !== false)}
+        onCalcPositionChange={handleCalcPositionChange}
+        onCalcFreezeChange={handleCalcFreezeChange}
+        onOpenAddCalcPreset={handleOpenAddCalcPreset}
       />
       <FindReplaceBar
         isOpen={isFindOpen}
@@ -832,6 +1017,12 @@ export function App({
           columnFilters={columnConfig.filters || []}
           onSortingChange={handleSortingChange}
           onColumnFiltersChange={handleColumnFiltersChange}
+          plugin={plugin}
+          calcPosition={columnConfig.calcPosition || (plugin?.settings.defaultCalcPosition as 'below' | 'above' | 'both' | 'none') || "above"}
+          calcFreeze={columnConfig.calcFreeze !== undefined ? columnConfig.calcFreeze : (plugin?.settings.defaultCalcFreeze !== false)}
+          columnCalcs={columnConfig.columnCalcs || {}}
+          calcPresets={plugin?.settings.calcPresets || []}
+          onColumnCalcChange={handleColumnCalcChange}
         />
       )}
     </div>

@@ -308,7 +308,7 @@ export class BubbleSimulation {
             // Shift non-subfolder nodes by total L1 delta
             for (const c of topClusters) {
                 if (c.radius === 0) continue;
-                const prev = prevPos.get(c.id)!;
+                const prev = prevPos.get(c.id);
                 const sx = c.centroid.x - prev.x;
                 const sy = c.centroid.y - prev.y;
                 for (const nid of c.nodeIds) {
@@ -327,7 +327,7 @@ export class BubbleSimulation {
                 if (sub.radius === 0 || !sub.parentClusterId) continue;
                 const parent = clusterById.get(sub.parentClusterId);
                 if (!parent || parent.radius === 0) continue;
-                const pp = prevPos.get(parent.id)!;
+                const pp = prevPos.get(parent.id);
                 sub.centroid.x += parent.centroid.x - pp.x;
                 sub.centroid.y += parent.centroid.y - pp.y;
             }
@@ -384,7 +384,7 @@ export class BubbleSimulation {
             // Shift subfolder nodes by total L2 delta
             for (const sub of subClusters) {
                 if (sub.radius === 0) continue;
-                const prev = prevPos.get(sub.id)!;
+                const prev = prevPos.get(sub.id);
                 const sx = sub.centroid.x - prev.x;
                 const sy = sub.centroid.y - prev.y;
                 for (const nid of sub.nodeIds) {

@@ -50,7 +50,7 @@ export function Cell({
   useEffect(() => {
     if (editing && inputRef.current && isAutocomplete) {
       const el = inputRef.current;
-      const globalApp = (window as any).app;
+      const globalApp = window.app;
       if (globalApp) {
         try {
           suggestRef.current = new GenericTextSuggest(globalApp, el, values || []);
@@ -115,7 +115,7 @@ export function Cell({
     if (isAutocomplete && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       e.stopPropagation();
-      const globalApp = (window as any).app;
+      const globalApp = window.app;
       if (globalApp && value && typeof value === 'string' && value.trim()) {
         const resolvedLink = resolveWikiLink(globalApp, value.trim(), columnName || "");
         globalApp.workspace.openLinkText(resolvedLink, filePath || "", true);
@@ -123,7 +123,7 @@ export function Cell({
     } else if (isImagePathColumn && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       e.stopPropagation();
-      const globalApp = (window as any).app;
+      const globalApp = window.app;
       if (globalApp && value && typeof value === 'string' && value.trim()) {
         const paths = value.split(";").map(p => p.trim()).filter(Boolean);
         for (const p of paths) {
@@ -138,7 +138,7 @@ export function Cell({
 
   const handleCellMouseOver = (e: MouseEvent) => {
     if (isAutocomplete && (e.ctrlKey || e.metaKey)) {
-      const globalApp = (window as any).app;
+      const globalApp = window.app;
       if (globalApp && value && typeof value === 'string' && value.trim()) {
         const resolvedLink = resolveWikiLink(globalApp, value.trim(), columnName || "");
         if (resolvedLink) {
@@ -153,7 +153,7 @@ export function Cell({
         }
       }
     } else if (isImagePathColumn && (e.ctrlKey || e.metaKey)) {
-      const globalApp = (window as any).app;
+      const globalApp = window.app;
       if (globalApp && value && typeof value === 'string' && value.trim()) {
         const paths = value.split(";").map(p => p.trim()).filter(Boolean);
         const firstPath = paths[0];
@@ -178,7 +178,7 @@ export function Cell({
 
   useEffect(() => {
     if (ytVideoId) {
-      const globalApp = (window as any).app;
+      const globalApp = window.app;
       if (globalApp) {
         getOrDownloadYtThumbnail(globalApp, ytVideoId).then((cachedPath) => {
           if (cachedPath) setThumbSrc(cachedPath);
