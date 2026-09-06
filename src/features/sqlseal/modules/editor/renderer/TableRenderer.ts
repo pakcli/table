@@ -72,7 +72,6 @@ export class TableRenderer implements RendererConfig {
                 data.forEach((d: Record<string, any>) => {
                     const row = body.createEl("tr")
                     columns.forEach((c: string) => {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const parsed = cellParser?.render(d[c] as any) as string
                         if (adjustLayout) {
                             const td = row.createEl("td")

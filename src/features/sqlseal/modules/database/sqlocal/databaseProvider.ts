@@ -8,7 +8,6 @@ export class DatabaseProvider {
 	constructor(private app: App) { }
 
 	get prefix() {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const appId = String((this.app as any).appId ?? '').replace(/[^a-zA-Z0-9_-]/g, '_');
 		const filename = `sqlseal_1__` +
 			sanitise(this.app.vault.getName()) + "___" + appId;

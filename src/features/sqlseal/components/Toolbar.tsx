@@ -1,7 +1,7 @@
 import type { RefObject } from "preact";
 import { useRef, useEffect, useMemo } from "preact/hooks";
 import type { Delimiter } from "../parser/detect";
-import { PromptModal, resolveHeaderName } from "../utils/views";
+import { PromptModal, ConfirmModal, resolveHeaderName } from "../utils/views";
 
 interface ToolbarProps {
   encoding: string;
@@ -152,13 +152,17 @@ export function Toolbar({
       if (!viewSelect) return;
       const val = viewSelect.value;
       if (val === "__action_reset") {
-        const confirmed =
-          typeof window !== "undefined" && window.confirm
-            ? window.confirm(
-                `Reset view "${activeView || "Default"}" to default settings?`
-              )
-            : true;
-        if (confirmed) {
+        const globalApp = window.app;
+        if (globalApp) {
+          new ConfirmModal(
+            globalApp,
+            "Reset View",
+            `Reset view "${activeView || "Default"}" to default settings?`,
+            () => {
+              onResetView?.();
+            }
+          ).open();
+        } else {
           onResetView?.();
         }
         viewSelect.value = activeView || "Default";
@@ -197,8 +201,17 @@ export function Toolbar({
         }
         viewSelect.value = activeView || "Default";
       } else if (val === "__action_delete") {
-        const confirmed = typeof window !== "undefined" && window.confirm ? window.confirm(`Are you sure you want to delete the view "${activeView}"?`) : true;
-        if (confirmed) {
+        const globalApp = window.app;
+        if (globalApp) {
+          new ConfirmModal(
+            globalApp,
+            "Delete View",
+            `Are you sure you want to delete the view "${activeView}"?`,
+            () => {
+              onDeleteView?.();
+            }
+          ).open();
+        } else {
           onDeleteView?.();
         }
         viewSelect.value = activeView || "Default";

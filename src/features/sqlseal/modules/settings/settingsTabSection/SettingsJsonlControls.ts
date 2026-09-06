@@ -31,9 +31,7 @@ export class SettingsJsonlControls extends SettingsControls {
 
 	unregister() {
 		this.app.workspace.detachLeavesOfType(JSONL_VIEW_TYPE);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(this.app as any).viewRegistry?.unregisterExtensions([...JSONL_VIEW_EXTENSIONS]);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(this.app as any).viewRegistry?.unregisterView(JSONL_VIEW_TYPE);
 	}
 

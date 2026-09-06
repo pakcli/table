@@ -13,6 +13,9 @@ export default defineConfig(
 		'package.json',
 		'package-lock.json',
 		'tsconfig.json',
+		'**/__tests__/**',
+		'**/*.test.ts',
+		'**/*.spec.ts',
 	]),
 	{
 		languageOptions: {

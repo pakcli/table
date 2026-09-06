@@ -20,6 +20,16 @@
 2. Turn on Community plugins and search for **PakCLI Table**.
 3. Click **Install**, then **Enable**.
 
+## Disclosures & Permissions
+
+To maintain complete transparency and align with the official Obsidian Community Plugin Guidelines:
+
+- **Vault Access & File Modification**: Reads and writes vault files strictly via the official Obsidian API (`vault.read`, `vault.cachedRead`, `vault.modify`, `vault.create`) for CSV editing, SQL file storage, and diagram rendering.
+- **Vault Enumeration**: Discovers files and folder structures (`vault.getFiles`) to build tree diagrams and detect local SQLite databases within the vault.
+- **Local SQLite WASM Engine**: Packages an in-memory/OPFS WebAssembly SQLite engine (`wa-sqlite`). The WASM binary exports its linear memory to perform fast in-process query execution locally without any external binary dependencies.
+- **Clipboard Access**: Allows users to quickly copy tabular data, SQL query results, and ASCII artwork to the system clipboard upon explicit user action.
+- **Network Requests**: The Leaflet map component loads public OpenStreetMap tile images over HTTPS only when an interactive map block is rendered. No personal data, telemetry, or vault content is ever transmitted over the network.
+
 ## License
 
 [MIT License](LICENSE) © PakCLI Team

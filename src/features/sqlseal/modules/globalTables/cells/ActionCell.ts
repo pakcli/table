@@ -12,7 +12,6 @@ export class ActionCellRenderer implements ICellRendererComp {
 
     new ButtonComponent(this.eGui)
     .setIcon('trash-2')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .onClick(() => context.deleteElement(data as any))
   }
 

@@ -140,7 +140,6 @@ export class CSVView extends TextFileView {
 			return r2;
 		});
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const output = unparse({ ...this.result, data: res } as any);
 		this.app.vault.modify(this.file, output);
 		this.refreshTypes();
@@ -233,7 +232,6 @@ export class CSVView extends TextFileView {
 			if (columns && columns.length) {
 				this.gridCommunicator.gridApi.setGridOption(
 					"columnDefs",
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					this.getColumnConfigurations(columns) as any,
 				);
 			}
@@ -306,7 +304,6 @@ export class CSVView extends TextFileView {
 		window.requestAnimationFrame(() => {
 			const result = this.prepareData();
 			this.result = result;
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			(this.api as any)?.render(result);
 		});
 	}
@@ -371,13 +368,11 @@ export class CSVView extends TextFileView {
 		this.result = data;
 		const api = grid.render(
 			{
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				columnDefs: this.getColumnConfigurations(data.fields ?? []) as any,
 				defaultColDef: {
 					editable: this.settings.get("enableEditing"),
 					headerComponentParams: {
 						enableMenu: this.settings.get("enableEditing"),
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						showColumnMenu: (e: any, colParam?: any) => {
 							const col = colParam ?? e?.target?.column;
 							const menu = new CSVColumnContextMenu(this, col as AgColumn);

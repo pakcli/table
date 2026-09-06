@@ -4,10 +4,7 @@ import type TablitePlugin from "../../../main";
 import type { CalcPreset } from "../types";
 import {
   computeColumnMetrics,
-  evaluateFormula,
-  formatCalculationResult,
   parseTextQuery,
-  executeTextQuery,
   evaluateCalculationPresetOrFormula,
   type CalculationOutputRow,
 } from "../utils/calcEngine";
@@ -85,11 +82,6 @@ export function CalculationRow({
   };
 
   const isSticky = calcFreeze;
-  const containerStyle = {
-    display: "grid",
-    position: (isSticky ? "sticky" : "relative"),
-    ...(position === "above" ? { top: "36px", zIndex: 4 } : { bottom: 0, zIndex: 4 }),
-  };
 
   const openAddPresetModal = (targetColIdx: number) => {
     if (!plugin) return;

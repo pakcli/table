@@ -1,11 +1,7 @@
-import { App, Modal, Setting, Notice } from "obsidian";
+import { App, Modal, Setting } from "obsidian";
 import type TablitePlugin from "../../../main";
 import type { CalcPreset } from "../types";
 import {
-  evaluateFormula,
-  formatCalculationResult,
-  parseTextQuery,
-  executeTextQuery,
   evaluateCalculationPresetOrFormula,
 } from "../utils/calcEngine";
 
@@ -55,13 +51,10 @@ export class CustomCalcModal extends Modal {
       cls: "tablite-calc-modal-title",
     });
 
-    const descEl = contentEl.createEl("p", {
+    contentEl.createEl("p", {
       text: "Build custom math formulas or text search queries. Supports multiple counts or output rows in a single preset (one per line or separated by semicolon).",
       cls: "tablite-calc-modal-desc",
     });
-    descEl.style.fontSize = "0.85em";
-    descEl.style.color = "var(--text-muted)";
-    descEl.style.marginBottom = "16px";
 
     // 1. Preset Name Setting
     new Setting(contentEl)
@@ -83,9 +76,7 @@ export class CustomCalcModal extends Modal {
       .addTextArea((textarea) => {
         this.formulaInputEl = textarea.inputEl;
         textarea.inputEl.rows = 4;
-        textarea.inputEl.style.width = "100%";
-        textarea.inputEl.style.fontFamily = "var(--font-monospace)";
-        textarea.inputEl.style.fontSize = "0.85rem";
+        textarea.inputEl.addClass("tablite-calc-modal-textarea");
         textarea
           .setPlaceholder("count - word - laptop\ncount - word - phone\nSUM * 1.1")
           .setValue(this.formula)
@@ -97,11 +88,6 @@ export class CustomCalcModal extends Modal {
 
     // Token Insertion Buttons / Chips
     const tokensContainer = contentEl.createEl("div", { cls: "tablite-calc-tokens" });
-    tokensContainer.style.display = "flex";
-    tokensContainer.style.flexWrap = "wrap";
-    tokensContainer.style.gap = "6px";
-    tokensContainer.style.marginTop = "4px";
-    tokensContainer.style.marginBottom = "16px";
 
     const insertToken = (token: string) => {
       if (!this.formulaInputEl) return;
@@ -147,12 +133,6 @@ export class CustomCalcModal extends Modal {
         cls: "tablite-token-btn",
       });
       btn.type = "button";
-      btn.style.padding = "2px 8px";
-      btn.style.fontSize = "0.75rem";
-      btn.style.cursor = "pointer";
-      btn.style.borderRadius = "4px";
-      btn.style.border = "1px solid var(--background-modifier-border)";
-      btn.style.backgroundColor = "var(--background-secondary)";
       btn.addEventListener("click", () => insertToken(c.val));
     });
 
@@ -171,27 +151,18 @@ export class CustomCalcModal extends Modal {
 
     // 4. Live Preview Box
     const previewBox = contentEl.createEl("div", { cls: "tablite-calc-preview-box" });
-    previewBox.style.padding = "10px 14px";
-    previewBox.style.margin = "12px 0 20px 0";
-    previewBox.style.borderRadius = "6px";
-    previewBox.style.backgroundColor = "var(--background-secondary-alt)";
-    previewBox.style.border = "1px solid var(--background-modifier-border)";
 
     previewBox.createEl("div", {
       text: "Live Output Rows Preview (evaluated with sample data):",
       cls: "tablite-preview-header",
-    }).style.cssText = "font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px;";
+    });
 
     this.previewEl = previewBox.createEl("div", { cls: "tablite-preview-result" });
-    this.previewEl.style.minHeight = "24px";
 
     this.updatePreview();
 
     // 5. Actions: Save & Cancel
     const actionsEl = contentEl.createEl("div", { cls: "tablite-calc-modal-actions" });
-    actionsEl.style.display = "flex";
-    actionsEl.style.justifyContent = "flex-end";
-    actionsEl.style.gap = "8px";
 
     const cancelBtn = actionsEl.createEl("button", { text: "Cancel" });
     cancelBtn.type = "button";
@@ -227,29 +198,22 @@ export class CustomCalcModal extends Modal {
     };
 
     if (!this.formula.trim()) {
-      const emptySpan = this.previewEl.createSpan({ text: "Enter a formula or queries above..." });
-      emptySpan.style.color = "var(--text-muted)";
+      this.previewEl.createSpan({ text: "Enter a formula or queries above...", cls: "tablite-calc-preview-empty" });
       return;
     }
 
     const rows = evaluateCalculationPresetOrFormula(this.formula, sampleMetrics);
     if (rows.length === 0) {
-      const emptySpan = this.previewEl.createSpan({ text: "Enter a formula or queries above..." });
-      emptySpan.style.color = "var(--text-muted)";
+      this.previewEl.createSpan({ text: "Enter a formula or queries above...", cls: "tablite-calc-preview-empty" });
       return;
     }
 
     const group = this.previewEl.createEl("div", { cls: "tablite-calc-badge-group" });
-    group.style.display = "flex";
-    group.style.flexDirection = "column";
-    group.style.gap = "4px";
 
     for (const r of rows) {
       const badge = group.createEl("div", {
         cls: `tablite-calc-badge ${r.isError ? "tablite-calc-badge-error" : ""}`,
       });
-      badge.style.display = "inline-flex";
-      badge.style.width = "fit-content";
       if (r.isTextQuery) {
         badge.createSpan({ text: r.display, cls: "tablite-calc-badge-val" });
       } else {

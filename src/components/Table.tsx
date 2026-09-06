@@ -470,17 +470,19 @@ export function Table({
       ];
       for (const item of menuItems) {
         if (item === "hr") {
-          menu.appendChild(document.createElement("hr"));
+          menu.createEl("hr");
         } else {
-          const div = document.createElement("div");
-          div.className = "tablite-menu-item";
+          const div = menu.createDiv({
+            cls: "tablite-menu-item",
+            text: item.label,
+          });
           div.dataset.action = item.action;
-          div.textContent = item.label;
-          menu.appendChild(div);
         }
       }
-      menu.style.setProperty("--tablite-menu-left", `${event.clientX}px`);
-      menu.style.setProperty("--tablite-menu-top", `${event.clientY}px`);
+      menu.setCssProps({
+        "--tablite-menu-left": `${event.clientX}px`,
+        "--tablite-menu-top": `${event.clientY}px`,
+      });
 
       const handleClick = (ev: Event) => {
         const target = ev.target as HTMLElement;

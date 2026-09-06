@@ -466,7 +466,6 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       enableBtn.onclick = async (e) => {
         e.stopPropagation();
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await (this.app as any).plugins?.enablePlugin(targetPluginId);
           new Notice(`🟢 Enabled ${label}!`);
           this.display();

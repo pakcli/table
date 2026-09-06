@@ -62,7 +62,6 @@ export class ExplorerView extends ItemView {
 			await processor.onload();
 
 			// Resizing and layout configuration for explorer
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const renderer = processor.renderer as any;
 			if (renderer?.communicator?.gridApi) {
 				const api: GridApi = renderer.communicator.gridApi;

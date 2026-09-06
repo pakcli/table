@@ -27,7 +27,6 @@ export function rewriteTagsMacro(sql: string): string {
 /**
  * Recursively flattens a left-associative AND chain into a flat array of leaf nodes.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function flattenAnd(node: any): any[] {
   const opName = typeof node?.operator === 'string' ? node.operator : node?.operator?.name
   if (node?.type === 'binary_expr' && opName === 'AND') {
@@ -40,7 +39,6 @@ function flattenAnd(node: any): any[] {
  * If the node is a tag comparison (`tag = '#value'` or `tags.tag = '#value'`),
  * returns the tag value string. Otherwise returns null.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractTagValue(node: any): string | null {
   if (node?.type !== 'binary_expr' || node?.operator !== '=') return null
   const { left, right } = node
@@ -92,7 +90,6 @@ export function autoDetectTagAndPattern(sql: string): string {
   const candidates: Candidate[] = []
 
   const visitor = cstVisitor({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     binary_expr: (node: any) => {
       const opName = typeof node?.operator === 'string' ? node.operator : node?.operator?.name
       if (opName !== 'AND' || !node.range) return
@@ -116,7 +113,6 @@ export function autoDetectTagAndPattern(sql: string): string {
     }
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   visitor(parsed as any)
 
   if (candidates.length === 0) return sql

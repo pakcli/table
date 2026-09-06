@@ -1,4 +1,4 @@
-import { App, Plugin, Notice, Setting, PluginSettingTab } from 'obsidian';
+import { Plugin, Notice, Setting, PluginSettingTab } from 'obsidian';
 import { PakCLITableSettings, DEFAULT_TABLE_SETTINGS } from './settings';
 
 // Hub Imports
@@ -73,8 +73,6 @@ export default class PakCLITablePlugin extends Plugin {
 	}
 
 	async onload(): Promise<void> {
-		console.log('[PakCLI Table] Loading plugin...');
-
 		// 1. Resolve Vault Root Path
 		const adapter = this.app.vault.adapter as { getBasePath?: () => string };
 		if (typeof adapter.getBasePath === 'function') {
@@ -166,8 +164,6 @@ export default class PakCLITablePlugin extends Plugin {
 
 		// 10. Register Master-Detail Settings Tab
 		this.registerSettingsHub();
-
-		console.log('[PakCLI Table] Loaded successfully.');
 	}
 
 	async onunload() {
@@ -179,7 +175,6 @@ export default class PakCLITablePlugin extends Plugin {
 
 		// 2. Persistent Snapshot on App Close / Unload
 		try { await saveVaultConfig(this.app, 'pakcli-table', this.settings, 'session-close'); } catch {}
-		console.log('[PakCLI Table] Unloading plugin...');
 		if (this.leafletPlugin) {
 			this.leafletPlugin.onunload();
 		}
@@ -517,13 +512,10 @@ export default class PakCLITablePlugin extends Plugin {
 
 					const presets: CalcPreset[] = this.settings.calcPresets || [];
 					if (presets.length === 0) {
-						const emptyEl = listContainer.createEl('div', {
+						listContainer.createEl('div', {
 							text: 'No custom calculation presets configured. Click "+ Add Calc Preset" to create one.',
 							cls: 'tablite-calc-empty-note'
 						});
-						emptyEl.style.fontSize = '0.85em';
-						emptyEl.style.color = 'var(--text-muted)';
-						emptyEl.style.padding = '8px 0';
 						return;
 					}
 

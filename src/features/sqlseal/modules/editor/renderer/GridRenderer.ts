@@ -355,7 +355,6 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
             typeof targetVal === 'object' &&
             !Array.isArray(targetVal)
         ) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             output[key] = deepMerge(targetVal as Record<string, any>, sourceVal as Record<string, any>);
         } else if (sourceVal !== undefined) {
             output[key] = sourceVal;
@@ -369,7 +368,6 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
             defaultColDef: {
                 resizable: false,
                 editable: this.settings.get("enableEditing"),
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 cellRendererSelector: this.cellParser ? (params: any) => {
                     if (params.node && params.node.rowPinned === 'top') {
                         return undefined;
@@ -385,7 +383,6 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
                 type: 'fitGridWidth',
                 // defaultMinWidth: 150,
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             getRowHeight: (params: any) => {
                 if (params.node && params.node.rowPinned === 'top') {
                     return 24;
@@ -660,14 +657,11 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
         const views = this.settings.get('codeblockViews') || {};
         const blockConfig = views[cacheKey] || {};
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let activeCalcs: string[] = (blockConfig as any).activeCalcs;
         if (!activeCalcs) {
             const defaults = new Set<string>();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             columns.forEach((field: any) => {
                 if (field === '__rowid' || field === 'rowid' || String(field).startsWith('__rowid_')) return;
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const vals = (data as Record<string, any>[]).map(row => row[field]);
                 const type = detectColumnType(vals);
                 if (type === 'numeric') defaults.add('sum');
@@ -715,7 +709,6 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
 
                 const updatedViews = { ...(this.settings.get('codeblockViews') || {}) };
                 updatedViews[cacheKey] = {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     ...((updatedViews[cacheKey] as Record<string, any>) || {}),
                     activeCalcs: updatedCalcs
                 };
@@ -726,7 +719,6 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
         });
     }
 
-     // eslint-disable-next-line @typescript-eslint/no-explicit-any
      setData(columns: any[], data: any[], isEditable: boolean = false, queryText?: string) {
         if (!this.gridApi) {
             throw new Error('Grid has not been initiated')
@@ -752,14 +744,11 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
             this.topBar.setCssStyles({ display: 'none' });
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let activeCalcs: string[] = (currentBlockConfig as any).activeCalcs;
         if (showFooter && !activeCalcs) {
             const defaults = new Set<string>();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             columns.forEach((field: any) => {
                 if (field === '__rowid' || field === 'rowid' || String(field).startsWith('__rowid_')) return;
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const vals = (data as Record<string, any>[]).map(row => row[field]);
                 const type = detectColumnType(vals);
                 if (type === 'numeric') defaults.add('sum');
@@ -787,11 +776,9 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
                 const isFirstCol = (field === visibleColumns[0]);
                 const isAutocomplete = autocompleteCols.includes(field.toLowerCase());
                 
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const colDef: any = { 
                     field,
                     headerName: resolveHeaderName(field, autocompleteSetting),
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     editable: (params: any) => {
                         if (params.node && params.node.rowPinned === 'top') {
                             return false;
@@ -813,7 +800,6 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
 
                 if (isAutocomplete && isEditable) {
                     colDef.cellEditor = AutocompleteCellEditor;
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const uniqueValues = Array.from(new Set((data as Record<string, any>[]).map(row => row[field]).filter(val => val !== undefined && val !== null && val !== '')));
                     colDef.cellEditorParams = {
                         values: uniqueValues
@@ -821,7 +807,6 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
                 }
 
                 if (showFooter) {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     colDef.cellRenderer = (params: any) => {
                         if (params.node.rowPinned === 'top') {
                             const value = params.value ?? '';

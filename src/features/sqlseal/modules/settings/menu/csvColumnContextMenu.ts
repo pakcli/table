@@ -68,7 +68,6 @@ export class CSVColumnContextMenu {
 		menu.addItem((item) => {
 			// item.setDisabled(true)
 			item.setTitle("Data Type");
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const ipfSubmenu = (item as any).setSubmenu();
 			const types = [
 				"auto",

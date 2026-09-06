@@ -376,7 +376,6 @@ export class CanvasRenderer {
 
         // Animated radial pulse aura
         const pulse = (this.animationTime % 1500) / 1500;
-        const maxWaveR = node.radius + 14;
         const currentWaveR = node.radius + pulse * 14;
         const waveAlpha = (1 - pulse) * 0.7;
 

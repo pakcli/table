@@ -32,11 +32,9 @@ export class SettingsCSVControls extends SettingsControls {
 
 	unregister() {
 		this.app.workspace.detachLeavesOfType(CSV_VIEW_TYPE);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(this.app as any).viewRegistry?.unregisterExtensions([
 			...CSV_VIEW_EXTENSIONS,
 		]);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(this.app as any).viewRegistry?.unregisterView(CSV_VIEW_TYPE);
 	}
 

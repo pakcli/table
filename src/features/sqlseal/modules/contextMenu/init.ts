@@ -27,7 +27,6 @@ export const contextMenuInit = (plugin: Plugin, app: App) => {
 			const fileExplorer =
 				app.workspace.getLeavesOfType("file-explorer")[0]?.view;
 			if (fileExplorer) {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				await (fileExplorer as any).revealInFolder(newFile);
 			}
 		} catch (error) {

@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf, setIcon, TFile } from 'obsidian';
 import type PakCLITablePlugin from '../../main';
-import { BubbleNode, BubbleEdge, BubbleCluster, InspectorData } from './types';
+import { BubbleNode, BubbleCluster } from './types';
 import { buildVaultGraph, BuiltGraph } from './graphBuilder';
 import { BubbleSimulation } from './simulation';
 import { CanvasRenderer, ViewportTransform, RenderState } from './canvasRenderer';
@@ -680,7 +680,7 @@ export class BubbleGraphView extends ItemView {
                 // Hover Detection
                 const node = this.findNodeAt(worldPos.x, worldPos.y);
                 this.hoveredNode = node;
-                canvas.style.cursor = node ? 'pointer' : 'grab';
+                canvas.setCssStyles({ cursor: node ? 'pointer' : 'grab' });
 
                 // Check cluster hover if no node hovered
                 if (!node && this.graphData) {

@@ -4,7 +4,6 @@ import { DEFAULT_SETTINGS as DEFAULT_SQLSEAL_SETTINGS, type SQLSealSettings } fr
 declare global {
   interface Window {
     app: App;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mermaid?: any;
   }
 }

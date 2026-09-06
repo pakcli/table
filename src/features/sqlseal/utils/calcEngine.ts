@@ -1,13 +1,6 @@
-let prepareSimpleSearchFn: ((query: string) => (text: string) => unknown) | null = null;
-try {
-   
-  const obs = require("obsidian");
-  if (obs && typeof obs.prepareSimpleSearch === "function") {
-    prepareSimpleSearchFn = obs.prepareSimpleSearch;
-  }
-} catch {
-  // Running outside Obsidian environment (e.g. unit tests)
-}
+import { prepareSimpleSearch } from "obsidian";
+
+const prepareSimpleSearchFn: ((query: string) => (text: string) => unknown) = prepareSimpleSearch;
 
 export interface ColumnMetrics {
   sum: number;

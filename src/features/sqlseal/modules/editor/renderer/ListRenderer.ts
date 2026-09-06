@@ -56,7 +56,6 @@ export class ListRenderer implements RendererConfig {
                             cls: singleCol ? ['sqlseal-list-element', 'sqlseal-list-element-single'] : ['sqlseal-list-element-single']
                         })
                         el.createSpan({ text: c, cls: 'sqlseal-column-name' })
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const val = cellParser?.render(d[c] as any)
                         if (val instanceof Node || typeof val === 'string') {
                             el.append(val)

@@ -2042,7 +2042,35 @@ th.tablite-frozen-cell {
   }
 }
 
+.tablite-calc-modal-desc,
+.tablite-modal-desc {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.tablite-calc-modal-textarea {
+  width: 100%;
+  font-family: var(--font-monospace);
+  font-size: 0.85rem;
+}
+
+.tablite-calc-tokens,
+.tablite-query-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  margin-bottom: 16px;
+}
+
 .tablite-token-btn {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  background-color: var(--background-secondary);
   transition: all 0.15s ease;
   &:hover {
     background-color: var(--interactive-accent);
@@ -2053,5 +2081,72 @@ th.tablite-frozen-cell {
   &:active {
     transform: translateY(0);
   }
+}
+
+.tablite-calc-preview-box {
+  padding: 10px 14px;
+  margin: 12px 0 20px 0;
+  border-radius: 6px;
+  background-color: var(--background-secondary-alt);
+  border: 1px solid var(--background-modifier-border);
+}
+
+.tablite-preview-header {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.tablite-preview-result {
+  min-height: 24px;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--text-accent);
+}
+
+.tablite-calc-preview-empty {
+  color: var(--text-muted);
+}
+
+.tablite-calc-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.tablite-calc-badge-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tablite-calc-badge {
+  display: inline-flex;
+  width: fit-content;
+}
+
+.tablite-calc-empty-note {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+.pakcli-ascii-svg {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  background: transparent;
+  user-select: text;
+  margin: 4px 0;
+}
+
+.pakcli-ascii-svg-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  display: block;
+  margin: 4px 0;
 }
 

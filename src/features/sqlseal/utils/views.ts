@@ -98,6 +98,37 @@ export class PromptModal extends Modal {
   }
 }
 
+export class ConfirmModal extends Modal {
+  constructor(
+    app: App,
+    private titleText: string,
+    private messageText: string,
+    private onConfirm: () => void
+  ) {
+    super(app);
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.createEl("h3", { text: this.titleText });
+    contentEl.createEl("p", { text: this.messageText });
+
+    const buttonContainer = contentEl.createDiv({ cls: "modal-button-container" });
+    const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
+    cancelBtn.addEventListener("click", () => this.close());
+
+    const confirmBtn = buttonContainer.createEl("button", { text: "Confirm", cls: "mod-warning" });
+    confirmBtn.addEventListener("click", () => {
+      this.onConfirm();
+      this.close();
+    });
+  }
+
+  onClose() {
+    this.contentEl.empty();
+  }
+}
+
 export function formatHeaderName(name: string): string {
   if (!name) return "";
   return name

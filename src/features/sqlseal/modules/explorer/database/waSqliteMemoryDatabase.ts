@@ -16,7 +16,6 @@ type ParamsObject = Record<string, unknown>;
  */
 export class WaSqliteMemoryDatabase {
     private connection: number | null = null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private sqlite3: any = null;
     private vfs: MemoryAsyncVFS | null = null;
     private readonly dbName = 'external.db';

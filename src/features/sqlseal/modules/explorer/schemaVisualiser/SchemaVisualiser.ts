@@ -32,7 +32,6 @@ export class SchemaVisualiser {
         this.initializeMermaid()
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private getMermaid(): any {
         if (typeof (window as any).mermaid !== 'undefined') {
             return (window as any).mermaid

@@ -1,4 +1,3 @@
-/* eslint-disable import/no-nodejs-modules */
 // Mock for virtual:wa-sqlite-wasm-url used in tests
 // Returns the WASM binary as Uint8Array (same as production build)
 

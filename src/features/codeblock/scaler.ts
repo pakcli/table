@@ -41,16 +41,7 @@ export function renderAsciiSvg(source: string, container: HTMLElement): void {
 	svg.setAttribute('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
 	svg.setAttribute('width', '100%');
 	svg.setAttribute('height', 'auto');
-	svg.setAttribute('preserveAspectRatio', 'xMinYMin meet');
-	svg.style.cssText = `
-		display: block;
-		width: 100%;
-		max-width: 100%;
-		height: auto;
-		background: transparent;
-		user-select: text;
-		margin: 4px 0;
-	`;
+	svg.setAttribute('class', 'pakcli-ascii-svg');
 
 	const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
 	style.textContent = `
@@ -75,13 +66,6 @@ export function renderAsciiSvg(source: string, container: HTMLElement): void {
 	});
 
 	const wrapper = container.createDiv({ cls: 'pakcli-ascii-svg-wrapper' });
-	wrapper.style.cssText = `
-		width: 100%;
-		max-width: 100%;
-		overflow: hidden;
-		display: block;
-		margin: 4px 0;
-	`;
 	wrapper.appendChild(svg);
 }
 

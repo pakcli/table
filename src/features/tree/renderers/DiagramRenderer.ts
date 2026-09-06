@@ -300,7 +300,7 @@ export class DiagramRenderer extends MarkdownRenderChild {
 
 	renderTreeView(contentArea: HTMLElement) {
 		const pre = contentArea.createEl("pre");
-		Object.assign(pre.style, {
+		pre.setCssStyles({
 			margin: "0",
 			whiteSpace: "pre",
 			fontFamily: "var(--font-monospace)",
