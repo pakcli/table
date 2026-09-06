@@ -8,9 +8,13 @@ export function getArtifactPath(csvPath: string): string {
 export async function ensureFolderExists(app: App, folderPath: string) {
   try {
     if (app.vault.adapter && typeof app.vault.adapter.mkdir === "function") {
-      await app.vault.adapter.mkdir(folderPath).catch(() => {});
+      await app.vault.adapter.mkdir(folderPath).catch(() => {
+        // Folder may already exist
+      });
     }
-  } catch {}
+  } catch {
+    // Adapter mkdir fallback
+  }
   const parts = folderPath.split('/');
   let current = '';
   for (const part of parts) {
@@ -19,9 +23,13 @@ export async function ensureFolderExists(app: App, folderPath: string) {
     try {
       const folder = app.vault.getAbstractFileByPath ? app.vault.getAbstractFileByPath(current) : null;
       if (!folder) {
-        await app.vault.createFolder(current).catch(() => {});
+        await app.vault.createFolder(current).catch(() => {
+          // Folder may already exist
+        });
       }
-    } catch {}
+    } catch {
+      // Folder creation error ignored
+    }
   }
 }
 

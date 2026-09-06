@@ -95,7 +95,7 @@ export class GridBuffer {
 		y0: number,
 		x1: number,
 		y1: number,
-		charOrStyle: string | LineStyle,
+		charOrStyle: LineStyle | (string & {}),
 		fg?: string,
 		bg?: string
 	): void {

@@ -174,7 +174,11 @@ export default class PakCLITablePlugin extends Plugin {
 		}
 
 		// 2. Persistent Snapshot on App Close / Unload
-		try { await saveVaultConfig(this.app, 'pakcli-table', this.settings, 'session-close'); } catch {}
+		try {
+			await saveVaultConfig(this.app, 'pakcli-table', this.settings, 'session-close');
+		} catch {
+			// Vault config save failure ignored on unload
+		}
 		if (this.leafletPlugin) {
 			this.leafletPlugin.onunload();
 		}

@@ -429,7 +429,8 @@ body.codeblock-scalefit {
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: pointer;
-    text-decoration: underline dotted;
+    text-decoration: underline;
+    text-decoration-style: dotted;
 
     &:hover {
         color: var(--text-normal);

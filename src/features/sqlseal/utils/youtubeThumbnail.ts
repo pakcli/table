@@ -39,7 +39,9 @@ export async function getOrDownloadYtThumbnail(
       if (!folder) {
         try {
           await app.vault.createFolder(currentPath);
-        } catch {}
+        } catch {
+          // Folder may already exist
+        }
       }
     }
 
@@ -88,7 +90,9 @@ export async function downloadAllYtThumbnails(
     try {
       const res = await getOrDownloadYtThumbnail(app, id);
       if (res) count++;
-    } catch {}
+    } catch {
+      // Ignore individual thumbnail download failure
+    }
   }
 
   new Notice(`✓ Cached ${count} YouTube thumbnails in vault!`);

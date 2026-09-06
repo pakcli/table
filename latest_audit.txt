@@ -1,5 +1,5 @@
-﻿PakCLI Table
-65 downloads
+PakCLI Table
+67 downloads
 Visual tables, interactive SQL database explorer, ASCII canvas drawing, and interactive Leaflet maps.
 Work in progress
 Scorecards are new and may contain errors. If you notice anything inaccurate, please let us know. Learn more.
@@ -7,16 +7,16 @@ Health
 Excellent
 This plugin is actively maintained.
 Hygiene
-Has readme, license, description. Missing contributing guide.
+Readme, license, contributing guide, and description all present.
 Maintenance
-Last commit 8 minutes ago. 124 commits in the past year. Last release 7 minutes ago.
+Last commit 9 minutes ago. 125 commits in the past year. Last release 8 minutes ago.
 Responsiveness
 No issues filed.
 Adoption
 12 installations.
 Review
 Risks
-11829 issues found by automated scans of the latest release.
+11694 issues found by automated scans of the latest release.
 Passed
 Build verified against source.
 The main.js release asset has a verified GitHub artifact attestation.
@@ -31,45 +31,29 @@ WASM module (inline WASM blob #1) exports its linear memory
 Malware scan not available.
 Obfuscation scan not available.
 Network requests scan not available.
-Risks
-Sets styles directly instead of using CSS classes, setCssProps, or setCssStyles	50
-Unexpected undescribed directive comment. Include descriptions to explain why the comment is necessary.	47
-Disabling '@typescript-eslint/no-explicit-any' is not allowed.	47
 Warnings
-Unsafe member access on an error or any typed value	4339
-Unsafe call of an error or any typed value	4010
-Unsafe assignment of an error or any typed value	2162
+Unsafe member access on an error or any typed value	4298
+Unsafe call of an error or any typed value	4028
+Unsafe assignment of an error or any typed value	2161
 Passes unsafe values into typed parameters	450
-Returns unsafe values from typed code	413
-Uses document.createElement instead of Obsidian's createEl helpers	100
-Unexpected any. Specify a different type.	68
+Returns unsafe values from typed code	414
+Unexpected any. Specify a different type.	120
+Uses document.createElement instead of Obsidian's createEl helpers	98
 Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the void operator.	42
 'error' type that acts as 'any' and overrides all other types in this union type	24
 This assertion is unnecessary since it does not change the type of the expression.	23
 This assertion is unnecessary since the receiver accepts the original type of the expression.	12
 Empty block statement.	7
 Promise returned in function argument where a void return was expected.	3
-Avoid unnecessary logging to console	3
 Unexpected browser feature "extended-system-fonts" is not supported by Obsidian 1.5.8	3
-Unexpected confirm.	2
 Expected non-Promise value in a boolean conditional.	2
 Promise-returning function provided to property where a void return was expected.	2
 Unexpected browser feature "css-scrollbar" is only partially supported by Obsidian 1.5.8	2
 "single" | "double" | "ascii" | "dashed" is overridden by string in this union type.	1
-A require() style import is forbidden.	1
 Unexpected browser feature "text-decoration" is only partially supported by Obsidian 1.5.8	1
 Other
-'evaluateFormula' is defined but never used.	2
-'formatCalculationResult' is defined but never used.	2
-'executeTextQuery' is defined but never used.	2
 Vault Enumeration: Enumerates all files in the vault (vault.getFiles, getMarkdownFiles, etc.). Gives the plugin access to every file path in the vault.
 Clipboard Access: Reads or writes the system clipboard. May expose content copied from outside Obsidian.
 Dynamic Code Execution: Executes dynamically generated code via eval() or new Function(). Prevents full static analysis of plugin behavior.
-'BubbleEdge' is defined but never used.
-'InspectorData' is defined but never used.
-'maxWaveR' is assigned a value but never used.
-'containerStyle' is assigned a value but never used.
-'parseTextQuery' is defined but never used.
-'App' is defined but never used.
 Current version
-1.0.38
+1.0.39

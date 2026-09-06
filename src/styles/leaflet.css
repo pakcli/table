@@ -506,10 +506,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
 .leaflet-control-zoom-in,
 .leaflet-control-zoom-out {
-	font:
-		bold 18px "Lucida Console",
-		Monaco,
-		monospace;
+	font-weight: bold;
+	font-size: 18px;
+	font-family: "Lucida Console", Monaco, monospace;
 }
 
 .leaflet-touch .leaflet-control-zoom-in,
@@ -696,10 +695,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	text-align: center;
 	width: 24px;
 	height: 24px;
-	font:
-		16px/24px Tahoma,
-		Verdana,
-		sans-serif;
+	font-size: 16px;
+	line-height: 24px;
+	font-family: Tahoma, Verdana, sans-serif;
 	color: #757575;
 	text-decoration: none;
 	background: transparent;
