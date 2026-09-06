@@ -130,8 +130,7 @@ export class TableFullRenderer {
 	 * Render table HTML
 	 */
 	render(): HTMLTableElement {
-		const table = document.createElement('table');
-		table.className = 'tree-table tree-table-mode-a';
+		const table = createEl('table', { cls: 'tree-table tree-table-mode-a' });
 
 		// Render header
 		const thead = table.createTHead();
@@ -139,17 +138,15 @@ export class TableFullRenderer {
 
 		// Hierarchy columns
 		for (let i = 0; i < this.maxDepth; i++) {
-			const th = document.createElement('th');
-			th.textContent = `Level ${i + 1}`;
-			headerRow.appendChild(th);
+			headerRow.createEl('th', { text: `Level ${i + 1}` });
 		}
 
 		// Content columns
 		this.contentColumns.forEach(col => {
-			const th = document.createElement('th');
-			th.textContent = TableDetector.capitalizeFirst(col);
-			th.className = this.getColumnClass(col);
-			headerRow.appendChild(th);
+			headerRow.createEl('th', {
+				text: TableDetector.capitalizeFirst(col),
+				cls: this.getColumnClass(col),
+			});
 		});
 
 		// Render body
@@ -172,11 +169,11 @@ export class TableFullRenderer {
 					// Check if node has wikilink
 					if (node && node.link) {
 						// Render as wikilink
-						const link = document.createElement('a');
-						link.className = 'internal-link';
-						link.setAttribute('data-href', node.link.target);
-						link.textContent = node.link.alias;
-						td.appendChild(link);
+						td.createEl('a', {
+							cls: 'internal-link',
+							text: node.link.alias,
+							attr: { 'data-href': node.link.target },
+						});
 					} else {
 						td.textContent = value;
 					}
@@ -202,7 +199,7 @@ export class TableFullRenderer {
 					values.forEach((value, index) => {
 						if (index > 0) {
 							// Add <br> between values
-							td.appendChild(document.createElement('br'));
+							td.createEl('br');
 						}
 						// Parse wikilinks in the value
 						const fragment = parseWikilinks(value);

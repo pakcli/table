@@ -59,11 +59,8 @@ export class TableFolderRenderer {
 	 * Render table for current navigation level
 	 */
 	render(): HTMLElement {
-		const container = document.createElement('div');
-		container.className = 'tree-table-mode-b-container';
-
-		const table = document.createElement('table');
-		table.className = 'tree-table tree-table-mode-b';
+		const container = createDiv({ cls: 'tree-table-mode-b-container' });
+		const table = container.createEl('table', { cls: 'tree-table tree-table-mode-b' });
 
 		const currentNodes = this.getCurrentSubtree();
 		const showContent = this.allChildrenAreContent(currentNodes);
@@ -77,30 +74,25 @@ export class TableFolderRenderer {
 			? this.navigationStack[this.navigationStack.length - 1]
 			: 'Level 1';
 		
-		const th1 = document.createElement('th');
-		th1.textContent = TableDetector.capitalizeFirst(currentLevelName);
-		headerRow.appendChild(th1);
+		headerRow.createEl('th', { text: TableDetector.capitalizeFirst(currentLevelName) });
 
 		if (showContent) {
 			// Show content columns
 			this.contentColumns.forEach(col => {
-				const th = document.createElement('th');
-				th.textContent = TableDetector.capitalizeFirst(col);
-				th.className = this.getColumnClass(col);
-				headerRow.appendChild(th);
+				headerRow.createEl('th', {
+					text: TableDetector.capitalizeFirst(col),
+					cls: this.getColumnClass(col),
+				});
 			});
 		} else {
 			// Show next level header
-			const th2 = document.createElement('th');
-			th2.textContent = `Level ${this.navigationStack.length + 2}`;
-			headerRow.appendChild(th2);
+			headerRow.createEl('th', { text: `Level ${this.navigationStack.length + 2}` });
 		}
 
 		// Render body
 		const tbody = table.createTBody();
 		this.renderRows(tbody, currentNodes, showContent);
 
-		container.appendChild(table);
 		return container;
 	}
 
@@ -134,11 +126,11 @@ export class TableFolderRenderer {
 					// Check if node has wikilink
 					if (node.link) {
 						// Render as wikilink (not clickable for navigation)
-						const link = document.createElement('a');
-						link.className = 'internal-link';
-						link.setAttribute('data-href', node.link.target);
-						link.textContent = node.link.alias;
-						td1.appendChild(link);
+						td1.createEl('a', {
+							cls: 'internal-link',
+							text: node.link.alias,
+							attr: { 'data-href': node.link.target },
+						});
 					} else {
 						td1.textContent = group.parent || node.name;
 						
@@ -171,7 +163,7 @@ export class TableFolderRenderer {
 							values.forEach((value, index) => {
 								if (index > 0) {
 									// Add <br> between values
-									td.appendChild(document.createElement('br'));
+									td.createEl('br');
 								}
 								// Parse wikilinks in the value
 								const fragment = parseWikilinks(value);
@@ -194,11 +186,11 @@ export class TableFolderRenderer {
 					// Check if next level node has wikilink
 					if (nextLevelNode && nextLevelNode.link) {
 						// Render as wikilink (not clickable for navigation)
-						const link = document.createElement('a');
-						link.className = 'internal-link';
-						link.setAttribute('data-href', nextLevelNode.link.target);
-						link.textContent = nextLevelNode.link.alias;
-						td2.appendChild(link);
+						td2.createEl('a', {
+							cls: 'internal-link',
+							text: nextLevelNode.link.alias,
+							attr: { 'data-href': nextLevelNode.link.target },
+						});
 					} else if (nextLevelNode) {
 						td2.textContent = nextLevelNode.name;
 						

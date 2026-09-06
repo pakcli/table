@@ -355,7 +355,7 @@ export class DiagramRenderer extends MarkdownRenderChild {
 
 		// Escape HTML first to preserve ASCII characters
 		const escapeHtml = (text: string) => {
-			const div = document.createElement('div');
+			const div = createDiv();
 			div.textContent = text;
 			return div.innerHTML;
 		};
@@ -445,34 +445,24 @@ export class DiagramRenderer extends MarkdownRenderChild {
 		if (this.tableBNavigationStack.length > 0) {
 			const topBar = wrapper.querySelector('.tree-top-control-bar');
 			if (topBar) {
-				const breadcrumb = document.createElement('div');
-				breadcrumb.className = 'table-breadcrumb-inline';
+				const breadcrumb = createDiv({ cls: 'table-breadcrumb-inline' });
 				
 				// Add "Root" link
-				const rootLink = document.createElement('span');
-				rootLink.className = 'breadcrumb-link';
-				rootLink.textContent = 'Root';
+				const rootLink = breadcrumb.createSpan({ cls: 'breadcrumb-link', text: 'Root' });
 				rootLink.onclick = () => {
 					this.tableBNavigationStack = [];
 					this.render();
 				};
-				breadcrumb.appendChild(rootLink);
 				
 				// Add navigation path
 				this.tableBNavigationStack.forEach((item, index) => {
-					const separator = document.createElement('span');
-					separator.className = 'breadcrumb-separator';
-					separator.textContent = ' > ';
-					breadcrumb.appendChild(separator);
+					breadcrumb.createSpan({ cls: 'breadcrumb-separator', text: ' > ' });
 					
-					const link = document.createElement('span');
-					link.className = 'breadcrumb-link';
-					link.textContent = item;
+					const link = breadcrumb.createSpan({ cls: 'breadcrumb-link', text: item });
 					link.onclick = () => {
 						this.tableBNavigationStack = this.tableBNavigationStack.slice(0, index + 1);
 						this.render();
 					};
-					breadcrumb.appendChild(link);
 				});
 				
 				// Insert breadcrumb at the beginning of top bar

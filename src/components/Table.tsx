@@ -455,8 +455,7 @@ export function Table({
   const onContextMenu = useCallback(
     (event: MouseEvent, rowIndex: number, colIndex: number) => {
       event.preventDefault();
-      const menu = document.createElement("div");
-      menu.className = "tablite-context-menu";
+      const menu = createDiv({ cls: "tablite-context-menu" });
       const menuItems: Array<{ action: string; label: string } | "hr"> = [
         { action: "copy", label: "Copy" },
         "hr",
