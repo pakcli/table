@@ -606,6 +606,14 @@ export class BubbleSimulation {
                 topCluster.centroid.x = sx / this.draggedNodes.length;
                 topCluster.centroid.y = sy / this.draggedNodes.length;
             }
+        } else if (this.options.maxDragDepth === 2 && this.draggedNodes.length > 0) {
+            const subCluster = this.clusters.find(c => c.depth === 2 && c.id === this.draggedNodes[0].node.subClusterId);
+            if (subCluster) {
+                let sx = 0, sy = 0;
+                this.draggedNodes.forEach(item => { sx += item.node.x; sy += item.node.y; });
+                subCluster.centroid.x = sx / this.draggedNodes.length;
+                subCluster.centroid.y = sy / this.draggedNodes.length;
+            }
         }
         this.reheat(0.2);
     }

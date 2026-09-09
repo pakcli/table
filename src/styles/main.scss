@@ -44,6 +44,24 @@
     cursor: grabbing;
 }
 
+/* ─── Protect Tier List Drag & Sorting (Prevent hijacking as attachment file drag) ─── */
+.tier-list,
+.tier-list-item,
+.tier-item,
+.tierlist,
+.compare-item-card,
+.dock-radar-container,
+[data-tier] {
+    -webkit-user-drag: auto !important;
+    user-drag: auto !important;
+
+    img {
+        -webkit-user-drag: none !important;
+        user-drag: none !important;
+        pointer-events: none !important; /* Critical: allows drag events to bubble to parent card for SortableJS */
+    }
+}
+
 .sqlseal-edit-banner {
     display: flex;
     justify-content: space-between;
@@ -1341,6 +1359,47 @@ body.codeblock-scalefit {
     text-transform: lowercase;
 }
 
+.tablite-copy-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    padding: 1px 3px;
+    margin: 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0.55;
+    transition: all 0.15s ease-in-out;
+    flex-shrink: 0;
+    line-height: 1;
+    box-shadow: none;
+
+    &:hover {
+        opacity: 1;
+        color: var(--text-normal);
+        background-color: var(--background-modifier-hover);
+        border-color: var(--background-modifier-border);
+    }
+
+    &.is-active {
+        opacity: 1;
+        color: var(--interactive-accent);
+        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.18);
+        border-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.35);
+        box-shadow: 0 0 4px rgba(var(--color-accent-rgb, 100, 150, 255), 0.25);
+
+        svg {
+            stroke: var(--interactive-accent);
+        }
+    }
+
+    svg {
+        display: block;
+    }
+}
+
 .tablite-resize-handle {
     position: absolute;
     right: -8px;
@@ -1512,6 +1571,42 @@ body.codeblock-scalefit {
 
 th.tablite-frozen-cell {
     z-index: 15;
+}
+
+.tablite-cell {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, color 0.15s ease, outline 0.15s ease;
+
+    &.tablite-cell-easy-copy {
+        cursor: copy !important;
+        border-radius: 2px;
+
+        &:hover {
+            background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.12) !important;
+            outline: 1px dashed var(--interactive-accent) !important;
+            outline-offset: -1px;
+        }
+    }
+
+    &.tablite-cell-just-copied {
+        animation: tabliteCellCopiedFlash 0.7s ease-out;
+    }
+}
+
+@keyframes tabliteCellCopiedFlash {
+    0% {
+        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.5) !important;
+        color: var(--text-on-accent, #fff) !important;
+    }
+    100% {
+        background-color: transparent;
+    }
 }
 
 .tablite-cell-content {

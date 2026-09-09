@@ -73,7 +73,7 @@ export class CodeblockScaler {
 	private isProcessing = false;
 	private debounceTimer: number | null = null;
 
-	constructor(private plugin: PakCLIPlugin) {}
+	constructor(private plugin: PakCLIPlugin) { }
 
 	init(): void {
 		// 1. Register Post Processor for Reading View
@@ -91,13 +91,6 @@ export class CodeblockScaler {
 		this.plugin.registerEvent(
 			this.plugin.app.workspace.on('css-change', () => this.scheduleRescale())
 		);
-
-		// 3. Listen to DOM editor key events (debounced)
-		this.plugin.registerDomEvent(window, 'keyup', (e: KeyboardEvent) => {
-			if (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete' || e.key === 'v') {
-				this.scheduleRescale();
-			}
-		});
 	}
 
 	scheduleRescale(): void {
@@ -175,10 +168,14 @@ export class CodeblockScaler {
 			const codeEl = pre.querySelector('code') ?? pre;
 			const behavior = this.getBehaviorForElement(pre, codeEl);
 
+			pre.classList.remove('pakcli-codeblock-wrap', 'pakcli-codeblock-flowclip');
+
 			if (behavior === 'scalefit') {
-				const text = codeEl.textContent || pre.textContent || '';
-				if (text.trim()) {
-					renderAsciiSvg(text, pre);
+				if (!pre.querySelector('.pakcli-ascii-svg-wrapper')) {
+					const text = codeEl.textContent || pre.textContent || '';
+					if (text.trim()) {
+						renderAsciiSvg(text, pre);
+					}
 				}
 			} else if (behavior === 'wrap') {
 				pre.classList.add('pakcli-codeblock-wrap');
@@ -203,38 +200,17 @@ export class CodeblockScaler {
 			if (currentBlockLines.length === 0) return;
 
 			const behavior = this.getBehaviorForLanguage(currentLanguage);
-			const firstLine = currentBlockLines[0];
-			const parent = firstLine.parentElement;
 
-			if (!parent) {
-				currentBlockLines = [];
-				currentLanguage = '';
-				return;
-			}
-
-			if (behavior === 'wrap') {
-				currentBlockLines.forEach((line) => {
+			currentBlockLines.forEach((line) => {
+				line.classList.remove('pakcli-codeblock-wrap', 'pakcli-codeblock-line-flowclip', 'pakcli-codeblock-line-scalefit');
+				if (behavior === 'wrap') {
 					line.classList.add('pakcli-codeblock-wrap');
-				});
-			} else {
-				// FLOWCLIP: 1 CODEBLOCK = 1 INDIVIDUAL SLIDER!
-				let slider: HTMLElement;
-				if (parent.classList.contains('pakcli-codeblock-slider')) {
-					slider = parent;
+				} else if (behavior === 'scalefit') {
+					line.classList.add('pakcli-codeblock-line-scalefit');
 				} else {
-					slider = parent.createEl('div', {
-						cls: 'pakcli-codeblock-slider',
-					});
-					parent.insertBefore(slider, firstLine);
-					currentBlockLines.forEach((line) => {
-						slider.appendChild(line);
-					});
-				}
-
-				currentBlockLines.forEach((line) => {
 					line.classList.add('pakcli-codeblock-line-flowclip');
-				});
-			}
+				}
+			});
 
 			currentBlockLines = [];
 			currentLanguage = '';

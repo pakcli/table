@@ -21,6 +21,10 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 	private boxStyle: BoxStyle = 'single';
 	private lineStyle: LineStyle = 'single';
 
+	// History Stack for Live Undo / Redo
+	private historyStack: string[] = [];
+	private historyIndex = -1;
+
 	// Drawing tracking
 	private isDrawing = false;
 	private lastPointerPos: { x: number; y: number } | null = null;
@@ -33,6 +37,8 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 	private colsInputEl!: HTMLInputElement;
 	private rowsInputEl!: HTMLInputElement;
 	private presetSelectEl!: HTMLSelectElement;
+	private undoBtnEl!: HTMLButtonElement;
+	private redoBtnEl!: HTMLButtonElement;
 
 	constructor(
 		containerEl: HTMLElement,
@@ -53,6 +59,8 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 		if (parsed.frames && parsed.frames.length > 0) {
 			this.buffer.fromString(parsed.frames[0]);
 		}
+
+		this.pushHistory();
 	}
 
 	onload(): void {
@@ -64,12 +72,82 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 		this.containerEl.empty();
 	}
 
+	private pushHistory(): void {
+		const serialized = AsciiSerializer.serialize([this.buffer], this.theme, true);
+
+		if (this.historyIndex < this.historyStack.length - 1) {
+			this.historyStack = this.historyStack.slice(0, this.historyIndex + 1);
+		}
+
+		this.historyStack.push(serialized);
+		this.historyIndex = this.historyStack.length - 1;
+
+		if (this.historyStack.length > 50) {
+			this.historyStack.shift();
+			this.historyIndex--;
+		}
+
+		this.updateHistoryButtons();
+	}
+
+	private undo(): void {
+		if (this.historyIndex > 0) {
+			this.historyIndex--;
+			this.restoreSnapshot(this.historyStack[this.historyIndex]);
+			this.updateHistoryButtons();
+			this.debouncedSave();
+			new Notice('Undone');
+		}
+	}
+
+	private redo(): void {
+		if (this.historyIndex < this.historyStack.length - 1) {
+			this.historyIndex++;
+			this.restoreSnapshot(this.historyStack[this.historyIndex]);
+			this.updateHistoryButtons();
+			this.debouncedSave();
+			new Notice('Redone');
+		}
+	}
+
+	private restoreSnapshot(snapshot: string): void {
+		const parsed = AsciiSerializer.parse(snapshot);
+		this.theme = parsed.theme;
+		this.buffer.resize(parsed.cols, parsed.rows);
+		if (parsed.frames && parsed.frames.length > 0) {
+			this.buffer.fromString(parsed.frames[0]);
+		}
+
+		if (this.colsInputEl) this.colsInputEl.value = String(this.buffer.cols);
+		if (this.rowsInputEl) this.rowsInputEl.value = String(this.buffer.rows);
+		if (this.presetSelectEl) {
+			this.presetSelectEl.value = `${this.buffer.cols}x${this.buffer.rows}`;
+			if (!this.presetSelectEl.value) this.presetSelectEl.value = '0x0';
+		}
+
+		this.renderGrid();
+	}
+
+	private updateHistoryButtons(): void {
+		if (this.undoBtnEl) {
+			const canUndo = this.historyIndex > 0;
+			this.undoBtnEl.disabled = !canUndo;
+			this.undoBtnEl.toggleClass('is-disabled', !canUndo);
+		}
+		if (this.redoBtnEl) {
+			const canRedo = this.historyIndex < this.historyStack.length - 1;
+			this.redoBtnEl.disabled = !canRedo;
+			this.redoBtnEl.toggleClass('is-disabled', !canRedo);
+		}
+	}
+
 	private buildInlineRenderer(): void {
 		this.containerEl.empty();
 
 		const palette = THEME_PALETTES[this.theme] || THEME_PALETTES.default;
 
 		this.containerCard = this.containerEl.createDiv({ cls: 'asciidraw-inline-card' });
+		this.containerCard.tabIndex = 0;
 		this.containerCard.setCssProps({
 			'--card-bg': palette.bg,
 			'--card-fg': palette.fg,
@@ -77,7 +155,23 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 			'--card-accent': palette.accent
 		});
 
-		// 1. Unified Header Toolbar (Contains all 6 controls)
+		// Keyboard Shortcuts for Undo & Redo
+		this.containerCard.addEventListener('keydown', (e: KeyboardEvent) => {
+			const isMod = e.ctrlKey || e.metaKey;
+			if (isMod && (e.key === 'z' || e.key === 'Z')) {
+				e.preventDefault();
+				if (e.shiftKey) {
+					this.redo();
+				} else {
+					this.undo();
+				}
+			} else if (isMod && (e.key === 'y' || e.key === 'Y')) {
+				e.preventDefault();
+				this.redo();
+			}
+		});
+
+		// 1. Unified Header Toolbar
 		const header = this.containerCard.createDiv({ cls: 'asciidraw-inline-header' });
 		this.buildHeaderToolbar(header);
 
@@ -86,7 +180,6 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 
 		// Draw Surface (Interactive cell grid & draggable asset in Lock mode)
 		this.gridSurfaceEl = bodyWrapper.createDiv({ cls: 'asciidraw-inline-grid' });
-		// touch-action: none handled in CSS class asciidraw-inline-grid
 
 		this.gridSurfaceEl.addEventListener('pointerdown', (e) => this.handlePointerDown(e));
 		window.addEventListener('pointermove', (e) => this.handlePointerMove(e));
@@ -97,6 +190,7 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 
 		this.updateLockState();
 		this.renderGrid();
+		this.updateHistoryButtons();
 	}
 
 	private buildHeaderToolbar(parent: HTMLElement): void {
@@ -155,7 +249,7 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 			this.activeChar = charSelector.value;
 		};
 
-		// 6. Dropdown Preset with Custom Size Height / Width
+		// 6. Dropdown Preset with Custom Size Height / Width (Zero reset bug fixed)
 		const sizeGroup = leftGroup.createDiv({ cls: 'asciidraw-inline-size-group' });
 		this.presetSelectEl = sizeGroup.createEl('select', {
 			cls: 'asciidraw-inline-select asciidraw-size-preset-select',
@@ -199,6 +293,7 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 			const h = Math.max(3, parseInt(this.rowsInputEl.value, 10) || 20);
 			this.buffer.resize(w, h);
 			this.renderGrid();
+			this.pushHistory();
 			this.debouncedSave();
 		};
 
@@ -213,44 +308,61 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 				this.rowsInputEl.value = String(h);
 				this.buffer.resize(w, h);
 				this.renderGrid();
+				this.pushHistory();
 				this.debouncedSave();
 			}
 		};
 
-		// Right Actions: Clear, Copy, Fullscreen
+		// Right Actions: Undo, Redo, Clear, Copy, Fullscreen
 		const rightGroup = parent.createDiv({ cls: 'asciidraw-inline-group' });
 
-		// 3. Clear with confirmation
+		// 3. Undo / Redo Buttons
+		this.undoBtnEl = rightGroup.createEl('button', {
+			cls: 'asciidraw-card-btn asciidraw-undo-btn is-disabled',
+			text: '↩ Undo',
+			title: 'Undo last draw action (Ctrl+Z)'
+		});
+		this.undoBtnEl.onclick = () => this.undo();
+
+		this.redoBtnEl = rightGroup.createEl('button', {
+			cls: 'asciidraw-card-btn asciidraw-redo-btn is-disabled',
+			text: '↪ Redo',
+			title: 'Redo last undone action (Ctrl+Y)'
+		});
+		this.redoBtnEl.onclick = () => this.redo();
+
+		// 4. Clear with confirmation (Strictly preserves width & height settings!)
 		const btnClear = rightGroup.createEl('button', {
 			cls: 'asciidraw-card-btn asciidraw-card-btn-danger',
 			text: '🗑️ Clear',
-			title: 'Clear entire canvas (requires confirmation)'
+			title: 'Clear entire canvas (requires confirmation, preserves dimensions)'
 		});
 		btnClear.onclick = () => {
 			new AsciiConfirmModal(this.app, 'Clear Canvas', 'Are you sure you want to clear this drawing canvas?', (confirmed) => {
 				if (confirmed) {
 					this.buffer.clear(' ');
 					this.renderGrid();
+					this.pushHistory();
 					this.debouncedSave();
-					new Notice('Canvas cleared.');
+					new Notice(`Canvas cleared (${this.buffer.cols}×${this.buffer.rows} dimensions preserved).`);
 				}
 			}).open();
 		};
 
-		// 4. Copy the codeblock
+		// 5. Copy the codeblock
 		const btnCopy = rightGroup.createEl('button', {
 			cls: 'asciidraw-card-btn',
 			text: '📋 Copy',
 			title: 'Copy ASCII codeblock to clipboard'
 		});
 		btnCopy.onclick = async () => {
-			const text = this.buffer.toString(true);
+			const text = AsciiSerializer.serialize([this.buffer], this.theme, false);
 			const codeblock = `\`\`\`asciidraw\n${text}\n\`\`\``;
 			await AsciiExporter.copyToClipboard(codeblock);
 			new Notice('✓ Copied codeblock to clipboard!');
 		};
 
-		// 5. Open in full screen
+		// 6. Open in full screen
 		const btnFullscreen = rightGroup.createEl('button', {
 			cls: 'asciidraw-card-btn asciidraw-card-btn-primary',
 			text: '⛶ Fullscreen',
@@ -345,12 +457,14 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 		} else if (this.activeTool === 'fill') {
 			this.buffer.floodFill(pt.x, pt.y, this.activeChar);
 			this.renderGrid();
+			this.pushHistory();
 			this.debouncedSave();
 		} else if (this.activeTool === 'text') {
 			new AsciiPromptModal(this.app, 'Stamp Text', '', (promptText) => {
 				if (promptText) {
 					this.buffer.drawText(pt.x, pt.y, promptText);
 					this.renderGrid();
+					this.pushHistory();
 					this.debouncedSave();
 				}
 			}).open();
@@ -406,6 +520,7 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 		this.dragStartPos = null;
 		this.lastPointerPos = null;
 		this.renderGrid();
+		this.pushHistory();
 		this.debouncedSave();
 	}
 
@@ -454,7 +569,7 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 	}
 
 	private openFullscreenStudio(): void {
-		const currentText = this.buffer.toString(false);
+		const currentText = AsciiSerializer.serialize([this.buffer], this.theme, false);
 		const modal = new AsciiDrawModal(this.app, {
 			initialContent: currentText,
 			targetFile: this.ctx.sourcePath,
@@ -468,7 +583,12 @@ export class AsciiCodeblockRenderer extends MarkdownRenderChild {
 				}
 				if (this.colsInputEl) this.colsInputEl.value = String(this.buffer.cols);
 				if (this.rowsInputEl) this.rowsInputEl.value = String(this.buffer.rows);
+				if (this.presetSelectEl) {
+					this.presetSelectEl.value = `${this.buffer.cols}x${this.buffer.rows}`;
+					if (!this.presetSelectEl.value) this.presetSelectEl.value = '0x0';
+				}
 
+				this.pushHistory();
 				await this.saveContentToNote();
 				this.renderGrid();
 			}

@@ -11,6 +11,8 @@ interface HeaderCellProps {
   onUpdateHeader: (colIndex: number, value: string) => void;
   onResize: (colIndex: number, width: number) => void;
   onMoveColumn: (sourceIndex: number, targetIndex: number) => void;
+  isEasyCopy?: boolean;
+  onToggleEasyCopy?: (colIndex: number) => void;
 }
 
 export function HeaderCell({
@@ -21,6 +23,8 @@ export function HeaderCell({
   onUpdateHeader,
   onResize,
   onMoveColumn,
+  isEasyCopy = false,
+  onToggleEasyCopy,
 }: HeaderCellProps) {
   const [selectOpen, setSelectOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -139,6 +143,40 @@ export function HeaderCell({
           {displayName}
           {sortIndicator}
         </span>
+        {onToggleEasyCopy && (
+          <button
+            type="button"
+            class={`tablite-copy-toggle ${isEasyCopy ? "is-active" : ""}`}
+            title={
+              isEasyCopy
+                ? `Click-to-copy ACTIVE for "${displayName}". Click any cell in this column to copy. (Click here to disable)`
+                : `Enable click-to-copy for "${displayName}"`
+            }
+            onMouseDown={(e) => {
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleEasyCopy(colIndex);
+            }}
+            aria-label="Toggle easy clipboard"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        )}
         <span class="tablite-header-type">{dataType}</span>
         <div class="tablite-resize-handle" onMouseDown={onMouseDown} />
       </div>

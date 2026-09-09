@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as esprima from 'esprima';
 import * as estraverse from 'estraverse';
 
@@ -7,6 +6,19 @@ interface Decorator {
     'number' | 'comment' | 'function' | 'operator' | 'punctuation' | 'regex' | 'error';
     start: number;
     end: number;
+}
+
+function getRange(item: unknown): [number, number] | null {
+    if (!item || typeof item !== 'object') return null;
+    const rawRange = (item as { range?: unknown }).range;
+    if (Array.isArray(rawRange) && rawRange.length >= 2) {
+        const start: unknown = rawRange[0];
+        const end: unknown = rawRange[1];
+        if (typeof start === 'number' && typeof end === 'number') {
+            return [start, end];
+        }
+    }
+    return null;
 }
 
 /**
@@ -33,6 +45,13 @@ function highlightJavaScript(source: string): Decorator[] {
         }
     }
 
+    function addRangeDecorator(type: Decorator['type'], item: unknown): void {
+        const range = getRange(item);
+        if (range) {
+            addDecorator(type, range[0], range[1]);
+        }
+    }
+
     try {
         // Parse the source code with location information and comment handling
         const ast = esprima.parseScript(source, {
@@ -46,71 +65,63 @@ function highlightJavaScript(source: string): Decorator[] {
         // Process comments (they're separate from the AST in Esprima)
         if (ast.comments) {
             for (const comment of ast.comments) {
-                addDecorator('comment', comment.range[0], comment.range[1]);
+                addRangeDecorator('comment', comment);
             }
         }
 
         // Process tokens for basic syntax elements
         if (ast.tokens) {
             for (const token of ast.tokens) {
+                const tokenRange = getRange(token);
+                if (!tokenRange) continue;
+                const [start, end] = tokenRange;
+
                 switch (token.type) {
                     case 'Keyword':
-                        addDecorator('keyword', token.range[0], token.range[1]);
+                        addDecorator('keyword', start, end);
                         break;
                     case 'Identifier':
                         // We'll handle function identifiers separately
-                        addDecorator('identifier', token.range[0], token.range[1]);
+                        addDecorator('identifier', start, end);
                         break;
                     case 'Punctuator':
                         if (['+', '-', '*', '/', '%', '=', '>', '<', '!', '&', '|', '^', '~', '?', ':'].includes(token.value) ||
                             (token.value.length > 1 && /^[+\-*/%=><!^&|?:]+$/.test(token.value))) {
-                            addDecorator('operator', token.range[0], token.range[1]);
+                            addDecorator('operator', start, end);
                         } else {
-                            addDecorator('punctuation', token.range[0], token.range[1]);
+                            addDecorator('punctuation', start, end);
                         }
                         break;
                     case 'String': {
                         // String literals include the quotes
-                        addDecorator('string', token.range[0], token.range[1]);
+                        addDecorator('string', start, end);
 
                         // Highlight string content differently if needed
-                        const stringContent = source.substring(token.range[0] + 1, token.range[1] - 1);
+                        const stringContent = source.substring(start + 1, end - 1);
 
                         // Look for escape sequences within the string
                         const escapeRegex = /\\./g;
-                        let escapeMatch;
+                        let escapeMatch: RegExpExecArray | null = null;
                         while ((escapeMatch = escapeRegex.exec(stringContent)) !== null) {
-                            const escapeStart = token.range[0] + 1 + escapeMatch.index;
+                            const escapeStart = start + 1 + escapeMatch.index;
                             const escapeEnd = escapeStart + escapeMatch[0].length;
                             // Add specific decorator for escape sequences
                             addDecorator('string-escape', escapeStart, escapeEnd);
                         }
-
-                        // Look for string interpolation patterns like ${...} if needed
-                        // This is mostly relevant for template literals, which are handled separately
                         break;
                     }
                     case 'Numeric':
-                        addDecorator('number', token.range[0], token.range[1]);
+                        addDecorator('number', start, end);
                         break;
                     case 'RegularExpression':
-                        addDecorator('regex', token.range[0], token.range[1]);
+                        addDecorator('regex', start, end);
                         break;
                     case 'Boolean':
                     case 'Null':
-                        addDecorator('keyword', token.range[0], token.range[1]);
+                        addDecorator('keyword', start, end);
                         break;
                     case 'Template': {
-                        // Handle template literals more carefully - they may contain expressions
-                        // The token itself might be just a part of the template (a quasi)
-                        addDecorator('string', token.range[0], token.range[1]);
-
-                        // Check if it's a template with expressions
-                        const templateText = source.substring(token.range[0], token.range[1]);
-                        if (templateText.includes('${')) {
-                            // This is handled in the AST traversal for TemplateLiteral nodes
-                            // But we can add specific handling here if needed
-                        }
+                        addDecorator('string', start, end);
                         break;
                     }
                 }
@@ -119,69 +130,80 @@ function highlightJavaScript(source: string): Decorator[] {
 
         // Use estraverse to traverse the AST and identify more complex patterns
         estraverse.traverse(ast, {
-            enter: function (node: unknown, parent: unknown) {
-                switch (node.type) {
+            enter: function (rawNode: unknown) {
+                if (!rawNode || typeof rawNode !== 'object') return;
+                const node = rawNode as Record<string, unknown>;
+                const nodeType = typeof node.type === 'string' ? node.type : '';
+                switch (nodeType) {
                     case 'FunctionDeclaration':
                         // Function name
                         if (node.id) {
-                            addDecorator('function', node.id.range[0], node.id.range[1]);
+                            addRangeDecorator('function', node.id);
                         }
                         break;
 
                     case 'MethodDefinition':
                         // Method name in classes
                         if (node.key) {
-                            addDecorator('function', node.key.range[0], node.key.range[1]);
+                            addRangeDecorator('function', node.key);
                         }
                         break;
 
                     case 'Property':
                         // Methods in object literals
                         if (node.method && node.key) {
-                            addDecorator('function', node.key.range[0], node.key.range[1]);
+                            addRangeDecorator('function', node.key);
                         }
                         break;
 
                     case 'VariableDeclarator':
                         // Find arrow functions and function expressions assigned to variables
-                        if (node.init &&
-                            (node.init.type === 'ArrowFunctionExpression' ||
-                                node.init.type === 'FunctionExpression')) {
-                            addDecorator('function', node.id.range[0], node.id.range[1]);
+                        if (node.init && typeof node.init === 'object') {
+                            const initObj = node.init as Record<string, unknown>;
+                            if (initObj.type === 'ArrowFunctionExpression' || initObj.type === 'FunctionExpression') {
+                                addRangeDecorator('function', node.id);
+                            }
                         }
                         break;
 
                     case 'CallExpression':
                         // Highlight function calls
-                        if (node.callee.type === 'Identifier') {
-                            // Don't change the styling of built-in functions/methods or keywords
-                            const name = node.callee.name;
-                            if (!keywords.has(name)) {
-                                addDecorator('function', node.callee.range[0], node.callee.range[1]);
+                        if (node.callee && typeof node.callee === 'object') {
+                            const calleeObj = node.callee as Record<string, unknown>;
+                            if (calleeObj.type === 'Identifier') {
+                                const name = typeof calleeObj.name === 'string' ? calleeObj.name : '';
+                                if (!keywords.has(name)) {
+                                    addRangeDecorator('function', calleeObj);
+                                }
+                            } else if (calleeObj.type === 'MemberExpression' && calleeObj.property && typeof calleeObj.property === 'object') {
+                                const propObj = calleeObj.property as Record<string, unknown>;
+                                if (propObj.type === 'Identifier') {
+                                    addRangeDecorator('function', propObj);
+                                }
                             }
-                        }
-                        else if (node.callee.type === 'MemberExpression' &&
-                            node.callee.property.type === 'Identifier') {
-                            // Method calls (obj.method())
-                            addDecorator('function', node.callee.property.range[0], node.callee.property.range[1]);
                         }
                         break;
 
                     case 'ClassDeclaration':
                         // Class name
                         if (node.id) {
-                            addDecorator('identifier', node.id.range[0], node.id.range[1]);
+                            addRangeDecorator('identifier', node.id);
                         }
                         break;
 
                     case 'ImportDeclaration':
                         // Import specifiers
-                        for (const specifier of node.specifiers) {
-                            if (specifier.local) {
-                                addDecorator('identifier', specifier.local.range[0], specifier.local.range[1]);
-                            }
-                            if (specifier.imported) {
-                                addDecorator('identifier', specifier.imported.range[0], specifier.imported.range[1]);
+                        if (Array.isArray(node.specifiers)) {
+                            for (const specifier of node.specifiers) {
+                                if (specifier && typeof specifier === 'object') {
+                                    const s = specifier as Record<string, unknown>;
+                                    if (s.local) {
+                                        addRangeDecorator('identifier', s.local);
+                                    }
+                                    if (s.imported) {
+                                        addRangeDecorator('identifier', s.imported);
+                                    }
+                                }
                             }
                         }
                         break;
@@ -189,18 +211,22 @@ function highlightJavaScript(source: string): Decorator[] {
                     case 'ExportNamedDeclaration':
                     case 'ExportDefaultDeclaration':
                         // Handle export names
-                        if (node.declaration && node.declaration.id) {
-                            // For function/class declarations
-                            addDecorator('identifier', node.declaration.id.range[0], node.declaration.id.range[1]);
+                        if (node.declaration && typeof node.declaration === 'object') {
+                            const decl = node.declaration as Record<string, unknown>;
+                            if (decl.id) {
+                                addRangeDecorator('identifier', decl.id);
+                            }
                         }
-                        if (node.specifiers) {
-                            // For export { x, y }
+                        if (Array.isArray(node.specifiers)) {
                             for (const specifier of node.specifiers) {
-                                if (specifier.local) {
-                                    addDecorator('identifier', specifier.local.range[0], specifier.local.range[1]);
-                                }
-                                if (specifier.exported) {
-                                    addDecorator('identifier', specifier.exported.range[0], specifier.exported.range[1]);
+                                if (specifier && typeof specifier === 'object') {
+                                    const s = specifier as Record<string, unknown>;
+                                    if (s.local) {
+                                        addRangeDecorator('identifier', s.local);
+                                    }
+                                    if (s.exported) {
+                                        addRangeDecorator('identifier', s.exported);
+                                    }
                                 }
                             }
                         }
@@ -208,24 +234,25 @@ function highlightJavaScript(source: string): Decorator[] {
 
                     case 'TemplateLiteral':
                         // Handle template literals and their expressions
-                        for (const quasi of node.quasis) {
-                            // Mark the entire quasi segment as a string
-                            addDecorator('string', quasi.range[0], quasi.range[1]);
+                        if (Array.isArray(node.quasis)) {
+                            for (const quasi of node.quasis) {
+                                addRangeDecorator('string', quasi);
+                            }
                         }
 
                         // Handle template expressions ${...}
-                        for (const expr of node.expressions) {
-                            // Find the ${
-                            const exprStart = expr.range[0] - 2; // For the ${ part
-                            if (exprStart >= 0 && source.substring(exprStart, exprStart + 2) === '${') {
-                                addDecorator('string-interpolation', exprStart, exprStart + 2);
-
-                                // The expression itself will be handled by the normal traversal
-
-                                // Find the closing }
-                                const closingBrace = expr.range[1]; // The end range should be right after the expression
-                                if (closingBrace < source.length && source[closingBrace] === '}') {
-                                    addDecorator('string-interpolation', closingBrace, closingBrace + 1);
+                        if (Array.isArray(node.expressions)) {
+                            for (const expr of node.expressions) {
+                                const exprRange = getRange(expr);
+                                if (exprRange) {
+                                    const exprStart = exprRange[0] - 2; // For the ${ part
+                                    if (exprStart >= 0 && source.substring(exprStart, exprStart + 2) === '${') {
+                                        addDecorator('string-interpolation', exprStart, exprStart + 2);
+                                        const closingBrace = exprRange[1]; // The end range should be right after the expression
+                                        if (closingBrace < source.length && source[closingBrace] === '}') {
+                                            addDecorator('string-interpolation', closingBrace, closingBrace + 1);
+                                        }
+                                    }
                                 }
                             }
                         }

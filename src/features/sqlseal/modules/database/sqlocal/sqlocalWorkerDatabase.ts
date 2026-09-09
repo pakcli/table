@@ -4,6 +4,51 @@ import * as SQLite from 'wa-sqlite';
 import { IDBBatchAtomicVFS } from 'wa-sqlite/src/examples/IDBBatchAtomicVFS.js';
 import { ColumnDefinition } from "../../../utils/types";
 
+export interface SQLiteApiInstance {
+    SQLITE_UTF8: number;
+    SQLITE_ROW: number;
+    SQLITE_DONE: number;
+    SQLITE_OPEN_READWRITE: number;
+    SQLITE_OPEN_CREATE: number;
+    vfs_register(vfs: unknown): void;
+    open_v2(name: string, flags?: number, vfs?: string): Promise<number>;
+    close(db: number): Promise<number>;
+    exec(db: number, sql: string, callback?: (row: unknown[], columns: string[]) => void): Promise<number>;
+    create_function(
+        db: number,
+        name: string,
+        nArg: number,
+        flags: number,
+        pApp: unknown,
+        func: (context: number, values: Uint32Array) => void,
+    ): void;
+    value_text(value: number): string;
+    result_text(context: number, text: string): void;
+    result_null(context: number): void;
+    result_int(context: number, value: number): void;
+    str_new(db: number, sql: string): number;
+    str_value(str: number): number;
+    str_finish(str: number): void;
+    prepare_v2(db: number, sqlOrPtr: number | string): Promise<{ stmt: number } | null>;
+    step(stmt: number): Promise<number>;
+    finalize(stmt: number): Promise<number>;
+    reset(stmt: number): Promise<number>;
+    column(stmt: number, iCol: number): Promise<string | number | Uint8Array | null>;
+    column_name(stmt: number, iCol: number): string;
+    column_count(stmt: number): number | Promise<number>;
+    bind_collection(stmt: number, values: unknown[]): Promise<number>;
+    statements(db: number, sql: string): AsyncIterable<{ stmt: number; sql: string }>;
+}
+
+function isDevelopment(): boolean {
+    try {
+        const g = globalThis as unknown as { process?: { env?: { NODE_ENV?: string } } };
+        return Boolean(g.process?.env?.NODE_ENV === 'development');
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Retry an async operation with exponential backoff
  * @param operation - The async operation to retry
@@ -19,7 +64,7 @@ async function retryWithBackoff<T>(
     baseDelay: number = 50,
     errorMatcher?: (error: Error) => boolean
 ): Promise<T> {
-    let lastError: Error;
+    let lastError: Error | undefined;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
@@ -39,7 +84,7 @@ async function retryWithBackoff<T>(
 
             // Calculate delay with exponential backoff
             const delay = baseDelay * Math.pow(2, attempt - 1);
-            if (process.env.NODE_ENV === 'development') {
+            if (isDevelopment()) {
                 console.warn(
                     `SqlocalWorkerDatabase: Retry attempt ${attempt}/${maxRetries} ` +
                     `after error: ${lastError.message}. Waiting ${delay}ms...`
@@ -50,7 +95,7 @@ async function retryWithBackoff<T>(
         }
     }
 
-    throw lastError!;
+    throw lastError;
 }
 
 /**
@@ -61,7 +106,7 @@ async function retryWithBackoff<T>(
  */
 export class SqlocalWorkerDatabase {
     private connection: number | null = null;
-    private sqlite3: any = null;
+    private sqlite3: SQLiteApiInstance | null = null;
     private isConnected = false;
     private vfsRegistered = false;
     private isRecreating = false;
@@ -76,8 +121,8 @@ export class SqlocalWorkerDatabase {
      * - Converts falsy values to null
      * - JSON-stringifies objects and arrays
      */
-    private formatData(data: Record<string, any>): Record<string, any> {
-        return Object.keys(data).reduce((ret, key) => {
+    private formatData(data: Record<string, unknown>): Record<string, unknown> {
+        return Object.keys(data).reduce<Record<string, unknown>>((ret, key) => {
             const value = data[key];
 
             // Convert booleans to 0/1 for SQLite
@@ -91,7 +136,7 @@ export class SqlocalWorkerDatabase {
             }
 
             // JSON-stringify objects and arrays
-            if (typeof value === 'object' || Array.isArray(value)) {
+            if (typeof value === 'object') {
                 return { ...ret, [key]: JSON.stringify(value) };
             }
 
@@ -100,7 +145,7 @@ export class SqlocalWorkerDatabase {
         }, {});
     }
 
-    private async initializeSQLite() {
+    private async initializeSQLite(): Promise<SQLiteApiInstance> {
         if (this.sqlite3) {
             return this.sqlite3;
         }
@@ -110,10 +155,10 @@ export class SqlocalWorkerDatabase {
         }
 
         try {
-            const asyncModule = await SQLiteAsyncESMFactory({ wasmBinary: this.wasmBinary, locateFile: (file: string) => file });
+            const asyncModule: unknown = await SQLiteAsyncESMFactory({ wasmBinary: this.wasmBinary, locateFile: (file: string) => file });
 
             // Use Factory to get the actual sqlite3 API
-            this.sqlite3 = SQLite.Factory(asyncModule);
+            this.sqlite3 = SQLite.Factory(asyncModule) as unknown as SQLiteApiInstance;
             return this.sqlite3;
         } catch (error) {
             console.error('SqlocalWorkerDatabase: Failed to initialize wa-sqlite:', error);
@@ -189,8 +234,8 @@ export class SqlocalWorkerDatabase {
     }
 
     registerCustomFunction(name: string, argsCount = 1) {
-        if (!this.connection) {
-            if (process.env.NODE_ENV === 'development') {
+        if (!this.connection || !this.sqlite3) {
+            if (isDevelopment()) {
                 console.warn('SqlocalWorkerDatabase: Database not connected, cannot register custom function');
             }
             return Promise.resolve();
@@ -209,10 +254,10 @@ export class SqlocalWorkerDatabase {
                     this.sqlite3.SQLITE_UTF8,
                     null,
                     (context: number, values: Uint32Array) => {
-                        const arg0 = this.sqlite3.value_text(values[0]);
+                        const arg0 = this.sqlite3?.value_text(values[0] ?? 0) ?? "";
                         const data = { type: name, values: [arg0] };
                         const result = `SQLSEALCUSTOM(${JSON.stringify(data)})`;
-                        this.sqlite3.result_text(context, result);
+                        this.sqlite3?.result_text(context, result);
                     }
                 );
             }
@@ -224,11 +269,11 @@ export class SqlocalWorkerDatabase {
                     this.sqlite3.SQLITE_UTF8,
                     null,
                     (context: number, values: Uint32Array) => {
-                        const arg0 = this.sqlite3.value_text(values[0]);
-                        const arg1 = this.sqlite3.value_text(values[1]);
+                        const arg0 = this.sqlite3?.value_text(values[0] ?? 0) ?? "";
+                        const arg1 = this.sqlite3?.value_text(values[1] ?? 0) ?? "";
                         const data = { type: name, values: [arg0, arg1] };
                         const result = `SQLSEALCUSTOM(${JSON.stringify(data)})`;
-                        this.sqlite3.result_text(context, result);
+                        this.sqlite3?.result_text(context, result);
                     }
                 );
             }
@@ -240,12 +285,12 @@ export class SqlocalWorkerDatabase {
                     this.sqlite3.SQLITE_UTF8,
                     null,
                     (context: number, values: Uint32Array) => {
-                        const arg0 = this.sqlite3.value_text(values[0]);
-                        const arg1 = this.sqlite3.value_text(values[1]);
-                        const arg2 = this.sqlite3.value_text(values[2]);
+                        const arg0 = this.sqlite3?.value_text(values[0] ?? 0) ?? "";
+                        const arg1 = this.sqlite3?.value_text(values[1] ?? 0) ?? "";
+                        const arg2 = this.sqlite3?.value_text(values[2] ?? 0) ?? "";
                         const data = { type: name, values: [arg0, arg1, arg2] };
                         const result = `SQLSEALCUSTOM(${JSON.stringify(data)})`;
-                        this.sqlite3.result_text(context, result);
+                        this.sqlite3?.result_text(context, result);
                     }
                 );
             }
@@ -260,7 +305,7 @@ export class SqlocalWorkerDatabase {
     }
 
     async recreateDatabase() {
-        if (!this.connection) throw new Error('Database not connected');
+        if (!this.connection || !this.sqlite3) throw new Error('Database not connected');
         if (this.isRecreating) {
             return;
         }
@@ -269,7 +314,7 @@ export class SqlocalWorkerDatabase {
             this.isRecreating = true;
 
             // Get all table names using wa-sqlite API
-            const tables: any[] = [];
+            const tables: Array<{ name: string }> = [];
             const sql = `
                 SELECT name FROM sqlite_master
                 WHERE type='table' AND name NOT LIKE 'sqlite_%'
@@ -280,7 +325,8 @@ export class SqlocalWorkerDatabase {
                 const prepared = await this.sqlite3.prepare_v2(this.connection, this.sqlite3.str_value(str));
                 if (prepared) {
                     while (await this.sqlite3.step(prepared.stmt) === SQLite.SQLITE_ROW) {
-                        tables.push({ name: await this.sqlite3.column(prepared.stmt, 0) });
+                        const rawName = await this.sqlite3.column(prepared.stmt, 0);
+                        tables.push({ name: typeof rawName === "string" ? rawName : String(rawName ?? "") });
                     }
                     await this.sqlite3.finalize(prepared.stmt);
                 }
@@ -514,7 +560,7 @@ export class SqlocalWorkerDatabase {
             const prepared = await this.sqlite3.prepare_v2(this.connection, this.sqlite3.str_value(str));
             if (prepared) {
                 while (await this.sqlite3.step(prepared.stmt) === SQLite.SQLITE_ROW) {
-                    columns.push(await this.sqlite3.column(prepared.stmt, 1)); // Column name is at index 1
+                    columns.push(String(await this.sqlite3.column(prepared.stmt, 1))); // Column name is at index 1
                 }
                 await this.sqlite3.finalize(prepared.stmt);
             }
@@ -536,7 +582,7 @@ export class SqlocalWorkerDatabase {
             const prepared = await this.sqlite3.prepare_v2(this.connection, this.sqlite3.str_value(str));
             if (prepared) {
                 if (await this.sqlite3.step(prepared.stmt) === SQLite.SQLITE_ROW) {
-                    count = await this.sqlite3.column(prepared.stmt, 0);
+                    count = Number(await this.sqlite3.column(prepared.stmt, 0));
                 }
                 await this.sqlite3.finalize(prepared.stmt);
             }
@@ -567,9 +613,9 @@ export class SqlocalWorkerDatabase {
     }
 
     async select(statement: string, frontmatter: Record<string, unknown>) {
-        if (!this.connection) throw new Error('Database not connected');
+        if (!this.connection || !this.sqlite3) throw new Error('Database not connected');
         if (this.isRecreating) {
-            if (process.env.NODE_ENV === 'development') {
+            if (isDevelopment()) {
                 console.warn('SqlocalWorkerDatabase: Database is being recreated, cannot execute select');
             }
             return { data: [], columns: [], executionTime: 0 };
@@ -579,9 +625,10 @@ export class SqlocalWorkerDatabase {
         return retryWithBackoff(
             async () => {
                 try {
+                    if (!this.connection || !this.sqlite3) throw new Error('Database not connected');
                     // Replace frontmatter placeholders in the query
                     let processedStatement = statement;
-                    const params: any[] = [];
+                    const params: unknown[] = [];
 
                     // Support both {{key}} and @key parameter formats for compatibility
                     for (const [key, value] of Object.entries(frontmatter)) {
@@ -608,12 +655,12 @@ export class SqlocalWorkerDatabase {
                     }
 
                     const startTime = performance.now();
-                    const data: any[] = [];
+                    const data: Array<Record<string, unknown>> = [];
                     let columns: string[] = [];
 
                     // Create string in WASM memory
                     const str = this.sqlite3.str_new(this.connection, processedStatement);
-                    let prepared = null;
+                    let prepared: { stmt: number } | null = null;
                     try {
                         prepared = await this.sqlite3.prepare_v2(this.connection, this.sqlite3.str_value(str));
 
@@ -621,32 +668,35 @@ export class SqlocalWorkerDatabase {
                             await this.sqlite3.bind_collection(prepared.stmt, params);
 
                             // Get column names
-                            const columnCount = await this.sqlite3.column_count(prepared.stmt);
+                            const rawColumnCount = await this.sqlite3.column_count(prepared.stmt);
+                            const columnCount = typeof rawColumnCount === "number" ? rawColumnCount : 0;
 
                             for (let i = 0; i < columnCount; i++) {
-                                columns.push(await this.sqlite3.column_name(prepared.stmt, i));
+                                columns.push(this.sqlite3.column_name(prepared.stmt, i));
                             }
 
                             // Fetch all rows
                             while ((await this.sqlite3.step(prepared.stmt)) === SQLite.SQLITE_ROW) {
-                                const row: any = {};
+                                const row: Record<string, unknown> = {};
                                 for (let i = 0; i < columnCount; i++) {
                                     const columnName = columns[i];
-                                    row[columnName] = await this.sqlite3.column(prepared.stmt, i);
+                                    if (columnName) {
+                                        row[columnName] = await this.sqlite3.column(prepared.stmt, i);
+                                    }
                                 }
                                 data.push(row);
                             }
                         }
                     } finally {
                         // Finalize statement before finishing string
-                        if (prepared && prepared.stmt) {
+                        if (prepared && prepared.stmt && this.sqlite3) {
                             try {
                                 await this.sqlite3.finalize(prepared.stmt);
                             } catch (finalizeError) {
                                 console.error('SqlocalWorkerDatabase: Error finalizing statement:', finalizeError);
                             }
                         }
-                        this.sqlite3.str_finish(str);
+                        this.sqlite3?.str_finish(str);
                     }
 
                     const executionTime = performance.now() - startTime;
@@ -671,11 +721,11 @@ export class SqlocalWorkerDatabase {
     }
 
     async explain(statement: string, frontmatter: Record<string, unknown>) {
-        if (!this.connection) throw new Error('Database not connected');
+        if (!this.connection || !this.sqlite3) throw new Error('Database not connected');
 
         // Replace frontmatter placeholders in the query
         let processedStatement = statement;
-        const params: any[] = [];
+        const params: unknown[] = [];
 
         // Support both {{key}} and @key parameter formats
         for (const [key, value] of Object.entries(frontmatter)) {
@@ -700,7 +750,7 @@ export class SqlocalWorkerDatabase {
         }
 
         const explainQuery = `EXPLAIN QUERY PLAN ${processedStatement}`;
-        const results: Array<{id: number, parent: number, detail: string}> = [];
+        const results: Array<{ id: number; parent: number; detail: string }> = [];
 
         const str = this.sqlite3.str_new(this.connection, explainQuery);
         try {
@@ -710,9 +760,10 @@ export class SqlocalWorkerDatabase {
 
                 // EXPLAIN QUERY PLAN columns: id, parent, notused, detail
                 while (await this.sqlite3.step(prepared.stmt) === SQLite.SQLITE_ROW) {
-                    const id = await this.sqlite3.column(prepared.stmt, 0);
-                    const parent = await this.sqlite3.column(prepared.stmt, 1);
-                    const detail = await this.sqlite3.column(prepared.stmt, 3);
+                    const id = Number(await this.sqlite3.column(prepared.stmt, 0));
+                    const parent = Number(await this.sqlite3.column(prepared.stmt, 1));
+                    const rawDetail = await this.sqlite3.column(prepared.stmt, 3);
+                    const detail = typeof rawDetail === "string" ? rawDetail : String(rawDetail ?? "");
                     results.push({ id, parent, detail });
                 }
                 await this.sqlite3.finalize(prepared.stmt);
@@ -727,8 +778,8 @@ export class SqlocalWorkerDatabase {
         const INDENT_INCREASE = 4;
         map.set(0, -INDENT_INCREASE);
 
-        for (const result of results || []) {
-            const parent = parseInt((result.parent as unknown as string) ?? '0', 10);
+        for (const result of results) {
+            const parent = Number.isFinite(result.parent) ? result.parent : 0;
             const indent = (map.get(parent) || 0) + INDENT_INCREASE;
 
             for (let i = 0; i < indent; i++) {
@@ -736,7 +787,7 @@ export class SqlocalWorkerDatabase {
             }
 
             strResult += result.detail + "\n";
-            map.set(result.id as number, indent);
+            map.set(result.id, indent);
         }
 
         return strResult;

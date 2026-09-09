@@ -232,6 +232,22 @@ export function Table({
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const lastSelectedRowRef = useRef<number | null>(null);
   const [dragOverRow, setDragOverRow] = useState<number | null>(null);
+  const [easyCopyCols, setEasyCopyCols] = useState<Set<number>>(new Set());
+
+  const handleToggleEasyCopy = useCallback((colIndex: number) => {
+    setEasyCopyCols((prev) => {
+      const next = new Set(prev);
+      const colName = resolveHeaderName(headers[colIndex] || `Column ${colIndex + 1}`, autocompleteColumns || "");
+      if (next.has(colIndex)) {
+        next.delete(colIndex);
+        new Notice(`Click-to-copy disabled for "${colName}"`);
+      } else {
+        next.add(colIndex);
+        new Notice(`📋 Click-to-copy ENABLED for "${colName}". Click any cell to copy!`);
+      }
+      return next;
+    });
+  }, [headers, autocompleteColumns]);
 
   const autocompleteCols = useMemo(() => {
     const setting = autocompleteColumns || "";
@@ -520,6 +536,8 @@ export function Table({
                 });
               }}
               onMoveColumn={onColumnOrderChange}
+              isEasyCopy={easyCopyCols.has(sourceIndex)}
+              onToggleEasyCopy={handleToggleEasyCopy}
             />
           ),
           cell: ({ row }) => {
@@ -535,6 +553,7 @@ export function Table({
                 values={uniqueValues[sourceIndex]}
                 filePath={filePath}
                 columnName={headers[sourceIndex]}
+                isEasyCopy={easyCopyCols.has(sourceIndex)}
               />
             );
           },
@@ -557,6 +576,8 @@ export function Table({
       onMoveRows,
       onActiveCellChange,
       onSelectionChange,
+      easyCopyCols,
+      handleToggleEasyCopy,
     ],
   );
 

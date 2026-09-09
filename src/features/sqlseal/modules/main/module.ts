@@ -11,14 +11,44 @@ import { apiModule } from '../api/module'
 import { globalTables } from '../globalTables/module'
 import { explorer } from '../explorer/module'
 
-const obsidian = new Registrator(process.env.NODE_ENV === 'development' ? { logger: console.debug } : undefined)
+const isDevelopment = (): boolean => {
+	try {
+		return (globalThis as unknown as { process?: { env?: { NODE_ENV?: string } } })
+			.process?.env?.NODE_ENV === "development";
+	} catch {
+		return false;
+	}
+};
+
+const obsidian = new Registrator(isDevelopment() ? { logger: console.debug } : undefined)
 .import<'app', App>()
 .import<'plugin', Plugin>()
 .import<'vault', Vault>()
 .export('app', 'plugin', 'vault')
 
 
-export const mainModule: any = (new Registrator(process.env.NODE_ENV === 'development' ? {logger: console.debug} : undefined) as any)
+export interface MainModuleContainer {
+	get<T = unknown>(k: string): Promise<T>;
+}
+
+export interface DepConfiguratorLike {
+	fn: (f: unknown) => {
+		inject: (...args: string[]) => unknown;
+	};
+}
+
+export interface ModuleBuilder {
+	module(name: string, mod: unknown): ModuleBuilder;
+	register(name: string, fn: (d: DepConfiguratorLike) => unknown): ModuleBuilder;
+	link(target: string, source: string): ModuleBuilder;
+	build(deps?: Record<string, unknown>): MainModuleContainer;
+}
+
+const createModuleBuilder = (config?: { logger?: typeof console.debug }): ModuleBuilder => {
+	return new Registrator(config) as unknown as ModuleBuilder;
+};
+
+export const mainModule: ModuleBuilder = createModuleBuilder(isDevelopment() ? { logger: console.debug } : undefined)
 .module('obsidian', obsidian)
 .module('db', db)
 .module('editor', editor)

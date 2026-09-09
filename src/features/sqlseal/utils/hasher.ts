@@ -34,21 +34,6 @@ export class FilepathHasher {
       return fullHash.slice(0, 8);
     }
   
-    /**
-     * Creates a base64 encoded hash of a filepath
-     * @param {string} filepath - The filepath to hash
-     * @returns {Promise<string>} The base64-encoded hash
-     */
-    static async base64Hash(filepath: string) {
-      const normalizedPath = filepath.replace(/\\/g, '/').toLowerCase();
-      const encoder = new TextEncoder();
-      const data = encoder.encode(normalizedPath);
-      const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
-      
-      // Convert ArrayBuffer to Base64
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashString = String.fromCharCode.apply(null, hashArray);
-      return btoa(hashString);
-    }
   }
+
   

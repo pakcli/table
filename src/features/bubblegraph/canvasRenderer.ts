@@ -125,7 +125,7 @@ export class CanvasRenderer {
         const sortedClusters = [...state.clusters].sort((a, b) => a.depth - b.depth);
 
         for (const cluster of sortedClusters) {
-            if (cluster.hullPolygon.length < 3) continue;
+            if (cluster.radius <= 0) continue;
 
             if (state.timelapseVisibleNodeIds || state.timelapseCtimeCutoff) {
                 const hasVisible = cluster.nodeIds.some(id => {
@@ -143,8 +143,9 @@ export class CanvasRenderer {
                 ctx.globalAlpha = 0.2;
             }
 
-            // Create smooth Bézier path
-            createSmoothHullPath(ctx, cluster.hullPolygon);
+            // Create smooth circular bubble path
+            ctx.beginPath();
+            ctx.arc(cluster.centroid.x, cluster.centroid.y, cluster.radius, 0, Math.PI * 2);
 
             // Fill styling
             const baseColor = cluster.color || '#38bdf8';

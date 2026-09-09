@@ -1,4 +1,4 @@
-import { Plugin, Notice, Setting, PluginSettingTab } from 'obsidian';
+import { Plugin, Notice, Setting, PluginSettingTab, ButtonComponent } from 'obsidian';
 import { PakCLITableSettings, DEFAULT_TABLE_SETTINGS } from './settings';
 
 // Hub Imports
@@ -10,6 +10,9 @@ import { saveVaultConfig, loadVaultConfig } from './features/hub/vaultConfig';
 import { AssetRouter } from './features/tree/router';
 import { DiagramRenderer } from './features/tree/renderers/DiagramRenderer';
 import { registerCommands as registerTreeCommands } from './features/tree/commands/index';
+import { FolderSuggest } from './features/tree/ui/folder-suggest';
+import { ConfirmModal } from './features/tree/ui/modals';
+import { TitleOverrideOption } from './features/tree/types';
 
 // SQLSeal & Database Imports
 import { mainModule } from './features/sqlseal/modules/main/module';
@@ -38,9 +41,24 @@ export default class PakCLITablePlugin extends Plugin {
 	leafletPlugin!: BasesLeafletViewPlugin;
 	sqlsealTabInstance: SQLSealSettingsTab | null = null;
 	leafletTabInstance: unknown = null;
+	settingsTabInstance: MasterDetailSettingsTab | null = null;
 	settingsPanelStates: Map<string, boolean> = new Map();
 	vaultRoot: string = '';
 	bubbleRibbonEl: HTMLElement | null = null;
+
+	openSettingsTab(sectionId?: string): void {
+		const appWithPlugins = this.app as { setting?: { open?: () => void; openTabById?: (id: string) => void } };
+		const setting = appWithPlugins.setting;
+		if (setting && typeof setting.open === 'function') {
+			setting.open();
+			if (typeof setting.openTabById === 'function') {
+				setting.openTabById(this.manifest.id);
+			}
+			if (sectionId && this.settingsTabInstance) {
+				this.settingsTabInstance.openSection(sectionId);
+			}
+		}
+	}
 
 	async openBubbleGraphView(): Promise<void> {
 		const existing = this.app.workspace.getLeavesOfType(BUBBLE_GRAPH_VIEW_TYPE);
@@ -145,6 +163,47 @@ export default class PakCLITablePlugin extends Plugin {
 			}
 		});
 
+		// Settings Tab Navigation Commands
+		this.addCommand({
+			id: 'open-asset-router-settings',
+			name: 'Open Settings: Asset Router & Attachments',
+			callback: () => {
+				this.openSettingsTab('table-asset-router');
+			}
+		});
+
+		this.addCommand({
+			id: 'open-codeblock-settings',
+			name: 'Open Settings: Codeblock Scaler & Themes',
+			callback: () => {
+				this.openSettingsTab('table-codeblock');
+			}
+		});
+
+		this.addCommand({
+			id: 'open-ascii-settings',
+			name: 'Open Settings: ASCII Motion & Canvas Studio',
+			callback: () => {
+				this.openSettingsTab('table-ascii');
+			}
+		});
+
+		this.addCommand({
+			id: 'open-tree-settings',
+			name: 'Open Settings: Tree Hierarchy Explorer',
+			callback: () => {
+				this.openSettingsTab('table-tree');
+			}
+		});
+
+		this.addCommand({
+			id: 'open-csv-settings',
+			name: 'Open Settings: CSV & Tablite Editor',
+			callback: () => {
+				this.openSettingsTab('table-csv');
+			}
+		});
+
 		this.updateBubbleRibbon();
 
 		// Replace Vanilla GraphView listener if enabled
@@ -220,6 +279,7 @@ export default class PakCLITablePlugin extends Plugin {
 
 	private registerSettingsHub() {
 		const settingsTab = new MasterDetailSettingsTab(this.app, this);
+		this.settingsTabInstance = settingsTab;
 
 		// 0. Bubble Graph & Venn Topology Handler (table-bubble-graph)
 		settingsTab.registerLocalSection({
@@ -565,7 +625,7 @@ export default class PakCLITablePlugin extends Plugin {
 			isInstalled: true,
 			render: (containerEl) => {
 				new Setting(containerEl)
-					.setName('Tree Diagram & Asset Router')
+					.setName('Tree Diagram & Hierarchy Explorer')
 					.setDesc('Visual folder structure diagrams and tree view generators for markdown codeblocks.')
 					.setHeading();
 
@@ -593,18 +653,286 @@ export default class PakCLITablePlugin extends Plugin {
 								await this.saveSettings();
 							});
 					});
+			}
+		});
+
+		settingsTab.registerLocalSection({
+			id: 'table-asset-router',
+			category: 'table',
+			title: 'Asset Router & Attachments',
+			icon: 'folder-input',
+			isInstalled: true,
+			render: (containerEl) => {
+				const pluginSettings = this.settings;
+				const saveSettings = async () => await this.saveSettings();
+
+				new Setting(containerEl)
+					.setName('Asset Router & Attachment Manager')
+					.setDesc('Automatic attachment routing, centralized media vault, Captain Folders nested mode, and note link auto-updating.')
+					.setHeading();
+
+				// 1. Centralized Mode
+				new Setting(containerEl).setName('Centralized Mode (Default)').setHeading();
+
+				new Setting(containerEl)
+					.setName('Enable Centralized Routing')
+					.setDesc('Route all attachments to a single global directory by default.')
+					.addToggle(toggle => toggle
+						.setValue(pluginSettings.centralAssetFolderEnabled)
+						.onChange(async (value) => {
+							pluginSettings.centralAssetFolderEnabled = value;
+							await saveSettings();
+						}));
 
 				new Setting(containerEl)
 					.setName('Central Asset Folder')
-					.setDesc('Folder where routed media and attachments are stored.')
-					.addText((t) => {
-						t.setPlaceholder('assets')
-							.setValue(this.settings.centralAssetFolder || 'assets')
-							.onChange(async (v) => {
-								this.settings.centralAssetFolder = v.trim();
-								await this.saveSettings();
+					.setDesc('Directory at the vault root where default assets will be saved.')
+					.addText(text => {
+						text.setPlaceholder('assets')
+							.setValue(pluginSettings.centralAssetFolder || 'assets')
+							.onChange(async (value) => {
+								pluginSettings.centralAssetFolder = value.trim() || 'assets';
+								await saveSettings();
+							});
+						new FolderSuggest(this.app, text.inputEl);
+					});
+
+				new Setting(containerEl)
+					.setName('Use Note Title in Centralized Mode')
+					.setDesc('Use note frontmatter "title" property when renaming attachments instead of filename.')
+					.addToggle(toggle => toggle
+						.setValue(pluginSettings.useNoteTitleGlobalCentral)
+						.onChange(async (value) => {
+							pluginSettings.useNoteTitleGlobalCentral = value;
+							await saveSettings();
+						}));
+
+				new Setting(containerEl)
+					.setName('Rescan Centralized Assets')
+					.setDesc('Scan the vault and organize all attachments for notes in Centralized Mode (excluding Captain Folders).')
+					.addButton(button => button
+						.setButtonText('Rescan Centralized')
+						.onClick(async () => {
+							button.setDisabled(true);
+							await this.router.rescanCentralizedAssets();
+							button.setDisabled(false);
+						}));
+
+				// 2. Global Nested Mode Settings
+				new Setting(containerEl).setName('Nested Mode Globals').setHeading();
+
+				new Setting(containerEl)
+					.setName('Use Note Title in Nested Mode (Default)')
+					.setDesc('Default setting for Captain Folders to use frontmatter "title" property.')
+					.addToggle(toggle => toggle
+						.setValue(pluginSettings.useNoteTitleGlobalNested)
+						.onChange(async (value) => {
+							pluginSettings.useNoteTitleGlobalNested = value;
+							await saveSettings();
+						}));
+
+				new Setting(containerEl)
+					.setName('Path Delimiter')
+					.setDesc('Character used to join directories and file titles.')
+					.addDropdown(dropdown => dropdown
+						.addOption('-', '-')
+						.addOption('_', '_')
+						.setValue(pluginSettings.delimiter || '-')
+						.onChange(async (value) => {
+							pluginSettings.delimiter = value;
+							await saveSettings();
+						}));
+
+				new Setting(containerEl)
+					.setName('Monitored File Extensions')
+					.setDesc('Comma-separated list of file extensions that the plugin should route.')
+					.addTextArea(text => text
+						.setPlaceholder('png, jpg, jpeg, pdf')
+						.setValue((pluginSettings.assetExtensions || []).join(', '))
+						.onChange(async (value) => {
+							pluginSettings.assetExtensions = value
+								.split(',')
+								.map(ext => ext.trim().toLowerCase())
+								.filter(ext => ext !== '');
+							await saveSettings();
+						}));
+
+				// 3. Captain Folders (Rules) Settings
+				new Setting(containerEl).setName('Nested Mode Override Rules (Captain Folders)').setHeading();
+
+				const bulkContainer = containerEl.createDiv({ cls: 'asset-router-bulk-container' });
+				bulkContainer.style.marginBottom = '10px';
+
+				new ButtonComponent(bulkContainer)
+					.setButtonText('Turn On All Rules')
+					.setCta()
+					.onClick(() => {
+						new ConfirmModal(
+							this.app,
+							'Are you sure you want to enable ALL Captain Folder rules?',
+							async () => {
+								(pluginSettings.rules || []).forEach(r => r.enabled = true);
+								await saveSettings();
+								renderRulesTable();
+								new Notice('All rules enabled');
+							}
+						).open();
+					});
+
+				const turnOffBtn = new ButtonComponent(bulkContainer)
+					.setButtonText('Turn Off All Rules')
+					.onClick(() => {
+						new ConfirmModal(
+							this.app,
+							'Are you sure you want to disable ALL Captain Folder rules?',
+							async () => {
+								(pluginSettings.rules || []).forEach(r => r.enabled = false);
+								await saveSettings();
+								renderRulesTable();
+								new Notice('All rules disabled');
+							}
+						).open();
+					});
+				turnOffBtn.buttonEl.style.marginLeft = '10px';
+
+				const rescanAllBtn = new ButtonComponent(bulkContainer)
+					.setButtonText('Rescan All Nested')
+					.onClick(async () => {
+						rescanAllBtn.setDisabled(true);
+						await this.router.rescanAllNestedAssets();
+						rescanAllBtn.setDisabled(false);
+					});
+				rescanAllBtn.buttonEl.style.marginLeft = '10px';
+
+				// Form to add new rule
+				new Setting(containerEl).setName('Add New Captain Folder Rule').setHeading();
+				const addRuleDiv = containerEl.createDiv();
+				addRuleDiv.style.border = '1px solid var(--background-modifier-border)';
+				addRuleDiv.style.padding = '15px';
+				addRuleDiv.style.borderRadius = '8px';
+				addRuleDiv.style.marginBottom = '20px';
+
+				let newPath = '';
+				let newScope = 'children';
+				let newSubCaptain = false;
+				let newTitleOverride: TitleOverrideOption = 'inherit';
+
+				new Setting(addRuleDiv)
+					.setName('Folder Path')
+					.setDesc('Relative path from vault root (e.g. folderb or folderb/*)')
+					.addText(text => {
+						text.setPlaceholder('e.g. folderb/projects')
+							.onChange(value => newPath = value.trim());
+						new FolderSuggest(this.app, text.inputEl);
+					});
+
+				new Setting(addRuleDiv)
+					.setName('Rule Scope')
+					.setDesc('Should this rule apply to subfolders too?')
+					.addDropdown(dropdown => dropdown
+						.addOption('folder', 'Folder Only (Exclude Children)')
+						.addOption('children', 'Include Children')
+						.setValue(newScope)
+						.onChange(value => newScope = value));
+
+				new Setting(addRuleDiv)
+					.setName('Auto Sub-Captain Mode')
+					.setDesc('Treat each subfolder under this Captain Folder as an independent Sub-Captain with its own assets/ directory.')
+					.addToggle(toggle => toggle
+						.setValue(newSubCaptain)
+						.onChange(value => newSubCaptain = value));
+
+				new Setting(addRuleDiv)
+					.setName('Note Title Override')
+					.setDesc('How to handle Note Title frontmatter parsing for this folder.')
+					.addDropdown(dropdown => dropdown
+						.addOption('inherit', 'Inherit Default')
+						.addOption('always', 'Always Use Title')
+						.addOption('never', 'Never Use Title')
+						.setValue(newTitleOverride)
+						.onChange((value: string) => newTitleOverride = value as TitleOverrideOption));
+
+				const addBtnContainer = addRuleDiv.createDiv();
+				addBtnContainer.style.textAlign = 'right';
+				addBtnContainer.style.marginTop = '10px';
+
+				const rulesTableContainer = containerEl.createDiv({ cls: 'asset-router-rules-table-container' });
+
+				const renderRulesTable = () => {
+					rulesTableContainer.empty();
+					if (!pluginSettings.rules || pluginSettings.rules.length === 0) {
+						rulesTableContainer.createEl('p', { text: 'No Captain Folder rules configured yet.', cls: 'setting-item-description' });
+						return;
+					}
+
+					const table = rulesTableContainer.createEl('table');
+					table.style.width = '100%';
+					const thead = table.createEl('thead');
+					const headerRow = thead.createEl('tr');
+					headerRow.createEl('th', { text: 'Active' });
+					headerRow.createEl('th', { text: 'Folder Path' });
+					headerRow.createEl('th', { text: 'Scope' });
+					headerRow.createEl('th', { text: 'Sub-Captain' });
+					headerRow.createEl('th', { text: 'Title' });
+					headerRow.createEl('th', { text: 'Actions' });
+
+					const tbody = table.createEl('tbody');
+					pluginSettings.rules.forEach((rule, idx) => {
+						const row = tbody.createEl('tr');
+						const activeTd = row.createEl('td');
+						const toggle = activeTd.createEl('input');
+						toggle.type = 'checkbox';
+						toggle.checked = rule.enabled;
+						toggle.onchange = async () => {
+							rule.enabled = toggle.checked;
+							await saveSettings();
+						};
+
+						row.createEl('td', { text: rule.path === '' ? '/' : rule.path });
+						row.createEl('td', { text: rule.includeChildren ? 'Children' : 'Folder' });
+						row.createEl('td', { text: rule.subCaptainMode ? 'Yes' : 'No' });
+						row.createEl('td', { text: rule.useNoteTitle });
+
+						const actionsTd = row.createEl('td');
+						const rescanBtn = new ButtonComponent(actionsTd)
+							.setButtonText('Rescan')
+							.onClick(async () => {
+								rescanBtn.setDisabled(true);
+								await this.router.rescanFolderRuleAssets(rule);
+								rescanBtn.setDisabled(false);
+							});
+						rescanBtn.buttonEl.style.marginRight = '8px';
+
+						const delBtn = new ButtonComponent(actionsTd)
+							.setButtonText('Delete')
+							.setWarning()
+							.onClick(async () => {
+								pluginSettings.rules.splice(idx, 1);
+								await saveSettings();
+								renderRulesTable();
 							});
 					});
+				};
+
+				new ButtonComponent(addBtnContainer)
+					.setButtonText('Add Rule')
+					.setCta()
+					.onClick(async () => {
+						if (!pluginSettings.rules) pluginSettings.rules = [];
+						pluginSettings.rules.push({
+							path: newPath,
+							isNested: true,
+							includeChildren: newScope === 'children',
+							subCaptainMode: newSubCaptain,
+							useNoteTitle: newTitleOverride,
+							enabled: true,
+						});
+						await saveSettings();
+						renderRulesTable();
+						new Notice(`Rule added: ${newPath || '/'}`);
+					});
+
+				renderRulesTable();
 			}
 		});
 
@@ -622,7 +950,7 @@ export default class PakCLITablePlugin extends Plugin {
 					.setHeading();
 
 				new Setting(containerEl)
-					.setName('Codeblock Wrap & Flow Mode')
+					.setName('Default Codeblock Wrap & Flow Mode')
 					.setDesc('Choose how long code lines are handled in Live Preview and Reading views.')
 					.addDropdown((d) => {
 						d.addOption('flowclip', 'Flow Clip (Horizontal Scrollbar)')
@@ -633,6 +961,7 @@ export default class PakCLITablePlugin extends Plugin {
 								this.settings.codeblockWrapMode = v as 'flowclip' | 'wrap' | 'scalefit';
 								this.applyCodeblockStyle();
 								await this.saveSettings();
+								this.codeblockScaler.scheduleRescale();
 							});
 					});
 
@@ -646,6 +975,105 @@ export default class PakCLITablePlugin extends Plugin {
 								await this.saveSettings();
 							});
 					});
+
+				new Setting(containerEl)
+					.setName('Per-Language Rules')
+					.setDesc('Customize behavior for specific languages (e.g., ascii, python, sql, markdown).')
+					.setHeading();
+
+				const rulesBox = containerEl.createDiv({ cls: 'pakcli-codeblock-rules-section' });
+
+				const renderLangRules = () => {
+					rulesBox.empty();
+					const rules = this.settings.codeblockLanguageRules || [];
+
+					if (rules.length === 0) {
+						rulesBox.createEl('p', {
+							text: 'No per-language rules configured. Default wrap mode applies to all languages.',
+							cls: 'setting-item-description'
+						});
+					} else {
+						const table = rulesBox.createEl('table');
+						table.style.width = '100%';
+						table.style.marginBottom = '12px';
+						const thead = table.createEl('thead');
+						const hRow = thead.createEl('tr');
+						hRow.createEl('th', { text: 'Language' });
+						hRow.createEl('th', { text: 'Behavior' });
+						hRow.createEl('th', { text: 'Actions' });
+
+						const tbody = table.createEl('tbody');
+						rules.forEach((rule, idx) => {
+							const row = tbody.createEl('tr');
+							row.createEl('td', { text: rule.language });
+
+							const behaviorTd = row.createEl('td');
+							const sel = behaviorTd.createEl('select', { cls: 'dropdown' });
+							sel.createEl('option', { text: 'Scale Fit (Auto Vector)', value: 'scalefit' }).selected = rule.behavior === 'scalefit';
+							sel.createEl('option', { text: 'Flow Clip (Scrollbar)', value: 'flowclip' }).selected = rule.behavior === 'flowclip';
+							sel.createEl('option', { text: 'Word Wrap', value: 'wrap' }).selected = rule.behavior === 'wrap';
+							sel.onchange = async () => {
+								rule.behavior = sel.value as 'scalefit' | 'flowclip' | 'wrap';
+								await this.saveSettings();
+								this.codeblockScaler.scheduleRescale();
+							};
+
+							const actTd = row.createEl('td');
+							const delBtn = new ButtonComponent(actTd)
+								.setButtonText('Delete')
+								.setWarning()
+								.onClick(async () => {
+									this.settings.codeblockLanguageRules.splice(idx, 1);
+									await this.saveSettings();
+									this.codeblockScaler.scheduleRescale();
+									renderLangRules();
+								});
+						});
+					}
+
+					// Add new rule form
+					let newLang = '';
+					let newBehavior: 'scalefit' | 'flowclip' | 'wrap' = 'scalefit';
+
+					new Setting(rulesBox)
+						.setName('Add Language Rule')
+						.setDesc('Define a custom behavior for a specific language tag.')
+						.addText((t) => {
+							t.setPlaceholder('e.g. ascii, python, sql')
+								.onChange((v) => { newLang = v.trim().toLowerCase(); });
+						})
+						.addDropdown((d) => {
+							d.addOption('scalefit', 'Scale Fit')
+								.addOption('flowclip', 'Flow Clip')
+								.addOption('wrap', 'Word Wrap')
+								.setValue(newBehavior)
+								.onChange((v) => { newBehavior = v as 'scalefit' | 'flowclip' | 'wrap'; });
+						})
+						.addButton((b) => {
+							b.setButtonText('+ Add Rule')
+								.setCta()
+								.onClick(async () => {
+									if (!newLang) {
+										new Notice('Please enter a language identifier.');
+										return;
+									}
+									if (!this.settings.codeblockLanguageRules) {
+										this.settings.codeblockLanguageRules = [];
+									}
+									this.settings.codeblockLanguageRules.push({
+										id: String(Date.now()),
+										language: newLang,
+										behavior: newBehavior
+									});
+									await this.saveSettings();
+									this.codeblockScaler.scheduleRescale();
+									renderLangRules();
+									new Notice(`Added rule for "${newLang}".`);
+								});
+						});
+				};
+
+				renderLangRules();
 			}
 		});
 

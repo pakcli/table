@@ -67,32 +67,37 @@ export const SQLSealLangDefinition = (views: ViewDefinition[], flags: readonly F
 `
 }
 
+interface SemanticNode extends ohm.Node {
+    toObject(): unknown;
+    asIteration(): ohm.IterationNode & { children: SemanticNode[] };
+}
+
 const generateSemantic = (grammar: ohm.Grammar) => {
     const s = grammar.createSemantics()
 
-    const operations: ohm.ActionDict<any> = {
-        Grammar: (entries: any, selectStatement: any) => {
+    const operations: ohm.ActionDict<unknown> = {
+        Grammar: (entries: ohm.Node, selectStatement?: ohm.Node) => {
             const res = {
-                flags: {
-                },
+                flags: {} as Record<string, unknown>,
                 renderer: {
                     name: 'GRID',
                     options: ''
                 },
-                tables: [] as any[],
+                tables: [] as TableDefinition[],
                 query: ''
             }
             if (entries.children.length) {
-                entries.children.forEach((c: any) => {
+                entries.children.forEach((c: ohm.Node) => {
+                    const node = c as unknown as SemanticNode;
                     switch (c.ctorName) {
                         case 'TableExpression':
-                            res.tables.push(c.toObject())
+                            res.tables.push(node.toObject() as TableDefinition)
                             break;
                         case 'ViewExpression':
-                            res.renderer = c.toObject()
+                            res.renderer = node.toObject() as { name: string; options: string }
                             break
                         case 'FlagExpression':
-                            res.flags = { ...res.flags, ...c.toObject() }
+                            res.flags = { ...res.flags, ...(node.toObject() as Record<string, unknown>) }
                             break
                     }
                 })
@@ -101,70 +106,77 @@ const generateSemantic = (grammar: ohm.Grammar) => {
                 res.query = selectStatement.sourceString
             }
 
-        return res
+            return res
        },
-       TableExpression: (_table: any, identifier: any, _eq: any, tableDef: any) => {
-        return {
-            tableAlias: identifier.sourceString ,
-            ...tableDef.toObject()
-        }
+       TableExpression: (_table: ohm.Node, identifier: ohm.Node, _eq: ohm.Node, tableDef: ohm.Node) => {
+            const tableNode = tableDef as unknown as SemanticNode;
+            return {
+                tableAlias: identifier.sourceString,
+                ...(tableNode.toObject() as Record<string, unknown>)
+            }
        },
-       TableDefinition_file: (_file: any, args: any, _close: any) => {
-        return {
-            arguments: args.toObject(),
-            type: 'file'
-        }
+       TableDefinition_file: (_file: ohm.Node, args: ohm.Node, _close: ohm.Node) => {
+            const argsNode = args as unknown as SemanticNode;
+            return {
+                arguments: argsNode.toObject(),
+                type: 'file'
+            }
        },
-       TableFileExpressionArgs: (filename: any, _sep: any, rest: any) => {
-        // ...rest.asIteration().children.map((c: ohm.Node) => c.toObject().trim())
-        let remaining = []
-        if (rest.children.length) {
-            remaining = rest.children[0].asIteration().children.map((c: any) => c.toObject().trim())
-        }
-        return [filename.toObject(), ...remaining]
+       TableFileExpressionArgs: (filename: ohm.Node, _sep: ohm.Node, rest: ohm.Node) => {
+            let remaining: string[] = []
+            if (rest.children.length > 0) {
+                const iter = (rest.children[0] as unknown as SemanticNode).asIteration();
+                remaining = iter.children.map((c) => c.sourceString.trim())
+            }
+            return [filename.sourceString.trim(), ...remaining]
        },
-       TableDefinition_mdtable: (_file: any, args: any, _close: any) =>  {
-        return {
-            arguments: args.asIteration().children.map((c: any) => c.toObject().trim()),
-            type: 'table'
-        }
+       TableDefinition_mdtable: (_file: ohm.Node, args: ohm.Node, _close: ohm.Node) => {
+            const iter = (args as unknown as SemanticNode).asIteration();
+            return {
+                arguments: iter.children.map((c) => c.sourceString.trim()),
+                type: 'table'
+            }
        },
-       FlagExpression_refresh: (v: any) => {
-        return { refresh: true }
+       FlagExpression_refresh: (_v: ohm.Node) => {
+            return { refresh: true }
        },
-       FlagExpression_norefresh: (v: any) => {
-        return {refresh: false}
+       FlagExpression_norefresh: (_v: ohm.Node) => {
+            return { refresh: false }
        },
-       FlagExpression_explain: (v: any) => {
-        return { explain: true }
+       FlagExpression_explain: (_v: ohm.Node) => {
+            return { explain: true }
        },
-       ViewExpression: (view: any, options: any) => {
-        return {
-            type: view.toObject().toUpperCase(),
-            options: (options.sourceString ?? '').trim()
-        }
+       ViewExpression: (view: ohm.Node, options: ohm.Node) => {
+            return {
+                type: view.sourceString.trim().toUpperCase(),
+                options: (options.sourceString ?? '').trim()
+            }
        },
-       listElement_quoted: (_q: any, value: any, _q2: any) => value.sourceString,
-       listElement_unquoted: (v: any) => v.sourceString,
-       filename: (v: any) => {
-        const f = v.sourceString
-        if (f.length && f[0] === '"' && f[f.length - 1] === '"') {
-            return f.substring(1, f.length - 1)
-        }
-        return v.sourceString.trim()
+       listElement_quoted: (_q: ohm.Node, value: ohm.Node, _q2: ohm.Node) => value.sourceString,
+       listElement_unquoted: (v: ohm.Node) => v.sourceString,
+       filename: (v: ohm.Node) => {
+            const f = v.sourceString
+            if (f.length >= 2 && f[0] === '"' && f[f.length - 1] === '"') {
+                return f.substring(1, f.length - 1)
+            }
+            return v.sourceString.trim()
        },
-       _terminal() {
+       _terminal(this: ohm.TerminalNode) {
             return this.sourceString
-        }
+       }
     }
-    if ((grammar.rules['ExtraFlags'].body as any).ruleName) {
-        operations.ExtraFlags = (flag: any) => {
-            const key = flag.ctorName.substring('ExtraFlags_'.length)
-            return { [key]: true }
+    const extraFlagsRule = grammar.rules['ExtraFlags'];
+    if (extraFlagsRule && typeof extraFlagsRule === 'object' && 'body' in extraFlagsRule) {
+        const body = (extraFlagsRule as { body?: { ruleName?: string } }).body;
+        if (body?.ruleName) {
+            operations['ExtraFlags'] = (flag: ohm.Node) => {
+                const key = flag.ctorName.substring('ExtraFlags_'.length)
+                return { [key]: true }
+            }
         }
     }
 
-    s.addOperation<any>('toObject', operations)
+    s.addOperation<unknown>('toObject', operations)
 
     return s
 }
@@ -172,7 +184,7 @@ const generateSemantic = (grammar: ohm.Grammar) => {
 export interface TableDefinition {
     type: string,
     tableAlias: string,
-    arguments: [string]
+    arguments: string[]
 }
 
 export interface ParserResult {
@@ -193,10 +205,13 @@ export const parse = (query: string, views: ViewDefinition[], flags: readonly Fl
     const match = grammar.match(query)
     if (match.succeeded()) {
         // Converting
-        const s = generateSemantic(grammar)(match)
-        return s.toObject() as Partial<ParserResult>
+        const s = generateSemantic(grammar)(match) as unknown as { toObject(): Partial<ParserResult> };
+        return s.toObject()
     } else {
-        throw new Error((match as any).message || 'Unknown parsing error')
+        const errMessage = 'message' in match && typeof (match as { message?: unknown }).message === 'string'
+            ? (match as { message: string }).message
+            : 'Unknown parsing error';
+        throw new Error(errMessage)
     }
 }
 

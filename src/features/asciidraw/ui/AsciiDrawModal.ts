@@ -381,6 +381,7 @@ export class AsciiDrawModal extends Modal {
 			this.layerManager.getActiveBuffer().clear();
 			this.renderCanvas();
 			this.pushHistory();
+			new Notice(`Cleared active layer (${this.layerManager.cols}×${this.layerManager.rows} dimensions preserved).`);
 		};
 	}
 
@@ -844,11 +845,29 @@ export class AsciiDrawModal extends Modal {
 
 	private restoreSnapshot(snapshot: string): void {
 		const parsed = AsciiSerializer.parse(snapshot);
+		this.activeTheme = parsed.theme;
+		this.applyTheme();
+
 		if (parsed.layers && parsed.layers.length > 0) {
 			this.layerManager.loadLayerData(parsed.layers, parsed.cols, parsed.rows);
 		} else if (parsed.frames && parsed.frames.length > 0) {
+			this.layerManager.resizeAll(parsed.cols, parsed.rows);
 			this.layerManager.getActiveBuffer().fromString(parsed.frames[0]);
 		}
+
+		// Synchronize size inputs & dropdown in TopNav
+		if (this.containerElModal) {
+			const inputCols = this.containerElModal.querySelector('.asciidraw-size-input[title*="Width"]') as HTMLInputElement;
+			const inputRows = this.containerElModal.querySelector('.asciidraw-size-input[title*="Height"]') as HTMLInputElement;
+			const sizeSelect = this.containerElModal.querySelector('.asciidraw-select') as HTMLSelectElement;
+			if (inputCols) inputCols.value = String(this.layerManager.cols);
+			if (inputRows) inputRows.value = String(this.layerManager.rows);
+			if (sizeSelect) {
+				sizeSelect.value = `${this.layerManager.cols}x${this.layerManager.rows}`;
+				if (!sizeSelect.value) sizeSelect.value = '0x0';
+			}
+		}
+
 		this.renderLayersList();
 		this.renderCanvas();
 	}

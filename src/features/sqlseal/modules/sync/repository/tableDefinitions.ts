@@ -59,7 +59,7 @@ export class TableDefinitionsRepository extends Repository {
         if (!data.length) {
             return null
         }
-        return (data as TableDefinition[]).map(parseDbEntry)
+        return (data as unknown as TableDefinition[]).map(parseDbEntry)
     }
 
     async getByRefreshId(refreshId: string) {

@@ -7,6 +7,12 @@ import { registerObservers } from "../../../../utils/registerObservers";
 import { displayError } from "../../../../utils/ui";
 import { Settings } from "../../../settings/Settings";
 
+function toErrorMessage(e: unknown): string {
+    if (e instanceof Error) return e.message;
+    if (typeof e === 'string') return e;
+    return 'Unknown error';
+}
+
 export class InlineProcessor extends MarkdownRenderChild {
     private registrator: OmnibusRegistrator;
 
@@ -23,11 +29,15 @@ export class InlineProcessor extends MarkdownRenderChild {
         this.registrator = this.sync.getRegistrator();
     }
 
-    async onload() {
+    onload() {
+        void this.init();
+    }
+
+    private async init() {
         try {
             await this.render();
         } catch (e) {
-            displayError(this.el, e.toString());
+            displayError(this.el, toErrorMessage(e));
         }
     }
 
@@ -47,9 +57,11 @@ export class InlineProcessor extends MarkdownRenderChild {
                 registerObservers({
                     bus: this.registrator,
                     tables: transformedQuery.mappedTables,
-                    callback: () => this.render(),
+                    callback: () => {
+                        void this.render();
+                    },
                     fileName: this.sourcePath
-                })
+                });
             }
 
             const file = this.app.vault.getFileByPath(this.sourcePath);
@@ -67,22 +79,26 @@ export class InlineProcessor extends MarkdownRenderChild {
                 basename: file.basename,
                 parent: file.parent?.path,
                 extension: file.extension,
-            }
+            };
 
-            const { data, columns } = (await this.db.select(
+            const queryRes = await this.db.select(
                 transformedQuery.sql,
                 variables
-            )); // FIXME: better code here.
+            );
+            const data = queryRes?.data ?? [];
+            const columns = queryRes?.columns ?? [];
 
-            this.el.empty()
-            let value = data[0][columns[0]] ?? ''
-            if (typeof value !== 'string') {
-                value = value?.toString()
-            }
-            this.el.createSpan({ text: value })
+            this.el.empty();
+            const firstRow = data[0];
+            const firstCol = columns[0];
+            const rawVal = (firstRow && firstCol) ? firstRow[firstCol] : '';
+            const value = (typeof rawVal === 'string' || typeof rawVal === 'number' || typeof rawVal === 'boolean')
+                ? String(rawVal)
+                : (rawVal ? JSON.stringify(rawVal) : '');
+            this.el.createSpan({ text: value });
 
         } catch (e) {
-            displayError(this.el, e.toString())
+            displayError(this.el, toErrorMessage(e));
         }
     }
 }

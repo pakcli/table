@@ -5,6 +5,19 @@ export interface Point {
     y: number;
 }
 
+// Generate a smooth circular polygon (steps points around centroid)
+export function generateCircleHull(centroid: Point, radius: number, steps: number = 48): Point[] {
+    const res: Point[] = [];
+    for (let i = 0; i < steps; i++) {
+        const angle = (i / steps) * Math.PI * 2;
+        res.push({
+            x: centroid.x + Math.cos(angle) * radius,
+            y: centroid.y + Math.sin(angle) * radius
+        });
+    }
+    return res;
+}
+
 // Monotone chain algorithm for 2D convex hull
 function crossProduct(o: Point, a: Point, b: Point): number {
     return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
@@ -44,23 +57,13 @@ export function generateStadiumHull(p1: Point, p2: Point, padding: number): Poin
     const len = Math.hypot(dx, dy);
 
     if (len < 1) {
-        const res: Point[] = [];
-        const steps = 16;
-        for (let i = 0; i < steps; i++) {
-            const angle = (i / steps) * Math.PI * 2;
-            res.push({
-                x: p1.x + Math.cos(angle) * padding,
-                y: p1.y + Math.sin(angle) * padding
-            });
-        }
-        return res;
+        return generateCircleHull(p1, padding, 16);
     }
 
     const angle = Math.atan2(dy, dx);
     const res: Point[] = [];
     const steps = 8;
 
-    // Semicircular end cap around p2 (extending outward past p2 in direction of angle)
     for (let i = 0; i <= steps; i++) {
         const a = (angle - Math.PI / 2) + (i / steps) * Math.PI;
         res.push({
@@ -69,7 +72,6 @@ export function generateStadiumHull(p1: Point, p2: Point, padding: number): Poin
         });
     }
 
-    // Semicircular end cap around p1 (extending outward past p1 in direction of angle + PI)
     for (let i = 0; i <= steps; i++) {
         const a = (angle + Math.PI / 2) + (i / steps) * Math.PI;
         res.push({
@@ -85,25 +87,12 @@ export function generateStadiumHull(p1: Point, p2: Point, padding: number): Poin
 export function expandHull(hull: Point[], centroid: Point, padding: number): Point[] {
     if (hull.length === 0) return [];
     if (hull.length === 1) {
-        // Generate a 16-point circle around single node
-        const p = hull[0];
-        const res: Point[] = [];
-        const steps = 16;
-        for (let i = 0; i < steps; i++) {
-            const angle = (i / steps) * Math.PI * 2;
-            res.push({
-                x: p.x + Math.cos(angle) * padding,
-                y: p.y + Math.sin(angle) * padding
-            });
-        }
-        return res;
+        return generateCircleHull(hull[0], padding, 16);
     }
     if (hull.length === 2) {
-        // Proper capsule stadium with semicircular end caps: both nodes are well inside
         return generateStadiumHull(hull[0], hull[1], padding);
     }
 
-    // For polygons with 3+ points, expand along outward direction with slight corner expansion to offset Bezier rounding
     return hull.map(pt => {
         const dx = pt.x - centroid.x;
         const dy = pt.y - centroid.y;
@@ -119,6 +108,7 @@ export function expandHull(hull: Point[], centroid: Point, padding: number): Poi
 export function createSmoothHullPath(ctx: CanvasRenderingContext2D, points: Point[]): void {
     if (points.length < 3) {
         if (points.length === 2) {
+            ctx.beginPath();
             ctx.moveTo(points[0].x, points[0].y);
             ctx.lineTo(points[1].x, points[1].y);
         }
@@ -144,7 +134,10 @@ export function updateClusterHulls(
     padding: number = 18,
     visibleNodeIds?: Set<string> | null
 ): void {
-    for (const cluster of clusters) {
+    // Process subclusters (depth 2) first so top-level clusters (depth 1) know subcluster boundaries
+    const sorted = [...clusters].sort((a, b) => b.depth - a.depth);
+
+    for (const cluster of sorted) {
         let clusterNodes = cluster.nodeIds
             .map(id => nodeMap.get(id))
             .filter((n): n is BubbleNode => Boolean(n));
@@ -163,64 +156,55 @@ export function updateClusterHulls(
         // 1. Calculate Centroid
         let sumX = 0;
         let sumY = 0;
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-
         for (const n of clusterNodes) {
             sumX += n.x;
             sumY += n.y;
-            minX = Math.min(minX, n.x - n.radius);
-            minY = Math.min(minY, n.y - n.radius);
-            maxX = Math.max(maxX, n.x + n.radius);
-            maxY = Math.max(maxY, n.y + n.radius);
+        }
+        const count = clusterNodes.length;
+        const avgCentroid = { x: sumX / count, y: sumY / count };
+
+        // For subclusters (depth 2), centroid directly tracks member nodes
+        // For top clusters (depth 1), preserve simulation-positioned centroid if valid
+        if (cluster.depth === 2 || !cluster.centroid || (cluster.centroid.x === 0 && cluster.centroid.y === 0 && count > 0)) {
+            cluster.centroid = avgCentroid;
         }
 
-        const count = clusterNodes.length;
-        cluster.centroid = { x: sumX / count, y: sumY / count };
-
-        // 2. Add generous padding to bounding box and hull (nodes deeply inside)
-        const effPadding = cluster.depth === 1 ? padding + 8 : padding + 4;
-        cluster.boundingBox = {
-            minX: minX - effPadding,
-            minY: minY - effPadding,
-            maxX: maxX + effPadding,
-            maxY: maxY + effPadding
-        };
-
+        // 2. Measure maximum distance from centroid to enclose all nodes
         let maxR = 0;
         for (const n of clusterNodes) {
             const d = Math.hypot(n.x - cluster.centroid.x, n.y - cluster.centroid.y) + n.radius;
             if (d > maxR) maxR = d;
         }
 
-        const minR = clusterNodes.length <= 1 
-            ? 30 
-            : (clusterNodes.length === 2 ? 38 : (cluster.depth === 1 ? Math.min(56, 30 + clusterNodes.length * 5) : 24));
-        if (!cluster.radius || cluster.radius === 0) {
-            cluster.radius = Math.max(minR, maxR + effPadding);
-        } else {
-            cluster.radius = Math.max(cluster.radius, minR);
+        // For parent cluster, also enclose any child subclusters
+        if (cluster.depth === 1) {
+            const childSubs = clusters.filter(s => s.depth === 2 && s.parentClusterId === cluster.id && s.radius > 0);
+            for (const sub of childSubs) {
+                const d = Math.hypot(sub.centroid.x - cluster.centroid.x, sub.centroid.y - cluster.centroid.y) + sub.radius;
+                if (d > maxR) maxR = d;
+            }
         }
 
-        // 3. Compute Convex Hull with boundary containment safety
-        const limitR = cluster.radius - 2;
-        const points: Point[] = clusterNodes.map(n => {
-            const dx = n.x - cluster.centroid.x;
-            const dy = n.y - cluster.centroid.y;
-            const d = Math.hypot(dx, dy) || 0.001;
-            if (d > limitR) {
-                return {
-                    x: cluster.centroid.x + (dx / d) * limitR,
-                    y: cluster.centroid.y + (dy / d) * limitR
-                };
-            }
-            return { x: n.x, y: n.y };
-        });
-        const rawHull = computeConvexHull(points);
+        // 3. Compute aesthetic circular radius with generous breathing room
+        const effPadding = cluster.depth === 1 ? padding + 8 : padding + 4;
+        const minR = clusterNodes.length <= 1 
+            ? (cluster.depth === 1 ? 36 : 22)
+            : clusterNodes.length === 2 
+                ? (cluster.depth === 1 ? 46 : 30) 
+                : (cluster.depth === 1 ? Math.max(54, cluster.radius || 0) : Math.max(26, cluster.radius || 0));
 
-        // 4. Expand Hull
-        cluster.hullPolygon = expandHull(rawHull, cluster.centroid, effPadding);
+        cluster.radius = Math.max(minR, maxR + effPadding, cluster.radius || 0);
+
+        // 4. Update Bounding Box strictly around the circle
+        cluster.boundingBox = {
+            minX: cluster.centroid.x - cluster.radius,
+            minY: cluster.centroid.y - cluster.radius,
+            maxX: cluster.centroid.x + cluster.radius,
+            maxY: cluster.centroid.y + cluster.radius
+        };
+
+        // 5. Generate smooth circular hull polygon (48 vertices)
+        cluster.hullPolygon = generateCircleHull(cluster.centroid, cluster.radius, 48);
     }
 }
+

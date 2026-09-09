@@ -60,10 +60,10 @@ export class TableAliasesRepository extends Repository {
                     'source_file_name': sourceFileName,
                     'alias_name': aliasName
                 }))
-        if (!data || data.length < 0) {
+        if (!data || data.length === 0) {
             return null
         }
-        return data[0] as TableAlias
+        return data[0] as unknown as TableAlias
     }
 
     async getByTableName(tableName: string) {
@@ -74,7 +74,7 @@ export class TableAliasesRepository extends Repository {
         if (!data) {
             return []
         }
-        return data as TableAlias[]
+        return data as unknown as TableAlias[]
     }
 
 

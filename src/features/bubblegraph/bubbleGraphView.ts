@@ -866,7 +866,12 @@ export class BubbleGraphView extends ItemView {
             }
         }
 
-        for (const cluster of this.graphData.clusters) {
+        // Check nested subclusters (depth 2) before parent clusters (depth 1)
+        const sorted = [...this.graphData.clusters].sort((a, b) => b.depth - a.depth);
+
+        for (const cluster of sorted) {
+            if (cluster.radius <= 0) continue;
+
             if (visibleSet || cutoff) {
                 const hasVisible = cluster.nodeIds.some(id => {
                     const n = this.graphData.nodeMap.get(id);
@@ -878,8 +883,8 @@ export class BubbleGraphView extends ItemView {
                 if (!hasVisible) continue;
             }
 
-            const b = cluster.boundingBox;
-            if (worldX >= b.minX && worldX <= b.maxX && worldY >= b.minY && worldY <= b.maxY) {
+            const dist = Math.hypot(worldX - cluster.centroid.x, worldY - cluster.centroid.y);
+            if (dist <= cluster.radius) {
                 return cluster;
             }
         }

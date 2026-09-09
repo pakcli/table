@@ -20,12 +20,27 @@ export interface PluginWithSettings extends Plugin {
   applyBadgeSetting?: () => void;
 }
 
+export interface PluginManagerLike {
+  enablePlugin: (id: string) => Promise<void>;
+  disablePlugin: (id: string) => Promise<void>;
+  plugins?: Record<string, Plugin>;
+}
+
 export type AppWithPlugins = App & {
   setting?: {
     open?: () => void;
     openTabById?: (id: string) => void;
   };
+  plugins?: PluginManagerLike;
 };
+
+function toSafeString(val: unknown): string {
+  if (typeof val === "string") return val;
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  if (val instanceof Date) return val.toISOString();
+  if (val === null || val === undefined) return "";
+  return JSON.stringify(val);
+}
 
 // Global window memory history stack for live Undo / Redo across all tabs
 declare global {
@@ -62,7 +77,7 @@ export class VaultConfigActionModal extends Modal {
     contentEl.addClass("pakcli-config-modal-root");
 
     new Setting(contentEl)
-      .setName("⚙️ Vault Config Action")
+      .setName("Vault config action")
       .setDesc(`Selected snapshot: ${this.selectedSnapshot.name}`)
       .setHeading();
 
@@ -77,7 +92,7 @@ export class VaultConfigActionModal extends Modal {
     const replaceCard = actionsGrid.createDiv({ cls: "pakcli-action-card replace" });
     replaceCard.createDiv({ cls: "pakcli-card-title", text: "🔄 Replace" });
     replaceCard.createDiv({ cls: "pakcli-card-desc", text: "Apply snapshot settings to your active plugin immediately." });
-    const replaceBtn = replaceCard.createEl("button", { text: "Replace Active", cls: "pakcli-btn-replace" });
+    const replaceBtn = replaceCard.createEl("button", { text: "Replace active", cls: "pakcli-btn-replace" });
     replaceBtn.onclick = async () => {
       const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
       const restored = await loadVaultConfig(this.app, pluginId, this.selectedSnapshot.path);
@@ -92,9 +107,9 @@ export class VaultConfigActionModal extends Modal {
           await pluginWithSettings.saveSettings();
         }
         eventBus.emit("settings:updated", { pluginId });
-        new Notice(`✅ Replaced active settings from ${this.selectedSnapshot.name}!`);
+        new Notice(`Replaced active settings from ${this.selectedSnapshot.name}.`);
       } else {
-        new Notice("ℹ️ Snapshot file was empty or could not be loaded.");
+        new Notice("Snapshot file was empty or could not be loaded.");
       }
       this.close();
       this.onComplete();
@@ -104,12 +119,12 @@ export class VaultConfigActionModal extends Modal {
     const overwriteCard = actionsGrid.createDiv({ cls: "pakcli-action-card overwrite" });
     overwriteCard.createDiv({ cls: "pakcli-card-title", text: "💾 Overwrite" });
     overwriteCard.createDiv({ cls: "pakcli-card-desc", text: "Overwrite this snapshot file with your current active settings." });
-    const overwriteBtn = overwriteCard.createEl("button", { text: "Overwrite Snapshot", cls: "pakcli-btn-overwrite" });
+    const overwriteBtn = overwriteCard.createEl("button", { text: "Overwrite snapshot", cls: "pakcli-btn-overwrite" });
     overwriteBtn.onclick = async () => {
       const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
       const pluginWithSettings = this.plugin as PluginWithSettings;
       await saveVaultConfig(this.app, pluginId, pluginWithSettings.settings || {});
-      new Notice("✅ Overwritten snapshot with current settings!");
+      new Notice("Overwritten snapshot with current settings.");
       this.close();
       this.onComplete();
     };
@@ -118,12 +133,12 @@ export class VaultConfigActionModal extends Modal {
     const duplicateCard = actionsGrid.createDiv({ cls: "pakcli-action-card duplicate" });
     duplicateCard.createDiv({ cls: "pakcli-card-title", text: "📑 Duplicate" });
     duplicateCard.createDiv({ cls: "pakcli-card-desc", text: "Save current active settings as a new separate snapshot copy." });
-    const duplicateBtn = duplicateCard.createEl("button", { text: "Duplicate New", cls: "pakcli-btn-duplicate" });
+    const duplicateBtn = duplicateCard.createEl("button", { text: "Duplicate new", cls: "pakcli-btn-duplicate" });
     duplicateBtn.onclick = async () => {
       const pluginId = this.plugin.manifest.id as "pakcli-local" | "pakcli-table" | "pakcli-agent";
       const pluginWithSettings = this.plugin as PluginWithSettings;
       await saveVaultConfig(this.app, pluginId, pluginWithSettings.settings || {}, "copy");
-      new Notice("✅ Created a new duplicated snapshot in pakcli-vault-config!");
+      new Notice("Created a new duplicated snapshot in pakcli-vault-config.");
       this.close();
       this.onComplete();
     };
@@ -162,6 +177,22 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
   registerLocalSection(handler: SettingsSectionHandler) {
     this.localHandlers.set(handler.id, handler);
+  }
+
+  public openSection(sectionId: string): void {
+    this.activeSectionId = sectionId;
+    this.isMobileSidebarOpen = false;
+    const layout = this.containerEl.querySelector<HTMLElement>(".pakcli-master-detail-layout");
+    if (layout) {
+      layout.removeClass("mobile-sidebar-open");
+      const sidebar = layout.querySelector(".pakcli-nav-list");
+      if (sidebar) this.updateSidebarItems(sidebar as HTMLElement, layout);
+      const contentPane = layout.querySelector<HTMLElement>(".pakcli-content-pane");
+      if (contentPane) this.renderContent(contentPane);
+    }
+    const mobileVal = this.containerEl.querySelector(".pakcli-mobile-value");
+    const mod = ECOSYSTEM_MODULES.find((m) => m.id === sectionId);
+    if (mobileVal && mod) mobileVal.setText(mod.title);
   }
 
   getSettingDefinitions(): SettingDefinitionItem[] {
@@ -244,8 +275,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       }
 
       eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id });
-      new Notice("↶ Undone setting change (Memory Snapshot)");
-      this.display();
+      new Notice("Undone setting change (memory snapshot)");
+      void this.refreshDisplay();
     }
   }
 
@@ -273,12 +304,16 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       }
 
       eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id });
-      new Notice("↷ Redone setting change (Memory Snapshot)");
-      this.display();
+      new Notice("Redone setting change (memory snapshot)");
+      void this.refreshDisplay();
     }
   }
 
-  async display(): Promise<void> {
+  display(): void {
+    void this.refreshDisplay();
+  }
+
+  async refreshDisplay(): Promise<void> {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("pakcli-master-detail-root");
@@ -299,7 +334,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     // Top Bar
     const topBar = containerEl.createDiv({ cls: "pakcli-topbar" });
     new Setting(topBar)
-      .setName("⚙️ PakCLI Suite")
+      .setName("Suite overview")
       .setDesc("Unified ecosystem settings, diagnostics, and module hub.")
       .setHeading();
 
@@ -313,37 +348,39 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     const historyWrap = topActions.createDiv({ cls: "pakcli-history-btn-wrap" });
 
     const undoBtn = historyWrap.createEl("button", {
-      text: "↶ Undo",
+      text: "Undo",
       cls: `pakcli-history-btn pakcli-undo-btn ${!canUndo ? "is-disabled" : ""}`,
     });
-    undoBtn.title = canUndo ? "Undo settings change (Memory)" : "No more undo steps";
+    undoBtn.title = canUndo ? "Undo settings change (memory)" : "No more undo steps";
     undoBtn.onclick = () => this.performMemoryUndo();
 
     const redoBtn = historyWrap.createEl("button", {
-      text: "↷ Redo",
+      text: "Redo",
       cls: `pakcli-history-btn pakcli-redo-btn ${!canRedo ? "is-disabled" : ""}`,
     });
-    redoBtn.title = canRedo ? "Redo settings change (Memory)" : "No more redo steps";
+    redoBtn.title = canRedo ? "Redo settings change (memory)" : "No more redo steps";
     redoBtn.onclick = () => this.performMemoryRedo();
 
     // 2. 1-Click Vault Config Save Button (Hourly Snapshot)
     const exportBtn = topActions.createEl("button", {
-      text: "💾 Save Config",
+      text: "Save config",
       cls: `pakcli-action-btn ${!isLocalActive ? "is-disabled-offline" : ""}`
     });
     
     if (isLocalActive) {
-      exportBtn.onclick = async () => {
-        const pluginWithSettings = this.plugin as PluginWithSettings;
-        await saveVaultConfig(this.app, pluginId, pluginWithSettings.settings || {});
-        new Notice(`✅ ${this.plugin.manifest.name} settings saved to pakcli-vault-config!`);
-        eventBus.emit("pl:vault-config-saved", { plugin: this.plugin.manifest.id });
-        this.display();
+      exportBtn.onclick = () => {
+        void (async () => {
+          const pluginWithSettings = this.plugin as PluginWithSettings;
+          await saveVaultConfig(this.app, pluginId, pluginWithSettings.settings || {});
+          new Notice(`${this.plugin.manifest.name} settings saved to pakcli-vault-config!`);
+          eventBus.emit("pl:vault-config-saved", { plugin: this.plugin.manifest.id });
+          void this.refreshDisplay();
+        })();
       };
     } else {
-      exportBtn.title = "Vault Config Snapshots require PakCLI Local plugin";
+      exportBtn.title = "Vault config snapshots require the pakcli-local plugin";
       exportBtn.onclick = () => {
-        new Notice("ℹ️ Vault Config Snapshots require the PakCLI Local plugin.");
+        new Notice("Vault config snapshots require the pakcli-local plugin.");
       };
     }
 
@@ -354,14 +391,14 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     });
     
     const placeholderOpt = selectEl.createEl("option", {
-      text: isLocalActive ? "🔄 Restore Config ▼" : "🔄 Restore Config (Requires Local)",
+      text: isLocalActive ? "Restore config ▼" : "Restore config (requires local)",
       value: ""
     });
     placeholderOpt.selected = true;
 
     if (isLocalActive) {
       for (const snap of snapshots) {
-        selectEl.createEl("option", { text: `📂 ${snap.name}`, value: snap.id });
+        selectEl.createEl("option", { text: snap.name, value: snap.id });
       }
 
       selectEl.onchange = () => {
@@ -371,7 +408,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
         selectEl.value = "";
 
         new VaultConfigActionModal(this.app, this.plugin, targetSnap, () => {
-          this.display();
+          void this.refreshDisplay();
         }).open();
       };
     } else {
@@ -463,18 +500,23 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       headerEl.createSpan({ text: "ACTIVE", cls: "pakcli-badge active" });
     } else if (isInstalled) {
       const enableBtn = headerEl.createEl("button", { text: "Enable", cls: "pakcli-get-btn" });
-      enableBtn.onclick = async (e) => {
+      enableBtn.onclick = (e) => {
         e.stopPropagation();
-        try {
-          await (this.app as any).plugins?.enablePlugin(targetPluginId);
-          new Notice(`🟢 Enabled ${label}!`);
-          this.display();
-        } catch {
-          new Notice(`Failed to enable ${label}`);
-        }
+        void (async () => {
+          try {
+            const appWithPlugins = this.app as AppWithPlugins;
+            if (appWithPlugins.plugins) {
+              await appWithPlugins.plugins.enablePlugin(targetPluginId);
+            }
+            new Notice(`Enabled ${label}.`);
+            void this.refreshDisplay();
+          } catch {
+            new Notice(`Failed to enable ${label}`);
+          }
+        })();
       };
     } else {
-      const getBtn = headerEl.createEl("button", { text: "+ Get", cls: "pakcli-get-btn" });
+      const getBtn = headerEl.createEl("button", { text: "Get", cls: "pakcli-get-btn" });
       getBtn.onclick = (e) => {
         e.stopPropagation();
         this.openObsidianStore(targetPluginId);
@@ -519,7 +561,7 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
       this.isMobileSidebarOpen = false;
       layoutContainer.removeClass("mobile-sidebar-open");
       const mobileBtn = this.containerEl.querySelector(".pakcli-mobile-toggle-btn");
-      if (mobileBtn) mobileBtn.setText("☰ Switch Module");
+      if (mobileBtn) mobileBtn.setText("Switch module");
       const mobileVal = this.containerEl.querySelector(".pakcli-mobile-value");
       if (mobileVal) mobileVal.setText(title);
       const sidebar = layoutContainer.querySelector(".pakcli-nav-list");
@@ -535,14 +577,14 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     
     // Quick switch button on mobile
     const quickSwitch = contentEl.createDiv({ cls: "pakcli-mobile-switch-btn" });
-    quickSwitch.setText("☰ Switch Module");
+    quickSwitch.setText("Switch module");
     quickSwitch.onclick = () => {
       this.isMobileSidebarOpen = true;
       const root = contentEl.closest(".pakcli-master-detail-root");
       const layout = root?.querySelector(".pakcli-master-detail-layout");
       if (layout) layout.addClass("mobile-sidebar-open");
       const toggleBtn = root?.querySelector(".pakcli-mobile-toggle-btn");
-      if (toggleBtn) toggleBtn.setText("✕ Close Menu");
+      if (toggleBtn) toggleBtn.setText("Close menu");
     };
 
     // 1. Diagnostics Wizard
@@ -606,50 +648,61 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
       if (field.type === "toggle") {
         s.addToggle((t) => {
-          t.setValue(Boolean(currentVal)).onChange(async (newVal) => {
-            this.recordMemorySnapshot(targetPlugin.settings);
-            settingsObj[field.key] = newVal;
-            if (typeof targetPlugin.saveSettings === "function") {
-              await targetPlugin.saveSettings();
-            }
-            if (typeof targetPlugin.applyCodeblockStyle === "function") {
-              targetPlugin.applyCodeblockStyle();
-            }
-            if (typeof targetPlugin.applyBadgeSetting === "function") {
-              targetPlugin.applyBadgeSetting();
-            }
-            this.recordMemorySnapshot(targetPlugin.settings);
-            eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
-            new Notice(`✅ Saved ${field.name}`);
+          t.setValue(Boolean(currentVal)).onChange((newVal) => {
+            void (async () => {
+              this.recordMemorySnapshot(targetPlugin.settings);
+              settingsObj[field.key] = newVal;
+              if (typeof targetPlugin.saveSettings === "function") {
+                await targetPlugin.saveSettings();
+              }
+              if (typeof targetPlugin.applyCodeblockStyle === "function") {
+                targetPlugin.applyCodeblockStyle();
+              }
+              if (typeof targetPlugin.applyBadgeSetting === "function") {
+                targetPlugin.applyBadgeSetting();
+              }
+              this.recordMemorySnapshot(targetPlugin.settings);
+              eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
+              new Notice(`Saved ${field.name}`);
+            })();
           });
         });
       } else if (field.type === "dropdown") {
         s.addDropdown((d) => {
-          field.options?.forEach((opt) => d.addOption(opt, opt));
-          d.setValue(String(currentVal)).onChange(async (newVal) => {
-            this.recordMemorySnapshot(targetPlugin.settings);
-            settingsObj[field.key] = newVal;
-            if (typeof targetPlugin.saveSettings === "function") {
-              await targetPlugin.saveSettings();
-            }
-            if (typeof targetPlugin.applyCodeblockStyle === "function") {
-              targetPlugin.applyCodeblockStyle();
-            }
-            this.recordMemorySnapshot(targetPlugin.settings);
-            eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
-            new Notice(`✅ Saved ${field.name}`);
+          field.options?.forEach((opt) => {
+            d.addOption(opt, opt);
+          });
+          d.setValue(toSafeString(currentVal)).onChange((newVal) => {
+            void (async () => {
+              this.recordMemorySnapshot(targetPlugin.settings);
+              settingsObj[field.key] = newVal;
+              if (typeof targetPlugin.saveSettings === "function") {
+                await targetPlugin.saveSettings();
+              }
+              if (typeof targetPlugin.applyCodeblockStyle === "function") {
+                targetPlugin.applyCodeblockStyle();
+              }
+              if (typeof targetPlugin.applyBadgeSetting === "function") {
+                targetPlugin.applyBadgeSetting();
+              }
+              this.recordMemorySnapshot(targetPlugin.settings);
+              eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
+              new Notice(`Saved ${field.name}`);
+            })();
           });
         });
       } else {
         s.addText((t) => {
-          t.setValue(String(currentVal || "")).onChange(async (newVal) => {
-            this.recordMemorySnapshot(targetPlugin.settings);
-            settingsObj[field.key] = newVal.trim();
-            if (typeof targetPlugin.saveSettings === "function") {
-              await targetPlugin.saveSettings();
-            }
-            this.recordMemorySnapshot(targetPlugin.settings);
-            eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
+          t.setValue(toSafeString(currentVal)).onChange((newVal) => {
+            void (async () => {
+              this.recordMemorySnapshot(targetPlugin.settings);
+              settingsObj[field.key] = newVal.trim();
+              if (typeof targetPlugin.saveSettings === "function") {
+                await targetPlugin.saveSettings();
+              }
+              this.recordMemorySnapshot(targetPlugin.settings);
+              eventBus.emit("settings:updated", { pluginId: targetPlugin.manifest.id, key: field.key, value: newVal });
+            })();
           });
         });
       }
@@ -658,37 +711,39 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
 
   private renderWizardSection(contentEl: HTMLElement): void {
     new Setting(contentEl)
-      .setName("🚀 System & Ecosystem Diagnostics")
+      .setName("System and ecosystem diagnostics")
       .setHeading();
 
     const banner = contentEl.createDiv({ cls: "pakcli-wizard-banner" });
     banner.createEl("p", {
-      text: "Scan your environment for PowerShell engine, symlink privileges, yt-dlp media binaries, and active suite modules.",
+      text: "Scan your environment for `PowerShell`, symlink privileges, `yt-dlp` media binaries, and active suite modules.",
     });
 
     const isLocalActive = this.isLocalPresent();
 
     if (isLocalActive) {
-      const runBtn = banner.createEl("button", { text: "🔍 Run Full Diagnostics", cls: "pakcli-btn-primary" });
-      runBtn.onclick = async () => {
-        runBtn.setText("Scanning system...");
-        runBtn.setAttribute("disabled", "true");
-        this.healthStatus = await runSystemDiagnostics();
-        this.renderWizardSection(contentEl);
+      const runBtn = banner.createEl("button", { text: "Run full diagnostics", cls: "pakcli-btn-primary" });
+      runBtn.onclick = () => {
+        void (async () => {
+          runBtn.setText("Scanning system...");
+          runBtn.setAttribute("disabled", "true");
+          this.healthStatus = await runSystemDiagnostics();
+          this.renderWizardSection(contentEl);
+        })();
       };
     } else {
       banner.createEl("p", {
         cls: "pakcli-diag-msg",
-        text: "ℹ️ Native system diagnostics (PowerShell, Symlinks, yt-dlp) require the PakCLI Local plugin.",
+        text: "Native system diagnostics (`PowerShell`, symlinks, `yt-dlp`) require the `pakcli-local` plugin.",
       });
-      const getBtn = banner.createEl("button", { text: "+ Enable or Get PakCLI Local", cls: "pakcli-btn-install" });
+      const getBtn = banner.createEl("button", { text: "Enable or get `pakcli-local`", cls: "pakcli-btn-install" });
       getBtn.onclick = () => this.openObsidianStore("pakcli-local");
     }
 
     if (this.healthStatus) {
       const resultsContainer = contentEl.createDiv({ cls: "pakcli-diagnostics-results" });
       new Setting(resultsContainer)
-        .setName("Diagnostic Report")
+        .setName("Diagnostic report")
         .setHeading();
 
       const items = [
@@ -719,40 +774,40 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     const blueprintBox = contentEl.createDiv({ cls: "pakcli-blueprint-box is-interactive-preview" });
 
     new Setting(blueprintBox)
-      .setName(`🌸 ${blueprint.title} (Add-on Preview)`)
+      .setName(`🌸 ${blueprint.title} (add-on preview)`)
       .setDesc(blueprint.description)
       .setHeading();
 
     // Interactive Notice Banner
     const banner = blueprintBox.createDiv({ cls: "pakcli-store-banner" });
     new Setting(banner)
-      .setName("📦 Module Available on Obsidian Community Store")
+      .setName("Module available on Obsidian community store")
       .setDesc("This module is not yet installed in your vault. Settings changes below operate in live sandbox mode.")
       .setHeading();
 
     const bannerActions = banner.createDiv({ cls: "pakcli-banner-action-row" });
     const ctaBtn = bannerActions.createEl("button", {
-      text: `+ Get ${blueprint.title}`,
+      text: `Get ${blueprint.title}`,
       cls: "pakcli-btn-install",
     });
     ctaBtn.onclick = () => this.openObsidianStore(blueprint.storeId);
 
     const resetBtn = bannerActions.createEl("button", {
-      text: "↺ Reset Sandbox",
+      text: "Reset sandbox",
       cls: "pakcli-btn-reset",
     });
     resetBtn.onclick = () => {
       blueprint.fields.forEach((f) => {
         state[f.key] = f.defaultVal;
       });
-      new Notice(`↺ Reset sandbox settings for ${blueprint.title}`);
+      new Notice(`Reset sandbox settings for ${blueprint.title}`);
       this.renderContent(contentEl);
     };
 
     // Live Interactive Simulation Form
     const form = blueprintBox.createDiv({ cls: "pakcli-preview-form is-live-sandbox" });
     new Setting(form)
-      .setName("Interactive Sandbox (Live Preview)")
+      .setName("Interactive sandbox (live preview)")
       .setDesc("You can freely test these toggles & options in live preview.")
       .setHeading();
 
@@ -769,15 +824,17 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
         });
       } else if (field.type === "dropdown") {
         s.addDropdown((d) => {
-          field.options?.forEach((opt) => d.addOption(opt, opt));
-          d.setValue(String(currentVal)).onChange((newVal) => {
+          field.options?.forEach((opt) => {
+            d.addOption(opt, opt);
+          });
+          d.setValue(toSafeString(currentVal)).onChange((newVal) => {
             state[field.key] = newVal;
             this.showUnsavedSandboxNotice(blueprint.title, blueprint.storeId);
           });
         });
       } else {
         s.addText((t) => {
-          t.setValue(String(currentVal || "")).onChange((newVal) => {
+          t.setValue(toSafeString(currentVal)).onChange((newVal) => {
             state[field.key] = newVal;
             this.showUnsavedSandboxNotice(blueprint.title, blueprint.storeId);
           });
@@ -786,8 +843,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     });
   }
 
-    private showUnsavedSandboxNotice(moduleTitle: string, storeId: string): void {
-    new Notice(`ℹ️ Sandbox: Changes to ${moduleTitle} will not persist to vault until the official module is installed.`, 4000);
+  private showUnsavedSandboxNotice(moduleTitle: string, storeId: string): void {
+    new Notice(`Sandbox: changes to ${moduleTitle} will not persist to vault until the official module is installed.`, 4000);
   }
 
   private openObsidianStore(pluginId: string): void {
@@ -809,8 +866,8 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
   private renderAgentDependenciesBox(containerEl: HTMLElement, targetPlugin: PluginWithSettings): void {
     const setupSection = containerEl.createDiv({ cls: "pakcli-deps-section" });
     new Setting(setupSection)
-      .setName("⚙️ Setup & Dependencies")
-      .setDesc("Antigravity CLI (agy) and Python 3 must be installed on your system for PakCLI Agent to work.")
+      .setName("Setup and dependencies")
+      .setDesc("`agy` CLI and `Python` must be installed on your system for `pakcli-agent` to work.")
       .setHeading();
 
     const depsBox = setupSection.createDiv({ cls: "pakcli-deps-box" });
@@ -851,13 +908,13 @@ export class MasterDetailSettingsTab extends PluginSettingTab {
     void checkAndRender();
 
     const btnRow = setupSection.createDiv({ cls: "pakcli-deps-actions" });
-    const refreshBtn = btnRow.createEl("button", { cls: "pakcli-deps-btn", text: "🔄 Refresh Status" });
+    const refreshBtn = btnRow.createEl("button", { cls: "pakcli-deps-btn", text: "Refresh status" });
     refreshBtn.onclick = () => {
       void checkAndRender();
-      new Notice("🔄 Checked dependencies status.");
+      new Notice("Checked dependencies status.");
     };
 
-    const downloadBtn = btnRow.createEl("button", { cls: "pakcli-deps-btn primary", text: "⬇️ Download Antigravity CLI" });
+    const downloadBtn = btnRow.createEl("button", { cls: "pakcli-deps-btn primary", text: "Download `agy` CLI" });
     downloadBtn.onclick = () => {
       this.openObsidianStore("pakcli-agent");
     };

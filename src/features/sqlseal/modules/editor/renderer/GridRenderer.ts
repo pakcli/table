@@ -1,4 +1,4 @@
-import { createGrid, GridApi, GridOptions, themeQuartz, ICellEditorComp, ICellEditorParams } from "ag-grid-community";
+import { createGrid, GridApi, GridOptions, themeQuartz, ICellEditorComp, ICellEditorParams, ColDef } from "ag-grid-community";
 import { App, Plugin } from "obsidian";
 import { RendererConfig, RendererContext } from "./rendererRegistry";
 import { parse } from 'json5';
@@ -9,12 +9,20 @@ import { ModernCellParser } from "../../syntaxHighlight/cellParser/ModernCellPar
 import { parseAutocompleteSettings, resolveHeaderName } from "../../../utils/views";
 import { GenericTextSuggest } from "../../../utils/suggesters";
 
+function toSafeString(val: unknown): string {
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+    if (val instanceof Date) return val.toISOString();
+    if (val === null || val === undefined) return '';
+    return JSON.stringify(val);
+}
+
 class AutocompleteCellEditor implements ICellEditorComp {
     private eInput: HTMLInputElement;
     private container: HTMLDivElement;
     private suggester: GenericTextSuggest | null = null;
 
-    init(params: ICellEditorParams & { values?: string[] }) {
+    init(params: ICellEditorParams & { values?: string[]; app?: App }) {
         this.container.setCssStyles({
             width: '100%',
             height: '100%',
@@ -23,7 +31,7 @@ class AutocompleteCellEditor implements ICellEditorComp {
         });
 
         this.eInput = document.createElement('input');
-        this.eInput.value = params.value ?? '';
+        this.eInput.value = toSafeString(params.value);
         this.eInput.setCssStyles({
             width: '100%',
             height: '100%',
@@ -38,9 +46,9 @@ class AutocompleteCellEditor implements ICellEditorComp {
 
         this.container.appendChild(this.eInput);
 
-        const globalApp = window.app;
-        if (globalApp) {
-            this.suggester = new GenericTextSuggest(globalApp, this.eInput, params.values || []);
+        const targetApp = params.app;
+        if (targetApp) {
+            this.suggester = new GenericTextSuggest(targetApp, this.eInput, params.values || []);
         }
     }
 
@@ -90,10 +98,11 @@ const getAgGridTheme = (theme: 'dark' | 'light') => {
     } as const
 }
 
+
 function parseNumericValue(val: unknown): number | null {
     if (val === null || val === undefined) return null;
     if (typeof val === 'number') return val;
-    const str = String(val).trim();
+    const str = toSafeString(val).trim();
     const numericRegex = /^\s*[$€£¥]?[+-]?(?:\d+(?:,\d{3})*(?:\.\d+)?|\.\d+)\s*%?$/;
     if (!numericRegex.test(str)) return null;
 
@@ -105,7 +114,7 @@ function parseNumericValue(val: unknown): number | null {
 function parseDateValue(val: unknown): Date | null {
     if (val === null || val === undefined) return null;
     if (val instanceof Date) return val;
-    const timestamp = Date.parse(String(val));
+    const timestamp = Date.parse(toSafeString(val));
     return isNaN(timestamp) ? null : new Date(timestamp);
 }
 
@@ -115,7 +124,7 @@ function detectColumnType(values: unknown[]): 'numeric' | 'date' | 'string' {
     let nonEmptyCount = 0;
 
     for (const val of values) {
-        if (val === null || val === undefined || String(val).trim() === '') continue;
+        if (val === null || val === undefined || toSafeString(val).trim() === '') continue;
         nonEmptyCount++;
         
         let isDate = false;
@@ -142,7 +151,7 @@ function detectColumnType(values: unknown[]): 'numeric' | 'date' | 'string' {
 }
 
 function calculateAggregation(values: unknown[], type: string, colType: 'numeric' | 'date' | 'string'): unknown {
-    const nonEmpty = values.filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+    const nonEmpty = values.filter(v => v !== null && v !== undefined && toSafeString(v).trim() !== '');
     if (nonEmpty.length === 0) return '';
 
     if (type === 'count') {
@@ -205,7 +214,7 @@ function formatAggregatedValue(val: unknown): string {
         if (Number.isInteger(val)) return String(val);
         return val.toFixed(2);
     }
-    return String(val);
+    return toSafeString(val);
 }
 
 export class GridRendererCommunicator {
@@ -345,7 +354,7 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
     if (!source) return target;
     const output: Record<string, unknown> = { ...target };
     for (const key of Object.keys(source)) {
-        const sourceVal = (source as unknown)[key];
+        const sourceVal = (source as Record<string, unknown>)[key];
         const targetVal = output[key];
         if (
             sourceVal &&
@@ -355,7 +364,7 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
             typeof targetVal === 'object' &&
             !Array.isArray(targetVal)
         ) {
-            output[key] = deepMerge(targetVal as Record<string, any>, sourceVal as Record<string, any>);
+            output[key] = deepMerge(targetVal as Record<string, unknown>, sourceVal as Record<string, unknown>);
         } else if (sourceVal !== undefined) {
             output[key] = sourceVal;
         }
@@ -368,7 +377,7 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
             defaultColDef: {
                 resizable: false,
                 editable: this.settings.get("enableEditing"),
-                cellRendererSelector: this.cellParser ? (params: any) => {
+                cellRendererSelector: this.cellParser ? (params: { node?: { rowPinned?: string | null } }) => {
                     if (params.node && params.node.rowPinned === 'top') {
                         return undefined;
                     }
@@ -383,7 +392,7 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
                 type: 'fitGridWidth',
                 // defaultMinWidth: 150,
             },
-            getRowHeight: (params: any) => {
+            getRowHeight: (params: { node?: { rowPinned?: string | null } }) => {
                 if (params.node && params.node.rowPinned === 'top') {
                     return 24;
                 }
@@ -606,20 +615,21 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
 
         let copyText = '';
         for (let vr = minRow; vr <= maxRow; vr++) {
-            let rowData: unknown = null;
+            let rowData: Record<string, unknown> | null = null;
             if (vr < 0) {
-                rowData = this.pinnedRowData[vr + P];
+                rowData = (this.pinnedRowData[vr + P] as Record<string, unknown> | undefined) ?? null;
             } else {
                 const rowNode = this.gridApi.getDisplayedRowAtIndex(vr);
-                rowData = rowNode ? rowNode.data : null;
+                rowData = (rowNode?.data as Record<string, unknown> | undefined) ?? null;
             }
 
             if (!rowData) continue;
 
-            const rowCells = [];
+            const rowCells: string[] = [];
             for (let c = minColIdx; c <= maxColIdx; c++) {
                 const colId = this.visibleColumnIds[c];
-                const val = rowData[colId] ?? '';
+                const rawVal = rowData[colId];
+                const val = toSafeString(rawVal);
                 rowCells.push(val);
             }
             copyText += rowCells.join('\t');
@@ -646,7 +656,7 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
         }
     }
 
-    private renderCalculationsMenu(columns: unknown[], data: unknown[], isEditable: boolean, queryText?: string) {
+    private renderCalculationsMenu(columns: string[], data: Record<string, unknown>[], isEditable: boolean, queryText?: string) {
         const menuContainer = this.topBar.querySelector('.sqlseal-grid-calculations-menu');
         if (!menuContainer) return;
         menuContainer.empty();
@@ -654,15 +664,15 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
         if (!queryText) return;
 
         const cacheKey = `${this.sourcePath ?? ''}::${queryText.trim()}`;
-        const views = this.settings.get('codeblockViews') || {};
-        const blockConfig = views[cacheKey] || {};
+        const views = (this.settings.get('codeblockViews') ?? {}) as Record<string, Record<string, unknown>>;
+        const blockConfig = views[cacheKey] ?? {};
 
-        let activeCalcs: string[] = (blockConfig as any).activeCalcs;
-        if (!activeCalcs) {
+        let activeCalcs: string[] = Array.isArray(blockConfig.activeCalcs) ? (blockConfig.activeCalcs as string[]) : [];
+        if (activeCalcs.length === 0) {
             const defaults = new Set<string>();
-            columns.forEach((field: any) => {
-                if (field === '__rowid' || field === 'rowid' || String(field).startsWith('__rowid_')) return;
-                const vals = (data as Record<string, any>[]).map(row => row[field]);
+            columns.forEach((field: string) => {
+                if (field === '__rowid' || field === 'rowid' || field.startsWith('__rowid_')) return;
+                const vals = data.map(row => row[field]);
                 const type = detectColumnType(vals);
                 if (type === 'numeric') defaults.add('sum');
             });
@@ -707,9 +717,9 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
                     updatedCalcs = updatedCalcs.filter(v => v !== calc.value);
                 }
 
-                const updatedViews = { ...(this.settings.get('codeblockViews') || {}) };
+                const updatedViews = { ...((this.settings.get('codeblockViews') ?? {}) as Record<string, Record<string, unknown>>) };
                 updatedViews[cacheKey] = {
-                    ...((updatedViews[cacheKey] as Record<string, any>) || {}),
+                    ...(updatedViews[cacheKey] ?? {}),
                     activeCalcs: updatedCalcs
                 };
                 this.settings.set('codeblockViews', updatedViews);
@@ -719,7 +729,7 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
         });
     }
 
-     setData(columns: any[], data: any[], isEditable: boolean = false, queryText?: string) {
+     setData(columns: string[], data: Record<string, unknown>[], isEditable = false, queryText?: string) {
         if (!this.gridApi) {
             throw new Error('Grid has not been initiated')
         }
@@ -734,8 +744,8 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
 
         const showFooter = !!queryText;
         const cacheKey = `${this.sourcePath ?? ''}::${(queryText ?? '').trim()}`;
-        const views = this.settings.get('codeblockViews') || {};
-        const currentBlockConfig = views[cacheKey] || {};
+        const views = (this.settings.get('codeblockViews') ?? {}) as Record<string, Record<string, unknown>>;
+        const currentBlockConfig = views[cacheKey] ?? {};
 
         if (showFooter) {
             this.topBar.setCssStyles({ display: '' });
@@ -744,12 +754,12 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
             this.topBar.setCssStyles({ display: 'none' });
         }
 
-        let activeCalcs: string[] = (currentBlockConfig as any).activeCalcs;
-        if (showFooter && !activeCalcs) {
+        let activeCalcs: string[] = Array.isArray(currentBlockConfig.activeCalcs) ? (currentBlockConfig.activeCalcs as string[]) : [];
+        if (showFooter && activeCalcs.length === 0) {
             const defaults = new Set<string>();
-            columns.forEach((field: any) => {
-                if (field === '__rowid' || field === 'rowid' || String(field).startsWith('__rowid_')) return;
-                const vals = (data as Record<string, any>[]).map(row => row[field]);
+            columns.forEach((field: string) => {
+                if (field === '__rowid' || field === 'rowid' || field.startsWith('__rowid_')) return;
+                const vals = data.map(row => row[field]);
                 const type = detectColumnType(vals);
                 if (type === 'numeric') defaults.add('sum');
             });
@@ -758,28 +768,28 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
         }
 
         const calcOrder = ['sum', 'average', 'mid', 'min', 'max', 'count'];
-        if (activeCalcs) {
+        if (activeCalcs.length > 0) {
             activeCalcs = [...activeCalcs].sort((a, b) => calcOrder.indexOf(a) - calcOrder.indexOf(b));
         }
 
 
 
         if (columns && columns.length) {
-            const visibleColumns: string[] = (columns as string[]).filter(c => c !== '__rowid' && c !== 'rowid' && !String(c).startsWith('__rowid_'));
+            const visibleColumns: string[] = columns.filter(c => c !== '__rowid' && c !== 'rowid' && !c.startsWith('__rowid_'));
             this.visibleColumnIds = visibleColumns;
             this.gridData = data;
             
             const autocompleteSetting = this.settings.get('autocompleteColumns') || '';
             const { columns: autocompleteCols } = parseAutocompleteSettings(autocompleteSetting);
 
-            this.gridApi.setGridOption('columnDefs', (visibleColumns).map(field => {
+            const colDefs: ColDef[] = visibleColumns.map(field => {
                 const isFirstCol = (field === visibleColumns[0]);
                 const isAutocomplete = autocompleteCols.includes(field.toLowerCase());
                 
-                const colDef: any = { 
+                const colDef: ColDef = { 
                     field,
                     headerName: resolveHeaderName(field, autocompleteSetting),
-                    editable: (params: any) => {
+                    editable: (params: { node?: { rowPinned?: string | null } }) => {
                         if (params.node && params.node.rowPinned === 'top') {
                             return false;
                         }
@@ -800,16 +810,17 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
 
                 if (isAutocomplete && isEditable) {
                     colDef.cellEditor = AutocompleteCellEditor;
-                    const uniqueValues = Array.from(new Set((data as Record<string, any>[]).map(row => row[field]).filter(val => val !== undefined && val !== null && val !== '')));
+                    const uniqueValues = Array.from(new Set(data.map(row => row[field]).filter(val => val !== undefined && val !== null && val !== ''))).map(String);
                     colDef.cellEditorParams = {
-                        values: uniqueValues
+                        values: uniqueValues,
+                        app: this.app
                     };
                 }
 
                 if (showFooter) {
-                    colDef.cellRenderer = (params: any) => {
+                    colDef.cellRenderer = (params: { node: { rowPinned?: string | null }; value?: unknown }) => {
                         if (params.node.rowPinned === 'top') {
-                            const value = params.value ?? '';
+                            const value = toSafeString(params.value);
 
                             const eGui = document.createElement('div');
                             eGui.className = 'sqlseal-footer-cell';
@@ -824,26 +835,27 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source?: Partia
                             return eGui;
                         } else {
                             if (this.cellParser) {
-                                return this.cellParser.render(params.value);
+                                return this.cellParser.render(toSafeString(params.value));
                             }
-                            return params.value;
+                            return toSafeString(params.value);
                         }
                     };
                 }
 
                 return colDef;
-            }))
+            });
+            this.gridApi.setGridOption('columnDefs', colDefs);
         }
         this.gridApi.setGridOption('enableCellTextSelection', !isEditable)
         this.gridApi.setGridOption('rowData', data)
 
         if (showFooter && columns && columns.length && activeCalcs && activeCalcs.length) {
-            const visibleColumns = (columns as string[]).filter(c => c !== '__rowid' && c !== 'rowid' && !c.startsWith('__rowid_'));
+            const visibleColumns = columns.filter(c => c !== '__rowid' && c !== 'rowid' && !c.startsWith('__rowid_'));
             
             const pinnedRows = activeCalcs.map(calcType => {
                 const row: Record<string, unknown> = { __calcType: calcType };
                 visibleColumns.forEach(field => {
-                    const columnValues = (data as Record<string, unknown>[]).map(row => row[field]);
+                    const columnValues = data.map(row => row[field]);
                     const colType = detectColumnType(columnValues);
                     
                     let isApplicable = false;
@@ -941,11 +953,12 @@ export class GridRenderer implements RendererConfig {
 
     isInitialised = false
 
-    validateConfig(config: string) {
+    validateConfig(config: string): Partial<GridOptions> {
         if (!config || !config.trim()) {
-            return {}
+            return {};
         }
-        return parse(config)
+        const parsed: unknown = parse(config);
+        return (parsed && typeof parsed === 'object') ? (parsed as Partial<GridOptions>) : {};
     }
 
 

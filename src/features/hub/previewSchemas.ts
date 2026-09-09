@@ -111,7 +111,22 @@ export const ECOSYSTEM_MODULES: BlueprintSection[] = [
     fields: [
       { key: "enableTreeProcessor", type: "toggle", name: "Enable Tree Post-processor", desc: "Render tree codeblocks as interactive folder diagrams.", defaultVal: true },
       { key: "defaultTreeLayout", type: "dropdown", name: "Default Tree Layout", desc: "Layout orientation.", defaultVal: "Left-to-Right", options: ["Left-to-Right", "Top-to-Bottom", "Folder Box"] },
-      { key: "centralAssetFolder", type: "text", name: "Central Asset Folder", desc: "Folder where routed media and attachments are stored.", defaultVal: "assets" },
+    ],
+  },
+  {
+    id: "table-asset-router",
+    category: "table",
+    title: "Asset Router & Attachment Manager",
+    icon: "folder-input",
+    storeId: "pakcli-table",
+    repoUrl: "https://github.com/pakcli/table",
+    description: "Automatic attachment routing, centralized media vault, Captain Folders nested mode, and note link auto-updating.",
+    fields: [
+      { key: "centralAssetFolderEnabled", type: "toggle", name: "Enable Centralized Routing", desc: "Route all attachments to a single global directory by default.", defaultVal: true },
+      { key: "centralAssetFolder", type: "text", name: "Central Asset Folder", desc: "Directory where default assets will be saved.", defaultVal: "assets" },
+      { key: "useNoteTitleGlobalCentral", type: "toggle", name: "Use Note Title in Centralized Mode", desc: "Use note frontmatter title property when renaming attachments instead of filename.", defaultVal: false },
+      { key: "useNoteTitleGlobalNested", type: "toggle", name: "Use Note Title in Nested Mode", desc: "Default setting for Captain Folders to use frontmatter title property.", defaultVal: false },
+      { key: "delimiter", type: "dropdown", name: "Path Delimiter", desc: "Character used to join directories and file titles.", defaultVal: "-", options: ["-", "_"] },
     ],
   },
   {
