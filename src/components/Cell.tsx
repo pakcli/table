@@ -1,9 +1,36 @@
 import { useState, useRef, useEffect, useMemo } from "preact/hooks";
 import type { RefObject } from "preact";
+import { Notice } from "obsidian";
 import { splitLinks } from "../parser/links";
 
 /** Window in which a second click still counts as a double-click (ms) */
 const DOUBLE_CLICK_DELAY = 250;
+
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fallback
+  }
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const success = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return success;
+  } catch (err) {
+    console.error("Failed to copy to clipboard:", err);
+    return false;
+  }
+}
 
 interface CellProps {
   value: string;
@@ -11,6 +38,7 @@ interface CellProps {
   colIndex: number;
   searchQueryRef: RefObject<string>;
   onUpdate: (rowIndex: number, colIndex: number, value: string) => void;
+  isEasyCopy?: boolean;
 }
 
 export function Cell({
@@ -19,9 +47,11 @@ export function Cell({
   colIndex,
   searchQueryRef,
   onUpdate,
+  isEasyCopy = false,
 }: CellProps) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
+  const [justCopied, setJustCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   // Pending link navigation, cancelled when the click turns out to be a double-click
   const linkTimerRef = useRef<number | null>(null);
@@ -86,11 +116,24 @@ export function Cell({
 
   return (
     <div
-      class={`tablite-cell ${isMatch ? "tablite-cell-match" : ""}`}
+      class={`tablite-cell ${isMatch ? "tablite-cell-match" : ""} ${
+        isEasyCopy ? "tablite-cell-easy-copy" : ""
+      } ${justCopied ? "tablite-cell-just-copied" : ""}`}
+      title={isEasyCopy ? `Click to copy: ${value || "(empty)"}` : undefined}
       onDblClick={() => {
         cancelLinkOpen();
         setEditValue(value);
         setEditing(true);
+      }}
+      onClick={(e) => {
+        if (isEasyCopy && !editing) {
+          e.stopPropagation();
+          copyTextToClipboard(value ?? "");
+          setJustCopied(true);
+          window.setTimeout(() => setJustCopied(false), 800);
+          const preview = (value && value.length > 30) ? `${value.slice(0, 30)}...` : (value || "(empty)");
+          new Notice(`📋 Copied: ${preview}`, 1500);
+        }
       }}
     >
       {hasLink ? (

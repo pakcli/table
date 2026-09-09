@@ -15,6 +15,7 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Cell } from "./Cell";
 import { HeaderCell } from "./HeaderCell";
+import { Notice } from "obsidian";
 
 interface ActiveCell {
   row: number;
@@ -189,6 +190,22 @@ export function Table({
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [easyCopyCols, setEasyCopyCols] = useState<Set<number>>(new Set());
+
+  const handleToggleEasyCopy = useCallback((colIndex: number) => {
+    setEasyCopyCols((prev) => {
+      const next = new Set(prev);
+      const colName = headers[colIndex] || `Column ${colIndex + 1}`;
+      if (next.has(colIndex)) {
+        next.delete(colIndex);
+        new Notice(`Click-to-copy disabled for "${colName}"`);
+      } else {
+        next.add(colIndex);
+        new Notice(`📋 Click-to-copy ENABLED for "${colName}". Click any cell to copy!`);
+      }
+      return next;
+    });
+  }, [headers]);
 
   const searchQueryRef = useRef(searchQuery);
   searchQueryRef.current = searchQuery;
@@ -268,6 +285,8 @@ export function Table({
                 });
               }}
               onMoveColumn={onColumnOrderChange}
+              isEasyCopy={easyCopyCols.has(sourceIndex)}
+              onToggleEasyCopy={handleToggleEasyCopy}
             />
           ),
           cell: ({ row }) => (
@@ -277,6 +296,7 @@ export function Table({
               colIndex={sourceIndex}
               searchQueryRef={searchQueryRef}
               onUpdate={(rowIndex, colIndex, value) => onUpdateCellRef.current(rowIndex, colIndex, value)}
+              isEasyCopy={easyCopyCols.has(sourceIndex)}
             />
           ),
         }),
@@ -290,6 +310,8 @@ export function Table({
       columnTypes,
       onColumnOrderChange,
       onColumnSizingChange,
+      easyCopyCols,
+      handleToggleEasyCopy,
     ],
   );
 

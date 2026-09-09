@@ -4,13 +4,19 @@
 
 ## Features
 
-- 🌳 **Tree & Folder Diagram Visualizer**: Render interactive folder and outline tree diagrams directly inside codeblocks.
-- 🗃️ **SQLite Database Explorer & SQLSeal**: Full in-memory/file-backed SQLite querying, schema visualizer, and custom SQL codeblocks.
-- 📊 **CSV & Tablite Grid Editor**: Rich tabular data editing with AG-Grid and TanStack Table features.
+- 📊 **CSV & Tablite Grid Editor**:
+  - **Easy Clipboard / Click-to-Copy Toggle**: Click the clipboard icon in any column header to toggle click-to-copy mode for that column. Clicking any cell immediately copies its content to your clipboard with toast notification and visual flash feedback.
+  - **Virtual Scrolling & High Performance**: Effortlessly handle large CSV/TSV datasets with row virtualization and lazy loading.
+  - **Inline Cell Editing & Selection**: Single click to select, double click to edit, crosshair highlight, and range selection.
+  - **Smart Filtering & Sorting**: Text filters, multi-select dropdowns, number/date range filters, and multi-column sorting.
+  - **Column Management**: Reorder columns via drag & drop, resize column widths, hide/show columns, and freeze columns.
+  - **Summary & Calculation Rows**: Configurable summary row (Sum, Average, Min, Max, Count, and custom formulas).
+- 🌳 **Tree & Folder Diagram Visualizer**: Render interactive folder and outline tree diagrams directly inside codeblocks with configurable node styles.
+- 🗃️ **SQLite Database Explorer & SQLSeal**: Full in-memory and file-backed SQLite querying, schema visualizer, and custom SQL codeblocks powered by WebAssembly SQLite.
+- 🎨 **ASCII Draw & Motion Studio**: Visual ASCII canvas drawing studio with multi-layering, themes, animated playback, live Undo/Redo (`Ctrl+Z` / `Ctrl+Y`), and canvas dimension retention.
+- 📏 **Responsive Codeblock Scaler**: Auto-scale codeblocks and ASCII diagrams to fit note margins, with customizable per-language rules (e.g. `asci`, `python`, `markdown`).
 - 🗺️ **Interactive Leaflet Maps**: Embedded OpenStreetMap views, custom geolocations, and marker presets.
-- 🎨 **ASCII Draw & Motion Studio**: Visual ASCII canvas drawing tool with multi-layering, themes, and animated playback.
-- 📏 **Responsive Codeblock Scaler**: Auto-scale codeblocks and ASCII diagrams to fit note margins.
-- 🎛️ **Master-Detail Settings Hub**: 2-Column responsive settings with instant search and transparent Grayscale preview for uninstalled ecosystem modules.
+- 🎛️ **Master-Detail Settings Hub & Direct Commands**: 2-Column responsive settings with instant search, deep linking, and dedicated commands to open settings tabs directly (`Asset Router`, `Codeblock Scaler`, `ASCII Studio`, `Tree Explorer`, `CSV Editor`).
 - ⚡ **PakCLI Event Bus**: Decoupled inter-plugin communication (`window.PakCliEventBus`).
 - 💾 **Vault Config Persistence**: Survives uninstalls and restores configurations automatically via `pakcli-vault-config`.
 
