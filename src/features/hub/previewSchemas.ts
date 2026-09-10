@@ -102,6 +102,21 @@ export const ECOSYSTEM_MODULES: BlueprintSection[] = [
     ],
   },
   {
+    id: "table-explorer",
+    category: "table",
+    title: "Explorer Additions",
+    icon: "rows-2",
+    storeId: "pakcli-table",
+    repoUrl: "https://github.com/pakcli/table",
+    description: "Split view for Obsidian File Explorer featuring a recent files pane, folder-qualified index.md titles, and draggable section ordering.",
+    fields: [
+      { key: "explorerSplitEnabled", type: "toggle", name: "Apply Explorer Split View", desc: "Enable split view in the File Explorer with recent files pane.", defaultVal: false },
+      { key: "explorerSplitHeight", type: "text", name: "Recent Files Pane Height", desc: "Default height in pixels for the recent files pane.", defaultVal: "180" },
+      { key: "explorerMaxRecentFiles", type: "text", name: "Max Recent Files", desc: "Maximum number of recently opened files to display.", defaultVal: "20" },
+      { key: "explorerRecentShowIcons", type: "toggle", name: "Show File Icons", desc: "Display file type icons next to files in the recent list.", defaultVal: true },
+    ],
+  },
+  {
     id: "table-tree",
     category: "table",
     title: "Tree Diagram & Hierarchy Explorer",

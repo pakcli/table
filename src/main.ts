@@ -1,6 +1,8 @@
-import { Plugin, Notice, Setting, PluginSettingTab, ButtonComponent, TFile, TextComponent } from 'obsidian';
+import { Plugin, Notice, Setting, PluginSettingTab, ButtonComponent, TFile, TextComponent, setIcon } from 'obsidian';
 import { PakCLITableSettings, DEFAULT_TABLE_SETTINGS } from './settings';
 import { handleArtifactRename, moveArtifactsBetweenFolders } from './features/sqlseal/utils/views';
+import { SplitViewManager } from './features/explorer/splitViewManager';
+import { ExplorerSectionId, EXPLORER_SECTIONS_INFO, DEFAULT_EXPLORER_SECTION_ORDER } from './features/explorer/types';
 
 // Hub Imports
 import { MasterDetailSettingsTab } from './features/hub/settingsHub';
@@ -44,6 +46,7 @@ export default class PakCLITablePlugin extends Plugin {
 	leafletTabInstance: unknown = null;
 	settingsTabInstance: MasterDetailSettingsTab | null = null;
 	settingsPanelStates: Map<string, boolean> = new Map();
+	splitViewManager!: SplitViewManager;
 	vaultRoot: string = '';
 	bubbleRibbonEl: HTMLElement | null = null;
 
@@ -205,7 +208,32 @@ export default class PakCLITablePlugin extends Plugin {
 			}
 		});
 
+		this.addCommand({
+			id: 'open-explorer-settings',
+			name: 'Open Settings: Explorer Additions & Split View',
+			callback: () => {
+				this.openSettingsTab('table-explorer');
+			}
+		});
+
+		this.addCommand({
+			id: 'toggle-explorer-split-view',
+			name: 'Toggle File Explorer Split View (Recent Files)',
+			callback: async () => {
+				this.settings.explorerSplitEnabled = !this.settings.explorerSplitEnabled;
+				await this.saveSettings();
+				if (this.splitViewManager) {
+					this.splitViewManager.applyLayout();
+				}
+				new Notice(`Explorer Split View: ${this.settings.explorerSplitEnabled ? 'Enabled' : 'Disabled'}`);
+			}
+		});
+
 		this.updateBubbleRibbon();
+
+		// Initialize Explorer Additions & Split View Manager
+		this.splitViewManager = new SplitViewManager(this);
+		this.splitViewManager.init();
 
 		// Replace Vanilla GraphView listener if enabled
 		this.registerEvent(
@@ -250,6 +278,9 @@ export default class PakCLITablePlugin extends Plugin {
 		}
 		if (this.leafletPlugin) {
 			this.leafletPlugin.onunload();
+		}
+		if (this.splitViewManager) {
+			this.splitViewManager.destroy();
 		}
 		eventBus.emit('table:unloaded', { version: this.manifest.version });
 	}
@@ -681,7 +712,214 @@ export default class PakCLITablePlugin extends Plugin {
 			}
 		});
 
-		// 2. Tree Diagram & Hierarchy Explorer (table-tree)
+		// 2. Explorer Additions & Split View (table-explorer)
+		settingsTab.registerLocalSection({
+			id: 'table-explorer',
+			category: 'table',
+			title: 'Explorer Additions',
+			icon: 'rows-2',
+			isInstalled: true,
+			render: (containerEl) => {
+				new Setting(containerEl)
+					.setName('Explorer Additions & Split View')
+					.setDesc('Multi-pane split view for the Obsidian File Explorer with recent files, folder-qualified index.md titles, and customizable layout order.')
+					.setHeading();
+
+				new Setting(containerEl)
+					.setName('Apply Explorer Split View')
+					.setDesc('Enable split view in the File Explorer sidebar. When toggled off, the File Explorer returns to the original single-pane tree.')
+					.addToggle((t) => {
+						t.setValue(this.settings.explorerSplitEnabled === true)
+							.onChange(async (val) => {
+								this.settings.explorerSplitEnabled = val;
+								await this.saveSettings();
+								if (this.splitViewManager) {
+									this.splitViewManager.applyLayout();
+								}
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Explorer Section Layout & Sorter')
+					.setDesc('Customize the vertical layout order of file explorer components. Default: Header Control → Recent Files → Original Explorer.')
+					.setHeading();
+
+				const renderSectionOrderList = (parentEl: HTMLElement) => {
+					parentEl.empty();
+					const listEl = parentEl.createDiv({ cls: 'pakcli-section-order-list' });
+
+					const currentOrder: ExplorerSectionId[] = (
+						this.settings.explorerSectionOrder && this.settings.explorerSectionOrder.length === 3
+							? this.settings.explorerSectionOrder
+							: [...DEFAULT_EXPLORER_SECTION_ORDER]
+					);
+
+					currentOrder.forEach((secId, index) => {
+						const info = EXPLORER_SECTIONS_INFO[secId];
+						const rowEl = listEl.createDiv({ cls: 'pakcli-section-order-item' });
+
+						// Left side (Drag handle + Badge + Names)
+						const leftEl = rowEl.createDiv({ cls: 'pakcli-section-left' });
+						const handle = leftEl.createDiv({ cls: 'pakcli-drag-handle' });
+						setIcon(handle, 'grip-vertical');
+
+						const badge = leftEl.createDiv({ cls: 'pakcli-section-badge' });
+						badge.textContent = `${index + 1}`;
+
+						const infoEl = leftEl.createDiv({ cls: 'pakcli-section-info' });
+						const nameEl = infoEl.createSpan({ cls: 'pakcli-section-name' });
+						nameEl.textContent = info ? info.name : secId;
+
+						const descEl = infoEl.createSpan({ cls: 'pakcli-section-desc' });
+						descEl.textContent = info ? info.description : '';
+
+						// Right side (Up / Down controls)
+						const rightEl = rowEl.createDiv({ cls: 'pakcli-section-right' });
+
+						const upBtn = rightEl.createEl('button', { cls: 'clickable-icon' });
+						setIcon(upBtn, 'arrow-up');
+						upBtn.setAttribute('aria-label', 'Move Section Up');
+						if (index === 0) {
+							upBtn.disabled = true;
+						} else {
+							upBtn.addEventListener('click', async () => {
+								const temp = currentOrder[index];
+								currentOrder[index] = currentOrder[index - 1];
+								currentOrder[index - 1] = temp;
+								this.settings.explorerSectionOrder = [...currentOrder];
+								await this.saveSettings();
+								if (this.splitViewManager) {
+									this.splitViewManager.applyLayout();
+								}
+								renderSectionOrderList(parentEl);
+							});
+						}
+
+						const downBtn = rightEl.createEl('button', { cls: 'clickable-icon' });
+						setIcon(downBtn, 'arrow-down');
+						downBtn.setAttribute('aria-label', 'Move Section Down');
+						if (index === currentOrder.length - 1) {
+							downBtn.disabled = true;
+						} else {
+							downBtn.addEventListener('click', async () => {
+								const temp = currentOrder[index];
+								currentOrder[index] = currentOrder[index + 1];
+								currentOrder[index + 1] = temp;
+								this.settings.explorerSectionOrder = [...currentOrder];
+								await this.saveSettings();
+								if (this.splitViewManager) {
+									this.splitViewManager.applyLayout();
+								}
+								renderSectionOrderList(parentEl);
+							});
+						}
+
+						// HTML5 Drag and drop
+						rowEl.setAttribute('draggable', 'true');
+						rowEl.addEventListener('dragstart', (e) => {
+							e.dataTransfer?.setData('text/plain', String(index));
+						});
+						rowEl.addEventListener('dragover', (e) => {
+							e.preventDefault();
+							rowEl.addClass('is-drag-over');
+						});
+						rowEl.addEventListener('dragleave', () => {
+							rowEl.removeClass('is-drag-over');
+						});
+						rowEl.addEventListener('drop', async (e) => {
+							e.preventDefault();
+							rowEl.removeClass('is-drag-over');
+							const fromIdx = parseInt(e.dataTransfer?.getData('text/plain') || '-1', 10);
+							if (fromIdx !== -1 && fromIdx !== index) {
+								const [moved] = currentOrder.splice(fromIdx, 1);
+								currentOrder.splice(index, 0, moved);
+								this.settings.explorerSectionOrder = [...currentOrder];
+								await this.saveSettings();
+								if (this.splitViewManager) {
+									this.splitViewManager.applyLayout();
+								}
+								renderSectionOrderList(parentEl);
+							}
+						});
+					});
+
+					// Reset button
+					const footer = parentEl.createDiv({ cls: 'pakcli-section-footer' });
+					new Setting(footer)
+						.setName('Reset Section Order')
+						.setDesc('Restore default layout: Header Control → Recent Files → Original Explorer.')
+						.addButton((b) => {
+							b.setButtonText('Reset Order to Default')
+								.onClick(async () => {
+									this.settings.explorerSectionOrder = [...DEFAULT_EXPLORER_SECTION_ORDER];
+									await this.saveSettings();
+									if (this.splitViewManager) {
+										this.splitViewManager.applyLayout();
+									}
+									renderSectionOrderList(parentEl);
+									new Notice('Explorer section order reset to default.');
+								});
+						});
+				};
+
+				const orderContainerEl = containerEl.createDiv();
+				renderSectionOrderList(orderContainerEl);
+
+				new Setting(containerEl)
+					.setName('Recent Files Pane Preferences')
+					.setHeading();
+
+				new Setting(containerEl)
+					.setName('Max Recent Files')
+					.setDesc('Maximum number of recently opened files to display in the pane (5 - 50).')
+					.addSlider((slider) => {
+						slider.setLimits(5, 50, 5)
+							.setValue(this.settings.explorerMaxRecentFiles || 20)
+							.setDynamicTooltip()
+							.onChange(async (val) => {
+								this.settings.explorerMaxRecentFiles = val;
+								await this.saveSettings();
+								if (this.splitViewManager) {
+									this.splitViewManager.renderRecentList();
+								}
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Recent Files Pane Height')
+					.setDesc('Default height in pixels for the recent files section (also resizable by dragging the splitter bar).')
+					.addText((text) => {
+						text.setPlaceholder('180')
+							.setValue(String(this.settings.explorerSplitHeight || 180))
+							.onChange(async (val) => {
+								const num = parseInt(val, 10);
+								if (!isNaN(num) && num >= 70 && num <= 600) {
+									this.settings.explorerSplitHeight = num;
+									await this.saveSettings();
+									if (this.splitViewManager) {
+										this.splitViewManager.applyLayout();
+									}
+								}
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Show File Icons')
+					.setDesc('Display file type icons (Markdown, Table, Canvas, Images) next to filenames.')
+					.addToggle((t) => {
+						t.setValue(this.settings.explorerRecentShowIcons !== false)
+							.onChange(async (val) => {
+								this.settings.explorerRecentShowIcons = val;
+								await this.saveSettings();
+								if (this.splitViewManager) {
+									this.splitViewManager.renderRecentList();
+								}
+							});
+					});
+			}
+		});
+
+		// 3. Tree Diagram & Hierarchy Explorer (table-tree)
 		settingsTab.registerLocalSection({
 			id: 'table-tree',
 			category: 'table',

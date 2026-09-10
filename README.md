@@ -21,7 +21,8 @@
 - 🎨 **ASCII Draw & Motion Studio**: Visual ASCII canvas drawing studio with multi-layering, themes, animated playback, live Undo/Redo (`Ctrl+Z` / `Ctrl+Y`), and canvas dimension retention.
 - 📏 **Responsive Codeblock Scaler**: Auto-scale codeblocks and ASCII diagrams to fit note margins, with customizable per-language rules (e.g. `asci`, `python`, `markdown`).
 - 🗺️ **Interactive Leaflet Maps**: Embedded OpenStreetMap views, custom geolocations, and marker presets.
-- 🎛️ **Master-Detail Settings Hub & Direct Commands**: 2-Column responsive settings with instant search, deep linking, and dedicated commands to open settings tabs directly (`Asset Router`, `Codeblock Scaler`, `ASCII Studio`, `Tree Explorer`, `CSV Editor`).
+- 📂 **Explorer Additions & Split View**: Multi-pane split view for Obsidian's File Explorer featuring a header split toggle button, recent files pane with folder-qualified `index.md` naming (e.g. `folder/index.md`), draggable divider, and customizable vertical section ordering (`Header Controls`, `Recent Files`, `Original File Explorer`).
+- 🎛️ **Master-Detail Settings Hub & Direct Commands**: 2-Column responsive settings with instant search, deep linking, and dedicated commands to open settings tabs directly (`Asset Router`, `Codeblock Scaler`, `ASCII Studio`, `Tree Explorer`, `CSV Editor`, `Explorer Additions`).
 - ⚡ **PakCLI Event Bus**: Decoupled inter-plugin communication (`window.PakCliEventBus`).
 - 💾 **Vault Config Persistence**: Survives uninstalls and restores configurations automatically via `pakcli-vault-config`.
 

@@ -4,6 +4,8 @@ export type { CalcPreset };
 export { DEFAULT_CALC_PRESETS };
 import { BasesLeafletViewSettings } from './features/leaflet/types';
 import { CodeblockLanguageRule } from './features/codeblock/scaler';
+import { ExplorerSettings, DEFAULT_EXPLORER_SETTINGS, ExplorerSectionId } from './features/explorer/types';
+export type { ExplorerSectionId, ExplorerSettings };
 
 export type BubbleGraphIntegrationMode = 'deactivate' | 'replace' | 'second';
 
@@ -27,7 +29,8 @@ export interface PakCLITableSettings extends
     AssetRouterSettings, 
     SQLSealSettings, 
     BasesLeafletViewSettings,
-    BubbleGraphSettings 
+    BubbleGraphSettings,
+    ExplorerSettings 
 {
     dateFormat: string;
     codeblockWrapMode: 'flowclip' | 'wrap' | 'scalefit';
@@ -81,6 +84,7 @@ export const DEFAULT_TABLE_SETTINGS: PakCLITableSettings = {
     ...DEFAULT_SQLSEAL_SETTINGS,
     ...DEFAULT_LEAFLET_SETTINGS,
     ...DEFAULT_BUBBLE_GRAPH_SETTINGS,
+    ...DEFAULT_EXPLORER_SETTINGS,
     dateFormat: '_{yyyy}{mm}{dd}',
     codeblockWrapMode: 'flowclip',
     codeblockLanguageRules: [
