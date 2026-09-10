@@ -663,3 +663,27 @@
 .tablite-cell-match {
   background: var(--text-highlight-bg);
 }
+
+/* ─── Text Wrap Mode ─── */
+.tablite-table-container.tablite-wrap-text .tablite-td:not([data-col-index="-1"]):not(:first-child) {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  height: auto;
+  align-items: flex-start;
+}
+
+.tablite-table-container.tablite-wrap-text .tablite-cell {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  height: auto;
+  display: block;
+}
+
+.tablite-table-container.tablite-wrap-text .tablite-cell-content,
+.tablite-table-container.tablite-wrap-text .tablite-cell-text {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}

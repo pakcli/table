@@ -287,10 +287,41 @@ export function useTableData(
     [pushHistory, data, headers, notify],
   );
 
+  const pasteCells = useCallback(
+    (startRow: number, startCol: number, matrix: string[][]) => {
+      if (!matrix || matrix.length === 0) return;
+      pushHistory();
+      const neededRowCount = startRow + matrix.length;
+      const colCount = Math.max(1, headers.length);
+
+      const nextData = data.map((r) => [...r]);
+      while (nextData.length < neededRowCount) {
+        nextData.push(new Array(colCount).fill(""));
+      }
+
+      for (let r = 0; r < matrix.length; r++) {
+        const targetRow = startRow + r;
+        const rowCells = matrix[r];
+        if (!rowCells) continue;
+        for (let c = 0; c < rowCells.length; c++) {
+          const targetCol = startCol + c;
+          if (targetCol < colCount) {
+            nextData[targetRow][targetCol] = rowCells[c] ?? "";
+          }
+        }
+      }
+
+      setData(nextData);
+      notify(headers, nextData);
+    },
+    [pushHistory, data, headers, notify],
+  );
+
   return {
     headers,
     data,
     updateCell,
+    pasteCells,
     updateHeader,
     insertRow,
     deleteRow,

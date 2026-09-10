@@ -98,6 +98,7 @@ export const ECOSYSTEM_MODULES: BlueprintSection[] = [
     fields: [
       { key: "enableCsvEditor", type: "toggle", name: "Enable CSV Table Editor", desc: "Open CSV and TSV files in interactive grid editor.", defaultVal: true },
       { key: "gridTheme", type: "dropdown", name: "Default Grid Theme", desc: "Visual styling for table cells and header chrome.", defaultVal: "ag-theme-quartz", options: ["ag-theme-quartz", "ag-theme-alpine", "ag-theme-balham"] },
+      { key: "csvArtifactFolderPath", type: "text", name: "CSV View Artifacts Folder", desc: "Vault folder where CSV views, column sizing, filters and calculations are saved.", defaultVal: "csv_view_artifacts" },
     ],
   },
   {

@@ -5,11 +5,16 @@
 ## Features
 
 - 📊 **CSV & Tablite Grid Editor**:
+  - **Multi-Cell Selection & Drag**: Click and drag across cells or `Shift+Click` to select rectangular ranges. Click row numbers or column headers (with `Shift+Click` extension) to select entire rows or columns.
+  - **Copy & Paste (Excel / TSV / CSV Compatible)**: Full clipboard support (`Ctrl+C` / `Ctrl+V`, context menu). Copy single or multiple cells, rows, or columns.
+  - **Exact-Cell Starting Paste**: Selecting any target cell and pasting immediately places clipboard data starting from that exact cell (expanding table rows automatically if needed) with full undo support (`Ctrl+Z`).
   - **Easy Clipboard / Click-to-Copy Toggle**: Click the clipboard icon in any column header to toggle click-to-copy mode for that column. Clicking any cell immediately copies its content to your clipboard with toast notification and visual flash feedback.
+  - **Text Wrap Toggle**: Easily toggle text wrapping on or off from the toolbar (`Wrap` toggle) with state persisted per view and artifact, allowing multi-line cell content to wrap cleanly without truncating.
   - **Virtual Scrolling & High Performance**: Effortlessly handle large CSV/TSV datasets with row virtualization and lazy loading.
   - **Inline Cell Editing & Selection**: Single click to select, double click to edit, crosshair highlight, and range selection.
   - **Smart Filtering & Sorting**: Text filters, multi-select dropdowns, number/date range filters, and multi-column sorting.
   - **Column Management**: Reorder columns via drag & drop, resize column widths, hide/show columns, and freeze columns.
+  - **Custom View Artifacts Folder**: Configure a custom vault folder path in Settings for storing CSV view states, column widths, filters, views, and calculation formulas (default: `csv_view_artifacts`). Automatically syncs on file rename with legacy backward compatibility.
   - **Summary & Calculation Rows**: Configurable summary row (Sum, Average, Min, Max, Count, and custom formulas).
 - 🌳 **Tree & Folder Diagram Visualizer**: Render interactive folder and outline tree diagrams directly inside codeblocks with configurable node styles.
 - 🗃️ **SQLite Database Explorer & SQLSeal**: Full in-memory and file-backed SQLite querying, schema visualizer, and custom SQL codeblocks powered by WebAssembly SQLite.

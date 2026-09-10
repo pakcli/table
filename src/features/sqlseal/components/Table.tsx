@@ -51,6 +51,7 @@ interface TableProps {
   onActiveCellChange: (cell: ActiveCell | null) => void;
   onSelectionChange: (selection: SelectionRange | null) => void;
   onCopy: () => void;
+  onPaste?: () => void;
   onColumnOrderChange: (sourceIndex: number, targetIndex: number) => void;
   onColumnSizingChange: (sizing: Record<string, number>) => void;
   onUpdateCell: (rowIndex: number, colIndex: number, value: string) => void;
@@ -74,6 +75,7 @@ interface TableProps {
   columnCalcs?: Record<string, string>;
   calcPresets?: CalcPreset[];
   onColumnCalcChange?: (colIndex: number, calcType: string) => void;
+  textWrap?: boolean;
 }
 
 interface RangeFilterValue {
@@ -203,6 +205,7 @@ export function Table({
   onActiveCellChange,
   onSelectionChange,
   onCopy,
+  onPaste,
   onColumnOrderChange,
   onColumnSizingChange,
   onUpdateCell,
@@ -227,6 +230,7 @@ export function Table({
   columnCalcs = {},
   calcPresets = [],
   onColumnCalcChange,
+  textWrap = false,
 }: TableProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
@@ -248,6 +252,31 @@ export function Table({
       return next;
     });
   }, [headers, autocompleteColumns]);
+
+  const handleColumnSelect = useCallback(
+    (colIndex: number, isShift: boolean) => {
+      if (colIndex < 0) return;
+      const maxRow = Math.max(0, data.length - 1);
+      if (isShift && (selection || activeCell)) {
+        const startCol = selection ? selection.startCol : (activeCell?.col ?? colIndex);
+        onSelectionChange({
+          startRow: 0,
+          startCol: startCol,
+          endRow: maxRow,
+          endCol: colIndex,
+        });
+      } else {
+        onActiveCellChange({ row: 0, col: colIndex });
+        onSelectionChange({
+          startRow: 0,
+          startCol: colIndex,
+          endRow: maxRow,
+          endCol: colIndex,
+        });
+      }
+    },
+    [data.length, selection, activeCell, onSelectionChange, onActiveCellChange],
+  );
 
   const autocompleteCols = useMemo(() => {
     const setting = autocompleteColumns || "";
@@ -538,6 +567,7 @@ export function Table({
               onMoveColumn={onColumnOrderChange}
               isEasyCopy={easyCopyCols.has(sourceIndex)}
               onToggleEasyCopy={handleToggleEasyCopy}
+              onSelectColumn={handleColumnSelect}
             />
           ),
           cell: ({ row }) => {
@@ -578,6 +608,7 @@ export function Table({
       onSelectionChange,
       easyCopyCols,
       handleToggleEasyCopy,
+      handleColumnSelect,
     ],
   );
 
@@ -652,6 +683,17 @@ export function Table({
       if (event.button !== 0) return; // left click only
 
       if (colIndex < 0) {
+        if (event.shiftKey && (selection || activeCell)) {
+          const startRow = selection ? selection.startRow : (activeCell?.row ?? rowIndex);
+          onSelectionChange({
+            startRow: startRow,
+            startCol: 0,
+            endRow: rowIndex,
+            endCol: headers.length - 1,
+          });
+          event.preventDefault();
+          return;
+        }
         // Row selection mode (clicked on row number column)
         isDraggingRef.current = true;
         dragStartRef.current = { row: rowIndex, col: -1 };
@@ -684,7 +726,7 @@ export function Table({
       onActiveCellChange({ row: rowIndex, col: colIndex });
       onSelectionChange(null);
     },
-    [activeCell, headers.length, onActiveCellChange, onSelectionChange],
+    [activeCell, selection, headers.length, onActiveCellChange, onSelectionChange],
   );
 
   useEffect(() => {
@@ -692,6 +734,8 @@ export function Table({
       if (!isDraggingRef.current || !dragStartRef.current) return;
       const container = tableContainerRef.current;
       if (!container) return;
+
+      window.getSelection()?.removeAllRanges();
 
       // Find cell under cursor
       const target = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
@@ -746,6 +790,11 @@ export function Table({
     overscan: 20,
   });
 
+  // Re-measure virtual rows when text wrapping is toggled or column sizes change
+  useEffect(() => {
+    rowVirtualizer.measure();
+  }, [textWrap, columnSizing, rowVirtualizer]);
+
   useEffect(() => {
     if (!activeCell) return;
     // activeCell.row is an original data index; convert to display position for virtualizer
@@ -775,6 +824,7 @@ export function Table({
       const menu = createDiv({ cls: "tablite-context-menu" });
       const menuItems: Array<{ action: string; label: string } | "hr"> = [
         { action: "copy", label: "Copy" },
+        { action: "paste", label: "Paste" },
         "hr",
         { action: "insert-row-above", label: "Insert Row Above" },
         { action: "insert-row-below", label: "Insert Row Below" },
@@ -799,6 +849,9 @@ export function Table({
         switch (target.dataset.action) {
           case "copy":
             onCopy();
+            break;
+          case "paste":
+            onPaste?.();
             break;
           case "insert-row-above":
             onInsertRow(rowIndex - 1);
@@ -833,7 +886,7 @@ export function Table({
         document.addEventListener("click", removeMenu);
       });
     },
-    [onCopy, onDeleteColumn, onDeleteRow, onInsertColumn, onInsertRow],
+    [onCopy, onPaste, onDeleteColumn, onDeleteRow, onInsertColumn, onInsertRow],
   );
 
   const getPinnedStyles = useCallback(
@@ -850,7 +903,10 @@ export function Table({
   );
 
   return (
-    <div ref={tableContainerRef} class="tablite-table-container">
+    <div
+      ref={tableContainerRef}
+      class={`tablite-table-container ${textWrap ? "tablite-wrap-text" : ""}`}
+    >
       <table class="tablite-table" style={{ display: "grid" }}>
         <thead
           style={{
@@ -887,6 +943,15 @@ export function Table({
                       minWidth: header.column.columnDef.minSize,
                       flexShrink: 0,
                       ...getPinnedStyles(header.column.id, position, true),
+                    }}
+                    onClick={(event) => {
+                      const target = event.target as HTMLElement;
+                      if (
+                        !isSpecialCol &&
+                        !target.closest("input, select, .tablite-multiselect, .tablite-copy-toggle, .tablite-resize-handle")
+                      ) {
+                        handleColumnSelect(colIdx, event.shiftKey);
+                      }
                     }}
                   >
                     {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}

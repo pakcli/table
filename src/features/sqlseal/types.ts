@@ -48,6 +48,7 @@ export interface ColumnConfig {
   calcPosition?: 'below' | 'above' | 'both' | 'none';
   calcFreeze?: boolean;
   columnCalcs?: Record<string, string>;
+  textWrap?: boolean;
 }
 
 export interface TablitePluginData extends SQLSealSettings {
@@ -70,6 +71,7 @@ export interface TablitePluginData extends SQLSealSettings {
   scannerCategoryCol: string;
   scannerClearAfterSave: boolean;
   scannerFinanceFolderPath: string;
+  csvArtifactFolderPath: string;
 }
 
 export const DEFAULT_PLUGIN_DATA: TablitePluginData = {
@@ -79,6 +81,7 @@ export const DEFAULT_PLUGIN_DATA: TablitePluginData = {
   calcPresets: DEFAULT_CALC_PRESETS,
   defaultCalcPosition: 'above',
   defaultCalcFreeze: true,
+  csvArtifactFolderPath: "csv_view_artifacts",
   scannerApiProvider: "gemini",
   scannerApiKey: "",
   scannerApiModel: "gemini-2.5-flash",
@@ -106,6 +109,7 @@ export function createDefaultColumnConfig(columnCount: number): ColumnConfig {
     calcPosition: 'above',
     calcFreeze: true,
     columnCalcs: {},
+    textWrap: false,
   };
 }
 
@@ -142,6 +146,7 @@ export function normalizeColumnConfig(
     ? config.calcPosition
     : 'above';
   const calcFreeze = config.calcFreeze !== undefined ? Boolean(config.calcFreeze) : true;
+  const textWrap = config.textWrap !== undefined ? Boolean(config.textWrap) : false;
 
   const columnCalcs: Record<string, string> = {};
   if (config.columnCalcs && typeof config.columnCalcs === "object") {
@@ -162,6 +167,7 @@ export function normalizeColumnConfig(
     calcPosition,
     calcFreeze,
     columnCalcs,
+    textWrap,
   };
 }
 
@@ -216,6 +222,7 @@ export function remapColumnConfigForInsert(
       calcPosition: config.calcPosition,
       calcFreeze: config.calcFreeze,
       columnCalcs,
+      textWrap: config.textWrap,
     },
     columnCountAfterInsert,
   );
@@ -284,6 +291,7 @@ export function remapColumnConfigForDelete(
       calcPosition: config.calcPosition,
       calcFreeze: config.calcFreeze,
       columnCalcs,
+      textWrap: config.textWrap,
     },
     columnCountAfterDelete,
   );

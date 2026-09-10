@@ -1,5 +1,6 @@
-import { Plugin, Notice, Setting, PluginSettingTab, ButtonComponent } from 'obsidian';
+import { Plugin, Notice, Setting, PluginSettingTab, ButtonComponent, TFile, TextComponent } from 'obsidian';
 import { PakCLITableSettings, DEFAULT_TABLE_SETTINGS } from './settings';
+import { handleArtifactRename, moveArtifactsBetweenFolders } from './features/sqlseal/utils/views';
 
 // Hub Imports
 import { MasterDetailSettingsTab } from './features/hub/settingsHub';
@@ -217,6 +218,15 @@ export default class PakCLITablePlugin extends Plugin {
 							active: true
 						});
 					}
+				}
+			})
+		);
+
+		// Synchronize CSV view artifact file on CSV file rename
+		this.registerEvent(
+			this.app.vault.on('rename', async (file, oldPath) => {
+				if (file instanceof TFile && file.extension?.toLowerCase() === 'csv') {
+					await handleArtifactRename(this.app, oldPath, file.path, this.settings.csvArtifactFolderPath);
 				}
 			})
 		);
@@ -526,6 +536,61 @@ export default class PakCLITablePlugin extends Plugin {
 								await this.saveSettings();
 							});
 					});
+
+				let folderTextInput: TextComponent | null = null;
+				const artifactFolderSetting = new Setting(containerEl)
+					.setName('CSV View Artifacts Folder')
+					.setDesc('Vault folder where custom column order, sizing, hidden columns, filters, custom views, and calculations are saved (default: csv_view_artifacts).')
+					.addText((text) => {
+						folderTextInput = text;
+						text.setPlaceholder('csv_view_artifacts')
+							.setValue(this.settings.csvArtifactFolderPath || 'csv_view_artifacts')
+							.onChange(async (v) => {
+								this.settings.csvArtifactFolderPath = v.trim();
+								await this.saveSettings();
+							});
+					})
+					.addButton((btn) => {
+						btn.setButtonText('Move Default → Custom')
+							.setTooltip('Migrate all artifact JSON files from default (csv_view_artifacts) to this custom folder')
+							.setCta()
+							.onClick(async () => {
+								const customFolder = (this.settings.csvArtifactFolderPath || '').trim().replace(/^\/+|\/+$/g, '');
+								if (!customFolder || customFolder === 'csv_view_artifacts') {
+									new Notice('⚠️ Destination is already the default folder ("csv_view_artifacts"). Please specify a different custom folder first.');
+									return;
+								}
+								btn.setDisabled(true);
+								try {
+									const result = await moveArtifactsBetweenFolders(this.app, 'csv_view_artifacts', customFolder);
+									if (result.moved > 0) {
+										new Notice(`🚚 Successfully moved ${result.moved} artifact file(s) to "${customFolder}"!`);
+									} else if (result.errors > 0) {
+										new Notice(`⚠️ Encountered errors moving some files. Check developer console for details.`);
+									} else {
+										new Notice(`ℹ️ No artifact files found in "csv_view_artifacts" or files have already been moved.`);
+									}
+								} catch (err) {
+									console.error('Error during artifact migration:', err);
+									new Notice(`❌ Failed to move artifacts: ${String(err)}`);
+								} finally {
+									btn.setDisabled(false);
+								}
+							});
+					})
+					.addButton((btn) => {
+						btn.setButtonText('Reset')
+							.setTooltip('Reset folder path back to default (csv_view_artifacts)')
+							.onClick(async () => {
+								this.settings.csvArtifactFolderPath = 'csv_view_artifacts';
+								if (folderTextInput) {
+									folderTextInput.setValue('csv_view_artifacts');
+								}
+								await this.saveSettings();
+								new Notice('🔄 Reset artifacts folder to "csv_view_artifacts".');
+							});
+					});
+				artifactFolderSetting.settingEl.addClass('tablite-artifact-folder-setting');
 
 				new Setting(containerEl)
 					.setName('Calculation Engine & Aggregate Dashboards')

@@ -1,4 +1,5 @@
 import { useMemo, useCallback, useRef, useState, useEffect } from "preact/hooks";
+import Papa from "papaparse";
 import { type Delimiter } from "../parser/detect";
 import { parseCSV, serializeCSV, type ParseResult } from "../parser/csv-engine";
 import { useTableData, type TableState } from "../hooks/useTableData";
@@ -54,6 +55,25 @@ function normalizeRange(range: SelectionRange) {
   };
 }
 
+function fallbackCopy(text: string, rowCount: number, colCount: number) {
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+    const cellCount = rowCount * colCount;
+    new Notice(`📋 Copied ${cellCount} cell${cellCount === 1 ? "" : "s"} (${rowCount} row${rowCount === 1 ? "" : "s"} × ${colCount} col${colCount === 1 ? "" : "s"}) to clipboard!`, 2000);
+  } catch (err) {
+    console.error("Failed to copy to clipboard:", err);
+    new Notice("Failed to copy to clipboard");
+  }
+}
+
 function copySelectionToClipboard(
   data: string[][],
   selection: SelectionRange | null,
@@ -93,12 +113,54 @@ function copySelectionToClipboard(
   for (const r of selectedRows) {
     const cells: string[] = [];
     for (let c = minCol; c <= maxCol; c++) {
-      cells.push(data[r]?.[c] ?? "");
+      let val = data[r]?.[c] ?? "";
+      if (val.includes("\t") || val.includes("\n") || val.includes('"')) {
+        val = `"${val.replace(/"/g, '""')}"`;
+      }
+      cells.push(val);
     }
     lines.push(cells.join("\t"));
   }
-  // clipboard write disabled
-void lines;
+
+  const tsv = lines.join("\r\n");
+  const colCount = Math.max(1, maxCol - minCol + 1);
+  const rowCount = Math.max(1, selectedRows.length);
+  const cellCount = rowCount * colCount;
+
+  if (navigator?.clipboard?.writeText) {
+    navigator.clipboard.writeText(tsv).then(() => {
+      new Notice(`📋 Copied ${cellCount} cell${cellCount === 1 ? "" : "s"} (${rowCount} row${rowCount === 1 ? "" : "s"} × ${colCount} col${colCount === 1 ? "" : "s"}) to clipboard!`, 2000);
+    }).catch(() => {
+      fallbackCopy(tsv, rowCount, colCount);
+    });
+  } else {
+    fallbackCopy(tsv, rowCount, colCount);
+  }
+}
+
+function parseClipboardToMatrix(text: string): string[][] {
+  if (!text) return [];
+  const clean = text.replace(/[\r\n]+$/, "");
+  if (!clean) return [];
+
+  // TSV format (Excel / Sheets standard)
+  if (clean.includes("\t")) {
+    return clean.split(/\r?\n/).map((line) => line.split("\t"));
+  }
+
+  // Comma-separated or quoted CSV format
+  try {
+    const res = Papa.parse<string[]>(clean, {
+      skipEmptyLines: false,
+    });
+    if (res.data && res.data.length > 0) {
+      return res.data;
+    }
+  } catch {
+    // fallback below
+  }
+
+  return clean.split(/\r?\n/).map((line) => (line.includes(",") ? line.split(",") : [line]));
 }
 
 function ensureEditableState(state: TableState): TableState {
@@ -198,6 +260,7 @@ export function App({
     headers,
     data,
     updateCell,
+    pasteCells,
     updateHeader,
     insertRow,
     deleteRow,
@@ -219,6 +282,60 @@ export function App({
     [delimiter, hasHeader, onDataChange],
   ));
 
+  const handlePaste = useCallback(
+    async (clipboardText?: string) => {
+      let text = clipboardText;
+      if (!text) {
+        try {
+          text = await navigator.clipboard.readText();
+        } catch (err) {
+          console.error("Clipboard read failed:", err);
+          new Notice("Could not read clipboard. Please grant clipboard permissions or use keyboard shortcut.");
+          return;
+        }
+      }
+
+      if (!text) {
+        new Notice("Clipboard is empty");
+        return;
+      }
+
+      const matrix = parseClipboardToMatrix(text);
+      if (matrix.length === 0 || (matrix.length === 1 && matrix[0].length === 0)) {
+        return;
+      }
+
+      // Determine starting cell from selection or activeCell
+      let targetRow = 0;
+      let targetCol = 0;
+      if (selection) {
+        const norm = normalizeRange(selection);
+        targetRow = norm.minRow;
+        targetCol = norm.minCol;
+      } else if (activeCell) {
+        targetRow = activeCell.row;
+        targetCol = activeCell.col;
+      }
+
+      pasteCells(targetRow, targetCol, matrix);
+
+      // Select the newly pasted range
+      const endRow = targetRow + matrix.length - 1;
+      const maxCols = Math.max(...matrix.map((r) => r.length));
+      const endCol = Math.min(headers.length - 1, targetCol + maxCols - 1);
+      setSelection({
+        startRow: targetRow,
+        startCol: targetCol,
+        endRow: endRow,
+        endCol: endCol,
+      });
+
+      const totalCells = matrix.reduce((sum, r) => sum + r.length, 0);
+      new Notice(`📋 Pasted ${totalCells} cell${totalCells === 1 ? "" : "s"} (${matrix.length} row${matrix.length === 1 ? "" : "s"} × ${maxCols} col${maxCols === 1 ? "" : "s"}) starting from R${targetRow + 1}:C${targetCol + 1}`);
+    },
+    [selection, activeCell, pasteCells, headers.length],
+  );
+
   // Progressive loading: feed rows to Table in chunks
   const { visibleCount, loading, progress } = useProgressiveLoad(data.length);
   const visibleData = useMemo(
@@ -236,7 +353,8 @@ export function App({
     async (updatedViews: Record<string, ColumnConfig>, currentActive: string) => {
       const globalApp = window.app;
       if (!globalApp || !filePath) return;
-      const artifactPath = getArtifactPath(filePath);
+      const customFolder = plugin?.settings?.csvArtifactFolderPath;
+      const artifactPath = getArtifactPath(filePath, customFolder);
 
       const parentIndex = artifactPath.lastIndexOf("/");
       if (parentIndex !== -1) {
@@ -267,7 +385,7 @@ export function App({
         console.error("Failed to save view artifact:", err);
       }
     },
-    [filePath]
+    [filePath, plugin?.settings?.csvArtifactFolderPath]
   );
 
   useEffect(() => {
@@ -278,7 +396,8 @@ export function App({
         setIsViewsLoaded(true);
         return;
       }
-      const artifactPath = getArtifactPath(filePath);
+      const customFolder = plugin?.settings?.csvArtifactFolderPath;
+      const artifactPath = getArtifactPath(filePath, customFolder);
       let content: string | null = null;
       try {
         if (globalApp.vault?.adapter && (await globalApp.vault.adapter.exists(artifactPath))) {
@@ -293,6 +412,27 @@ export function App({
         }
       } catch (e) {
         console.error("Failed to read artifact", e);
+      }
+
+      // Legacy fallback: if custom folder artifact was not found, check default 'csv_view_artifacts'
+      if (!content) {
+        const legacyPath = getArtifactPath(filePath, "csv_view_artifacts");
+        if (legacyPath !== artifactPath) {
+          try {
+            if (globalApp.vault?.adapter && (await globalApp.vault.adapter.exists(legacyPath))) {
+              content = await globalApp.vault.adapter.read(legacyPath);
+            } else {
+              const legacyFile = globalApp.vault.getAbstractFileByPath
+                ? globalApp.vault.getAbstractFileByPath(legacyPath)
+                : null;
+              if (legacyFile instanceof TFile) {
+                content = await globalApp.vault.read(legacyFile);
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
       }
 
       if (content) {
@@ -344,6 +484,7 @@ export function App({
         JSON.stringify(stored.sorting || []) === JSON.stringify(columnConfig.sorting || []) &&
         stored.calcPosition === columnConfig.calcPosition &&
         stored.calcFreeze === columnConfig.calcFreeze &&
+        stored.textWrap === columnConfig.textWrap &&
         JSON.stringify(stored.columnCalcs || {}) === JSON.stringify(columnConfig.columnCalcs || {})
       ) {
         return;
@@ -551,6 +692,23 @@ export function App({
     },
     [activeView, saveViewsArtifact]
   );
+
+  const handleToggleTextWrap = useCallback(() => {
+    setColumnConfig((prev) => {
+      const nextWrap = !prev.textWrap;
+      const updatedConfig: ColumnConfig = { ...prev, textWrap: nextWrap };
+      setViews((currViews) => {
+        const nextViews = {
+          ...currViews,
+          [activeView]: updatedConfig,
+        };
+        void saveViewsArtifact(nextViews, activeView);
+        return nextViews;
+      });
+      new Notice(`Text wrap: ${nextWrap ? "ON" : "OFF"}`);
+      return updatedConfig;
+    });
+  }, [activeView, saveViewsArtifact]);
 
   const [, setPresetUpdateTrigger] = useState(0);
 
@@ -790,7 +948,18 @@ export function App({
         target?.tagName === "SELECT";
 
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
-        copySelectionToClipboard(data, selection, activeCell, sortedRowIndicesRef.current);
+        if (!isTextInput && (activeCell || selection)) {
+          event.preventDefault();
+          copySelectionToClipboard(data, selection, activeCell, sortedRowIndicesRef.current);
+        }
+        return;
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "v") {
+        if (!isTextInput && (activeCell || selection)) {
+          event.preventDefault();
+          handlePaste();
+        }
         return;
       }
 
@@ -854,19 +1023,47 @@ export function App({
         case "ArrowLeft":
           event.preventDefault();
           setSelection(null);
-          if (activeCell.col > 0) setActiveCell({ row: activeCell.row, col: activeCell.col - 1 });
+          setActiveCell({ row: activeCell.row, col: Math.max(0, activeCell.col - 1) });
           break;
         case "ArrowRight":
           event.preventDefault();
           setSelection(null);
-          if (activeCell.col < headers.length - 1) setActiveCell({ row: activeCell.row, col: activeCell.col + 1 });
+          setActiveCell({ row: activeCell.row, col: Math.min(headers.length - 1, activeCell.col + 1) });
+          break;
+        case "Home":
+          event.preventDefault();
+          setSelection(null);
+          setActiveCell({ row: activeCell.row, col: 0 });
+          break;
+        case "End":
+          event.preventDefault();
+          setSelection(null);
+          setActiveCell({ row: activeCell.row, col: headers.length - 1 });
           break;
       }
     };
 
+    const onPaste = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isTextInput =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT";
+      if (isTextInput) return;
+      const text = event.clipboardData?.getData("text/plain");
+      if (text && (activeCell || selection)) {
+        event.preventDefault();
+        handlePaste(text);
+      }
+    };
+
     document.addEventListener("keydown", onKeyDown, true);
-    return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [activeCell, data, selection, headers.length, navigateSearch, getAdjacentRow]);
+    document.addEventListener("paste", onPaste);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("paste", onPaste);
+    };
+  }, [activeCell, data, selection, headers.length, navigateSearch, getAdjacentRow, handlePaste]);
 
   const activeMatchIndex = useMemo(
     () => searchMatches.findIndex((match) => match.row === activeCell?.row && match.col === activeCell?.col),
@@ -951,6 +1148,8 @@ export function App({
         onCalcPositionChange={handleCalcPositionChange}
         onCalcFreezeChange={handleCalcFreezeChange}
         onOpenAddCalcPreset={handleOpenAddCalcPreset}
+        textWrap={columnConfig.textWrap}
+        onToggleTextWrap={handleToggleTextWrap}
       />
       <FindReplaceBar
         isOpen={isFindOpen}
@@ -999,6 +1198,7 @@ export function App({
           onActiveCellChange={setActiveCell}
           onSelectionChange={setSelection}
           onCopy={() => copySelectionToClipboard(data, selection, activeCell, sortedRowIndicesRef.current)}
+          onPaste={() => handlePaste()}
           onColumnOrderChange={moveColumn}
           onColumnSizingChange={updateColumnSizing}
           onUpdateCell={updateCell}
@@ -1023,6 +1223,7 @@ export function App({
           columnCalcs={columnConfig.columnCalcs || {}}
           calcPresets={plugin?.settings.calcPresets || []}
           onColumnCalcChange={handleColumnCalcChange}
+          textWrap={columnConfig.textWrap}
         />
       )}
     </div>

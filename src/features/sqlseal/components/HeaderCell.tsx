@@ -13,6 +13,7 @@ interface HeaderCellProps {
   onMoveColumn: (sourceIndex: number, targetIndex: number) => void;
   isEasyCopy?: boolean;
   onToggleEasyCopy?: (colIndex: number) => void;
+  onSelectColumn?: (colIndex: number, isShift: boolean) => void;
 }
 
 export function HeaderCell({
@@ -25,6 +26,7 @@ export function HeaderCell({
   onMoveColumn,
   isEasyCopy = false,
   onToggleEasyCopy,
+  onSelectColumn,
 }: HeaderCellProps) {
   const [selectOpen, setSelectOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -138,7 +140,16 @@ export function HeaderCell({
       <div class="tablite-header-top">
         <span
           class="tablite-header-name"
-          onClick={() => column.toggleSorting(undefined, true)}
+          onClick={(e) => {
+            if (e.shiftKey) {
+              e.preventDefault();
+              e.stopPropagation();
+              onSelectColumn?.(colIndex, true);
+            } else {
+              onSelectColumn?.(colIndex, false);
+              column.toggleSorting(undefined, true);
+            }
+          }}
         >
           {displayName}
           {sortIndicator}

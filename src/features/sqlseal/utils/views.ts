@@ -1,8 +1,9 @@
 import { App, Modal, Setting, TFile } from "obsidian";
 
-export function getArtifactPath(csvPath: string): string {
+export function getArtifactPath(csvPath: string, customFolder?: string): string {
+  const folder = (customFolder && customFolder.trim()) ? customFolder.trim().replace(/^\/+|\/+$/g, '') : 'csv_view_artifacts';
   const withoutExt = csvPath.substring(0, csvPath.lastIndexOf('.')) || csvPath;
-  return `csv_view_artifacts/${withoutExt}.json`;
+  return folder ? `${folder}/${withoutExt}.json` : `${withoutExt}.json`;
 }
 
 export async function ensureFolderExists(app: App, folderPath: string) {
@@ -33,11 +34,15 @@ export async function ensureFolderExists(app: App, folderPath: string) {
   }
 }
 
-export async function handleArtifactRename(app: App, oldPath: string, newPath: string) {
-  const oldArtifactPath = getArtifactPath(oldPath);
-  const oldArtifactFile = app.vault.getFileByPath(oldArtifactPath);
+export async function handleArtifactRename(app: App, oldPath: string, newPath: string, customFolder?: string) {
+  const oldArtifactPath = getArtifactPath(oldPath, customFolder);
+  let oldArtifactFile = (app.vault.getFileByPath ? app.vault.getFileByPath(oldArtifactPath) : app.vault.getAbstractFileByPath(oldArtifactPath)) as TFile | null;
+  if (!oldArtifactFile && customFolder && customFolder.trim() !== 'csv_view_artifacts') {
+    const legacyPath = getArtifactPath(oldPath, 'csv_view_artifacts');
+    oldArtifactFile = (app.vault.getFileByPath ? app.vault.getFileByPath(legacyPath) : app.vault.getAbstractFileByPath(legacyPath)) as TFile | null;
+  }
   if (oldArtifactFile instanceof TFile) {
-    const newArtifactPath = getArtifactPath(newPath);
+    const newArtifactPath = getArtifactPath(newPath, customFolder);
     const parentIndex = newArtifactPath.lastIndexOf('/');
     if (parentIndex !== -1) {
       const parentPath = newArtifactPath.substring(0, parentIndex);
@@ -45,6 +50,110 @@ export async function handleArtifactRename(app: App, oldPath: string, newPath: s
     }
     await app.vault.rename(oldArtifactFile, newArtifactPath);
   }
+}
+
+async function listAllJsonFiles(app: App, folderPath: string): Promise<string[]> {
+  const results: string[] = [];
+  try {
+    if (app.vault.adapter && typeof app.vault.adapter.list === 'function') {
+      const queue = [folderPath];
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        if (await app.vault.adapter.exists(current)) {
+          const res = await app.vault.adapter.list(current);
+          if (res.files) {
+            for (const f of res.files) {
+              if (f.toLowerCase().endsWith('.json')) {
+                results.push(f.replace(/\\/g, '/'));
+              }
+            }
+          }
+          if (res.folders) {
+            for (const sub of res.folders) {
+              queue.push(sub.replace(/\\/g, '/'));
+            }
+          }
+        }
+      }
+      if (results.length > 0) return results;
+    }
+  } catch {
+    // fallback to vault.getFiles()
+  }
+
+  const prefix = folderPath ? `${folderPath}/` : '';
+  const files = app.vault.getFiles();
+  for (const f of files) {
+    if (f.path.startsWith(prefix) && f.extension.toLowerCase() === 'json') {
+      results.push(f.path);
+    }
+  }
+  return results;
+}
+
+export async function moveArtifactsBetweenFolders(
+  app: App,
+  sourceFolder: string,
+  targetFolder: string
+): Promise<{ moved: number; errors: number }> {
+  const src = sourceFolder.trim().replace(/^\/+|\/+$/g, '');
+  const dest = targetFolder.trim().replace(/^\/+|\/+$/g, '');
+  if (!src || !dest || src === dest) {
+    return { moved: 0, errors: 0 };
+  }
+
+  await ensureFolderExists(app, dest);
+
+  const filePaths = await listAllJsonFiles(app, src);
+  let moved = 0;
+  let errors = 0;
+  const srcPrefix = `${src}/`;
+
+  for (const rawPath of filePaths) {
+    try {
+      const normalizedPath = rawPath.replace(/\\/g, '/');
+      const relPath = normalizedPath.startsWith(srcPrefix)
+        ? normalizedPath.substring(srcPrefix.length)
+        : normalizedPath.substring(normalizedPath.indexOf(srcPrefix) + srcPrefix.length);
+
+      const targetPath = `${dest}/${relPath}`;
+      const parentIndex = targetPath.lastIndexOf('/');
+      if (parentIndex !== -1) {
+        const parentPath = targetPath.substring(0, parentIndex);
+        await ensureFolderExists(app, parentPath);
+      }
+
+      const fileObj = app.vault.getAbstractFileByPath
+        ? app.vault.getAbstractFileByPath(normalizedPath)
+        : null;
+
+      if (fileObj instanceof TFile) {
+        const existingTarget = (
+          app.vault.getFileByPath
+            ? app.vault.getFileByPath(targetPath)
+            : app.vault.getAbstractFileByPath(targetPath)
+        ) as TFile | null;
+
+        if (existingTarget instanceof TFile) {
+          const content = await app.vault.read(fileObj);
+          await app.vault.modify(existingTarget, content);
+          await app.vault.delete(fileObj);
+        } else {
+          await app.vault.rename(fileObj, targetPath);
+        }
+      } else if (app.vault.adapter) {
+        const content = await app.vault.adapter.read(normalizedPath);
+        await app.vault.adapter.write(targetPath, content);
+        await app.vault.adapter.remove(normalizedPath);
+      }
+      moved++;
+    } catch (err) {
+      console.error(`Failed to move artifact file ${rawPath} to ${dest}:`, err);
+      errors++;
+    }
+  }
+
+  return { moved, errors };
 }
 
 export class PromptModal extends Modal {

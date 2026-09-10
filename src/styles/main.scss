@@ -1668,6 +1668,42 @@ th.tablite-frozen-cell {
     }
 }
 
+/* --- Text Wrap Mode Support --- */
+.tablite-table-container.tablite-wrap-text {
+    .tablite-td:not([data-col-index="-1"]):not(:first-child) {
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        height: auto;
+        align-items: flex-start;
+    }
+
+    .tablite-cell {
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        height: auto;
+        display: block;
+    }
+
+    .tablite-cell-content {
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+
+    .tablite-yt-cell {
+        white-space: normal;
+        word-break: break-word;
+        height: auto;
+    }
+
+    .tablite-yt-link {
+        white-space: normal;
+        word-break: break-word;
+    }
+}
+
 /* --- Tablite Raw Text View --- */
 .tablite-raw-editor-container {
     width: 100%;
@@ -2244,5 +2280,22 @@ th.tablite-frozen-cell {
   overflow: hidden;
   display: block;
   margin: 4px 0;
+}
+
+.tablite-artifact-folder-setting {
+  .setting-item-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    input[type="text"] {
+      min-width: 220px;
+    }
+
+    button {
+      white-space: nowrap;
+    }
+  }
 }
 

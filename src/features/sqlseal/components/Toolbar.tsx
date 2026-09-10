@@ -50,6 +50,8 @@ interface ToolbarProps {
   onCalcPositionChange?: (pos: "below" | "above" | "both" | "none") => void;
   onCalcFreezeChange?: (freeze: boolean) => void;
   onOpenAddCalcPreset?: () => void;
+  textWrap?: boolean;
+  onToggleTextWrap?: () => void;
 }
 
 const DELIMITER_LABELS: Record<string, string> = {
@@ -106,6 +108,8 @@ export function Toolbar({
   onCalcPositionChange,
   onCalcFreezeChange,
   onOpenAddCalcPreset,
+  textWrap = false,
+  onToggleTextWrap,
 }: ToolbarProps) {
   const undoBtnRef = useRef<HTMLButtonElement>(null);
   const redoBtnRef = useRef<HTMLButtonElement>(null);
@@ -342,6 +346,19 @@ export function Toolbar({
             }}
           />
         </label>
+
+        {onToggleTextWrap && viewMode !== "raw" && (
+          <label class="tablite-toggle-label" title="Toggle text wrap for table cells">
+            <input
+              type="checkbox"
+              checked={textWrap}
+              onChange={onToggleTextWrap}
+              class="tablite-toggle-input"
+            />
+            <span class="tablite-toggle-track" />
+            <span class="tablite-toggle-text">Wrap</span>
+          </label>
+        )}
 
         <details class="tablite-columns-panel">
           <summary class="tablite-select">Columns</summary>

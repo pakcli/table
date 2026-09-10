@@ -35,6 +35,7 @@ export interface PakCLITableSettings extends
     enableAssetDrag: boolean;
     enableCsvEditor?: boolean;
     gridTheme?: string;
+    csvArtifactFolderPath: string;
     enableTreeProcessor?: boolean;
     defaultTreeLayout?: string;
     fileConfigs?: Record<string, unknown>;
