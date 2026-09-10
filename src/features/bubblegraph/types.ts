@@ -40,8 +40,9 @@ export interface BubbleCluster {
     id: string;
     name: string;
     parentClusterId: string | null;
-    depth: number; // 1 = top-level, 2 = subfolder
+    depth: number; // 1 = top-level, 2 = subfolder, up to 5
     nodeIds: string[];
+    directNodeIds?: string[];
     centroid: { x: number; y: number };
     radius: number;
     vx?: number;

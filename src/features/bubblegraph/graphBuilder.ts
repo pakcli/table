@@ -70,7 +70,8 @@ export function buildVaultGraph(
     app: App, 
     activeFilePath: string | null = null,
     captainRules?: FolderRule[],
-    useCaptainColors: boolean = false
+    useCaptainColors: boolean = false,
+    maxClusterDepth: number = 3
 ): BuiltGraph {
     const files: TFile[] = app.vault.getMarkdownFiles();
     const resolvedLinks = app.metadataCache.resolvedLinks || {};
@@ -124,7 +125,9 @@ export function buildVaultGraph(
         const totalDeg = inDeg + outDeg;
 
         const clusterId = topLevelFolder;
-        const subClusterId = folderPath || '/';
+        const subClusterId = folderPath && folderPath !== '/'
+            ? folderPath.split('/').slice(0, Math.min(folderPath.split('/').length, maxClusterDepth)).join('/')
+            : '/';
 
         // Check if index note of folder
         const folderFiles = folderToFiles.get(folderPath) || [];
@@ -213,68 +216,86 @@ export function buildVaultGraph(
         });
     }
 
-    // 5. Build Clusters (Folders & Subfolders)
+    // 5. Build Clusters — N-depth recursive folder hierarchy
+    // Each folder path segment up to maxClusterDepth gets its own cluster bubble.
+    // e.g. folderPath "a/b/c" with maxClusterDepth=5 → clusters: "a" (d1), "a/b" (d2), "a/b/c" (d3)
     const clusters: BubbleCluster[] = [];
     const clusterMap = new Map<string, BubbleCluster>();
 
-    // Top-level clusters
-    const topFolderMap = new Map<string, string[]>();
-    const subFolderMap = new Map<string, string[]>();
+    // Collect all folder paths that appear in the graph
+    const allFolderPaths = new Set<string>();
+    for (const node of nodes) {
+        if (!node.folderPath || node.topLevelFolder === '/') continue;
+        // Add every ancestor path up to maxClusterDepth
+        const parts = node.folderPath.split('/');
+        const maxParts = Math.min(parts.length, maxClusterDepth);
+        for (let d = 1; d <= maxParts; d++) {
+            allFolderPaths.add(parts.slice(0, d).join('/'));
+        }
+    }
+
+    // Map each cluster path → list of DIRECT child node ids (nodes whose folderPath matches exactly)
+    // Note: a cluster at depth d owns ALL nodes in that folder subtree for containment,
+    // but nodeIds for the cluster only lists nodes directly in that folder
+    const clusterDirectNodeIds = new Map<string, string[]>();
+    const clusterAllNodeIds = new Map<string, string[]>();
+
+    for (const folderPath of allFolderPaths) {
+        clusterDirectNodeIds.set(folderPath, []);
+        clusterAllNodeIds.set(folderPath, []);
+    }
 
     for (const node of nodes) {
-        if (node.topLevelFolder !== '/') {
-            if (!topFolderMap.has(node.topLevelFolder)) {
-                topFolderMap.set(node.topLevelFolder, []);
+        if (!node.folderPath || node.topLevelFolder === '/') continue;
+        const parts = node.folderPath.split('/');
+        const maxParts = Math.min(parts.length, maxClusterDepth);
+        for (let d = 1; d <= maxParts; d++) {
+            const ancestorPath = parts.slice(0, d).join('/');
+            if (clusterAllNodeIds.has(ancestorPath)) {
+                clusterAllNodeIds.get(ancestorPath).push(node.id);
             }
-            topFolderMap.get(node.topLevelFolder).push(node.id);
         }
-
-        if (node.folderPath && node.folderPath !== node.topLevelFolder) {
-            if (!subFolderMap.has(node.folderPath)) {
-                subFolderMap.set(node.folderPath, []);
-            }
-            subFolderMap.get(node.folderPath).push(node.id);
+        // Direct membership: only at node's actual folder depth (capped to maxClusterDepth)
+        const cappedPath = parts.slice(0, maxClusterDepth).join('/');
+        if (clusterDirectNodeIds.has(cappedPath)) {
+            clusterDirectNodeIds.get(cappedPath).push(node.id);
         }
     }
 
-    // Create top-level parent clusters
-    for (const [folder, nodeIds] of topFolderMap.entries()) {
+    // Create cluster objects sorted by depth (shallowest first)
+    const sortedFolderPaths = [...allFolderPaths].sort((a, b) => {
+        const da = a.split('/').length;
+        const db = b.split('/').length;
+        return da !== db ? da - db : a.localeCompare(b);
+    });
+
+    for (const folderPath of sortedFolderPaths) {
+        const parts = folderPath.split('/');
+        const depth = parts.length;
+        if (depth > maxClusterDepth) continue;
+
+        const parentPath = depth > 1 ? parts.slice(0, depth - 1).join('/') : null;
+        const name = parts[parts.length - 1];
+        // nodeIds contains ALL nodes in this folder and its sub-folders (for layout bounding)
+        const allIds = [...new Set(clusterAllNodeIds.get(folderPath) || [])];
+        if (allIds.length === 0) continue;
+
         const cluster: BubbleCluster = {
-            id: folder,
-            name: folder,
-            parentClusterId: null,
-            depth: 1,
-            nodeIds,
+            id: folderPath,
+            name,
+            parentClusterId: parentPath,
+            depth,
+            nodeIds: allIds,
+            directNodeIds: [...new Set(clusterDirectNodeIds.get(folderPath) || [])],
             centroid: { x: 0, y: 0 },
-            radius: computeClusterRadius(nodeIds.length, 1),
-            color: getFolderColor(folder, captainRules, useCaptainColors),
+            radius: computeClusterRadius(allIds.length, depth),
+            color: getFolderColor(folderPath, captainRules, useCaptainColors),
             hullPolygon: [],
             smoothedHull: [],
             boundingBox: { minX: 0, minY: 0, maxX: 0, maxY: 0 }
         };
         clusters.push(cluster);
-        clusterMap.set(folder, cluster);
-    }
-
-    // Create nested subfolder child clusters
-    for (const [subFolder, nodeIds] of subFolderMap.entries()) {
-        const topParent = subFolder.split('/')[0];
-        const subName = subFolder.split('/').pop() || subFolder;
-        const cluster: BubbleCluster = {
-            id: subFolder,
-            name: subName,
-            parentClusterId: topParent,
-            depth: 2,
-            nodeIds,
-            centroid: { x: 0, y: 0 },
-            radius: computeClusterRadius(nodeIds.length, 2),
-            color: getFolderColor(subFolder, captainRules, useCaptainColors),
-            hullPolygon: [],
-            smoothedHull: [],
-            boundingBox: { minX: 0, minY: 0, maxX: 0, maxY: 0 }
-        };
-        clusters.push(cluster);
-        clusterMap.set(subFolder, cluster);
+        clusterMap.set(folderPath, cluster);
     }
 
     return {

@@ -152,10 +152,11 @@ export class BubbleGraphView extends ItemView {
         }
     }
 
-    private reloadGraphData(): void {
+    public reloadGraphData(): void {
         const activeFile = this.app.workspace.getActiveFile();
         const captainRules = this.plugin.settings.rules || [];
-        this.graphData = buildVaultGraph(this.app, activeFile ? activeFile.path : null, captainRules, this.useCaptainColors);
+        const maxDepth = this.plugin.settings.bubbleMaxClusterDepth ?? 3;
+        this.graphData = buildVaultGraph(this.app, activeFile ? activeFile.path : null, captainRules, this.useCaptainColors, maxDepth);
 
         // Sort all nodes chronologically by ctime for sequential vanilla timelapse
         this.sortedNodes = [...this.graphData.nodes].sort((a, b) => (a.ctime || 0) - (b.ctime || 0));
@@ -248,12 +249,16 @@ export class BubbleGraphView extends ItemView {
         depthGroup.createSpan({ text: 'Depth:', cls: 'pakcli-depth-label' });
         const depthWrap = depthGroup.createDiv({ cls: 'pakcli-depth-buttons' });
 
-        const depths = [
+        const maxDepthSetting = Math.min(5, Math.max(2, this.plugin.settings.bubbleMaxClusterDepth ?? 3));
+        const depths: Array<{ level: number; label: string }> = [
             { level: 0, label: '0: Lock' },
             { level: 1, label: '1: Folder' },
-            { level: 2, label: '2: Subfolder' },
-            { level: 3, label: '3: Child' }
+            { level: 2, label: '2: Subfolder' }
         ];
+        for (let lvl = 3; lvl <= maxDepthSetting; lvl++) {
+            depths.push({ level: lvl, label: `${lvl}: L${lvl}` });
+        }
+        depths.push({ level: 99, label: 'Node' });
 
         this.depthButtons = depths.map(d => {
             const btn = depthWrap.createEl('button', {

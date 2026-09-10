@@ -177,9 +177,9 @@ export function updateClusterHulls(
         const count = clusterNodes.length;
         const avgCentroid = { x: sumX / count, y: sumY / count };
 
-        // For subclusters (depth 2), centroid directly tracks member nodes
+        // For subclusters (depth > 1), centroid directly tracks member nodes
         // For top clusters (depth 1), preserve simulation-positioned centroid if valid
-        if (cluster.depth === 2 || !cluster.centroid || (cluster.centroid.x === 0 && cluster.centroid.y === 0 && count > 0)) {
+        if (cluster.depth > 1 || !cluster.centroid || (cluster.centroid.x === 0 && cluster.centroid.y === 0 && count > 0)) {
             cluster.centroid = avgCentroid;
         }
 
@@ -191,12 +191,10 @@ export function updateClusterHulls(
         }
 
         // For parent cluster, also enclose any child subclusters
-        if (cluster.depth === 1) {
-            const childSubs = clusters.filter(s => s.depth === 2 && s.parentClusterId === cluster.id && s.radius > 0);
-            for (const sub of childSubs) {
-                const d = Math.hypot(sub.centroid.x - cluster.centroid.x, sub.centroid.y - cluster.centroid.y) + sub.radius;
-                if (d > maxR) maxR = d;
-            }
+        const childSubs = clusters.filter(s => s.parentClusterId === cluster.id && s.radius > 0);
+        for (const sub of childSubs) {
+            const d = Math.hypot(sub.centroid.x - cluster.centroid.x, sub.centroid.y - cluster.centroid.y) + sub.radius;
+            if (d > maxR) maxR = d;
         }
 
         // 3. Compute aesthetic circular radius with generous breathing room

@@ -488,6 +488,25 @@ export default class PakCLITablePlugin extends Plugin {
 					});
 
 				new Setting(containerEl)
+					.setName('Max Bubble Depth')
+					.setDesc('Maximum folder hierarchy nesting depth for bubbles (1 to 5). 1 = top folders only, up to 5 levels for deep folder structures.')
+					.addSlider((s) => {
+						s.setLimits(1, 5, 1)
+							.setValue(this.settings.bubbleMaxClusterDepth ?? 3)
+							.setDynamicTooltip()
+							.onChange(async (v) => {
+								this.settings.bubbleMaxClusterDepth = v;
+								await this.saveSettings();
+								const leaves = this.app.workspace.getLeavesOfType(BUBBLE_GRAPH_VIEW_TYPE);
+								leaves.forEach((leaf) => {
+									if (leaf.view instanceof BubbleGraphView) {
+										leaf.view.reloadGraphData();
+									}
+								});
+							});
+					});
+
+				new Setting(containerEl)
 					.setName('Inter-Folder Link Neon Glow')
 					.setDesc('Apply luminous neon glow shader on inter-cluster cross links.')
 					.addToggle((t) => {

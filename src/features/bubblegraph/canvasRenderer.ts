@@ -167,19 +167,23 @@ export class CanvasRenderer {
                 }
                 ctx.stroke();
             } else {
-                // Nested Child Bubble (Subfolder) - Solid continuous stroke (no dashes)
-                const fillAlpha = isHovered ? 0.25 : 0.08;
+                // Nested Child Bubble (Depth 2 to 5) - Solid continuous stroke
+                const fillAlpha = isHovered ? 0.28 : Math.max(0.04, 0.10 - cluster.depth * 0.015);
                 ctx.fillStyle = this.hexToRgba(baseColor, fillAlpha);
                 ctx.fill();
 
-                ctx.strokeStyle = this.hexToRgba(baseColor, isHovered ? 0.85 : 0.45);
-                ctx.lineWidth = 1.3;
+                ctx.strokeStyle = this.hexToRgba(baseColor, isHovered ? 0.90 : Math.max(0.35, 0.55 - cluster.depth * 0.05));
+                ctx.lineWidth = isHovered ? 1.8 : Math.max(1.0, 1.4 - cluster.depth * 0.1);
                 ctx.stroke();
             }
 
-            // Folder Label Tab Badge (Spec v18: ╭┤ 01-projects ├╮)
-            if (cluster.depth === 1 && state.showLabels) {
-                this.drawClusterFolderTab(cluster, baseColor, isHovered, state);
+            // Folder Label Tab Badge
+            if (state.showLabels) {
+                if (cluster.depth === 1) {
+                    this.drawClusterFolderTab(cluster, baseColor, isHovered, state);
+                } else if (isHovered || (zoom >= 0.65 && cluster.radius >= 22)) {
+                    this.drawSubClusterFolderTab(cluster, baseColor, isHovered, state);
+                }
             }
 
             ctx.restore();
@@ -229,6 +233,47 @@ export class CanvasRenderer {
         ctx.textBaseline = 'middle';
         ctx.fillText(labelText, tabX + 9, tabY + tabHeight / 2);
 
+        ctx.restore();
+    }
+
+    private drawSubClusterFolderTab(
+        cluster: BubbleCluster,
+        color: string,
+        isHovered: boolean,
+        state: RenderState
+    ): void {
+        const visibleCount = (state.timelapseVisibleNodeIds || state.timelapseCtimeCutoff)
+            ? cluster.nodeIds.filter(id => {
+                const n = state.nodeMap.get(id);
+                return n ? this.isNodeVisible(n, state) : false;
+            }).length
+            : cluster.nodeIds.length;
+
+        if (visibleCount === 0) return;
+
+        const ctx = this.ctx;
+        const labelText = `${cluster.name} (${visibleCount})`;
+        ctx.font = '500 9.5px Inter, system-ui, sans-serif';
+        const textWidth = ctx.measureText(labelText).width;
+        const tabWidth = textWidth + 12;
+        const tabHeight = 17;
+
+        const tabX = cluster.centroid.x - tabWidth / 2;
+        const tabY = cluster.centroid.y - cluster.radius - 8;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(tabX, tabY, tabWidth, tabHeight, 4);
+        ctx.fillStyle = isHovered ? 'rgba(15, 23, 42, 0.95)' : 'rgba(15, 23, 42, 0.78)';
+        ctx.fill();
+
+        ctx.strokeStyle = isHovered ? color : this.hexToRgba(color, 0.45);
+        ctx.lineWidth = isHovered ? 1.3 : 0.8;
+        ctx.stroke();
+
+        ctx.fillStyle = isHovered ? '#ffffff' : '#94a3b8';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(labelText, tabX + 6, tabY + tabHeight / 2);
         ctx.restore();
     }
 
