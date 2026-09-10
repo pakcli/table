@@ -27,12 +27,23 @@ export function computeTopClusterRadius(c: BubbleCluster, subClusters: BubbleClu
     if (childSubs.length === 0) return baseR;
 
     let totalSubArea = 0;
+    let maxSubRadius = 0;
     for (const sub of childSubs) {
-        const sr = sub.radius + 2;
+        const sr = sub.radius + 1.5;
         totalSubArea += Math.PI * sr * sr;
+        if (sub.radius > maxSubRadius) maxSubRadius = sub.radius;
     }
-    const packingR = Math.ceil(Math.sqrt(totalSubArea / (Math.PI * 0.78)) + 10);
-    return Math.max(baseR, packingR);
+
+    // Account for loose nodes (files directly in top cluster, not in any subfolder)
+    const subNodeCount = childSubs.reduce((sum, s) => sum + s.nodeIds.length, 0);
+    const looseCount = Math.max(0, visibleNodeCount - subNodeCount);
+    const looseArea = looseCount * (Math.PI * 14 * 14);
+
+    // Circle packing density inside a circle is ~0.52 for varying sizes
+    const totalArea = totalSubArea + looseArea;
+    const packingR = Math.ceil(Math.sqrt(totalArea / (Math.PI * 0.52)) + 14);
+
+    return Math.max(baseR, packingR, maxSubRadius + 24);
 }
 
 export class BubbleSimulation {
@@ -113,11 +124,49 @@ export class BubbleSimulation {
             if (childSubs.length > 0) {
                 const numSubs = childSubs.length;
                 childSubs.forEach((sub, sIdx) => {
-                    sub.radius = computeClusterRadius(sub.nodeIds.length, 2);
+                    const count = sub.nodeIds.length;
+                    sub.radius = count === 0 ? 0 : count === 1 ? 24 : count === 2 ? 34 : computeClusterRadius(count, 2);
                     sub.vx = 0; sub.vy = 0;
                     const phi = sIdx * 2.3999632;
                     const dist = Math.sqrt((sIdx + 0.5) / numSubs) * Math.max(15, r - sub.radius - 12);
                     sub.centroid = { x: cx + Math.cos(phi) * dist, y: cy + Math.sin(phi) * dist };
+                });
+
+                // Initial PBD relaxation: ensure sibling subclusters don't overlap upon load
+                for (let iter = 0; iter < 15; iter++) {
+                    for (let i = 0; i < childSubs.length; i++) {
+                        const sa = childSubs[i];
+                        if (sa.radius === 0) continue;
+                        for (let j = i + 1; j < childSubs.length; j++) {
+                            const sb = childSubs[j];
+                            if (sb.radius === 0) continue;
+                            const minD = sa.radius + sb.radius + 2;
+                            const dx = sb.centroid.x - sa.centroid.x;
+                            const dy = sb.centroid.y - sa.centroid.y;
+                            const d2 = dx * dx + dy * dy;
+                            if (d2 < minD * minD) {
+                                const d = Math.sqrt(d2) || 0.001;
+                                const s = ((minD - d) * 0.5) / d;
+                                sa.centroid.x -= dx * s; sa.centroid.y -= dy * s;
+                                sb.centroid.x += dx * s; sb.centroid.y += dy * s;
+                            }
+                        }
+                    }
+                    for (const sub of childSubs) {
+                        const maxSubD = Math.max(0, r - sub.radius - 4);
+                        const dx = sub.centroid.x - cx;
+                        const dy = sub.centroid.y - cy;
+                        const d = Math.hypot(dx, dy) || 0.001;
+                        if (d > maxSubD) {
+                            const scale = maxSubD / d;
+                            sub.centroid.x = cx + dx * scale;
+                            sub.centroid.y = cy + dy * scale;
+                        }
+                    }
+                }
+
+                // Place nodes inside their subclusters
+                childSubs.forEach((sub) => {
                     const subSpread = Math.max(5, sub.radius - 8);
                     sub.nodeIds.forEach((nid, nIdx) => {
                         const node = this.nodeMap.get(nid);
@@ -179,7 +228,7 @@ export class BubbleSimulation {
             }
         });
 
-        updateClusterHulls(this.clusters, this.nodeMap);
+        updateClusterHulls(this.clusters, this.nodeMap, 18, null, this.options.layoutMode === 'bubble');
     }
 
     public setOptions(opts: Partial<SimulationOptions>): void {
@@ -279,15 +328,16 @@ export class BubbleSimulation {
                 c.centroid.y -= (c.centroid.y / d) * pullSpeed;
             }
 
-            // SEPARATION: 10 PBD passes with tight spacing (no phantom gaps)
-            for (let iter = 0; iter < 10; iter++) {
+            // SEPARATION: 12 PBD passes with tight spacing (no overlap, just touch)
+            for (let iter = 0; iter < 12; iter++) {
                 for (let i = 0; i < topCount; i++) {
                     const ca = topClusters[i];
                     if (ca.radius === 0) continue;
                     for (let j = i + 1; j < topCount; j++) {
                         const cb = topClusters[j];
                         if (cb.radius === 0) continue;
-                        const minD = ca.radius + cb.radius + 6;
+                        // "Just touch": distance = ca.radius + cb.radius + 2px hairline buffer
+                        const minD = ca.radius + cb.radius + 2;
                         const dx = cb.centroid.x - ca.centroid.x;
                         const dy = cb.centroid.y - ca.centroid.y;
                         const d2 = dx * dx + dy * dy;
@@ -332,8 +382,8 @@ export class BubbleSimulation {
                 sub.centroid.y += parent.centroid.y - pp.y;
             }
 
-            // Subfolder gravity toward parent center (steady, living inward pull)
-            const subGravK = 0.04;
+            // Subfolder gravity toward parent center (gentle living inward pull)
+            const subGravK = 0.02;
             for (const sub of subClusters) {
                 if (sub.radius === 0 || !sub.parentClusterId) continue;
                 const parent = clusterById.get(sub.parentClusterId);
@@ -342,42 +392,56 @@ export class BubbleSimulation {
                 sub.centroid.y += (parent.centroid.y - sub.centroid.y) * subGravK;
             }
 
-            // Sibling separation — 4 PBD passes with maximum step clamp (prevents explosion)
-            for (let iter = 0; iter < 4; iter++) {
+            // Sibling separation & Container boundary constraint — 12 PBD passes [guaranteed no overlap, just touch]
+            for (let iter = 0; iter < 12; iter++) {
+                // 1. Pairwise separation between sibling subclusters
                 for (let i = 0; i < subClusters.length; i++) {
                     const sa = subClusters[i];
                     if (sa.radius === 0) continue;
                     for (let j = i + 1; j < subClusters.length; j++) {
                         const sb = subClusters[j];
                         if (sb.radius === 0 || sa.parentClusterId !== sb.parentClusterId) continue;
-                        const minD = sa.radius + sb.radius + 6;
+                        // "Just touch": distance = sa.radius + sb.radius + 2px hairline buffer
+                        const minD = sa.radius + sb.radius + 2;
                         const dx = sb.centroid.x - sa.centroid.x;
                         const dy = sb.centroid.y - sa.centroid.y;
                         const d2 = dx * dx + dy * dy;
                         if (d2 < minD * minD) {
                             const d = Math.sqrt(d2) || 0.001;
-                            const push = Math.min((minD - d) * 0.5, 3.5);
-                            const s = push / d;
+                            const s = ((minD - d) * 0.5) / d;
                             sa.centroid.x -= dx * s; sa.centroid.y -= dy * s;
                             sb.centroid.x += dx * s; sb.centroid.y += dy * s;
                         }
                     }
                 }
+
+                // 2. Hard boundary clamp: subfolder must strictly stay inside parent circle
+                for (const sub of subClusters) {
+                    if (sub.radius === 0 || !sub.parentClusterId) continue;
+                    const parent = clusterById.get(sub.parentClusterId);
+                    if (!parent || parent.radius === 0) continue;
+                    const maxSubD = Math.max(0, parent.radius - sub.radius - 4);
+                    const dx = sub.centroid.x - parent.centroid.x;
+                    const dy = sub.centroid.y - parent.centroid.y;
+                    const d = Math.hypot(dx, dy) || 0.001;
+                    if (d > maxSubD) {
+                        const scale = maxSubD / d;
+                        sub.centroid.x = parent.centroid.x + dx * scale;
+                        sub.centroid.y = parent.centroid.y + dy * scale;
+                    }
+                }
             }
 
-            // Hard boundary clamp: subfolder must strictly stay inside parent circle
-            for (const sub of subClusters) {
-                if (sub.radius === 0 || !sub.parentClusterId) continue;
-                const parent = clusterById.get(sub.parentClusterId);
-                if (!parent || parent.radius === 0) continue;
-                const maxSubD = Math.max(4, parent.radius - sub.radius - 8);
-                const dx = sub.centroid.x - parent.centroid.x;
-                const dy = sub.centroid.y - parent.centroid.y;
-                const d = Math.hypot(dx, dy) || 0.001;
-                if (d > maxSubD) {
-                    const scale = maxSubD / d;
-                    sub.centroid.x = parent.centroid.x + dx * scale;
-                    sub.centroid.y = parent.centroid.y + dy * scale;
+            // Adapt parent radius if needed to cleanly enclose outermost subclusters
+            for (const c of topClusters) {
+                if (c.radius === 0) continue;
+                const childSubs = subClusters.filter(s => s.parentClusterId === c.id && s.radius > 0);
+                for (const sub of childSubs) {
+                    const d = Math.hypot(sub.centroid.x - c.centroid.x, sub.centroid.y - c.centroid.y);
+                    const requiredR = Math.ceil(d + sub.radius + 8);
+                    if (requiredR > c.radius) {
+                        c.radius = requiredR;
+                    }
                 }
             }
 
@@ -491,6 +555,24 @@ export class BubbleSimulation {
                         const outV = node.vx * (cdx / cd) + node.vy * (cdy / cd);
                         if (outV > 0) { node.vx -= (cdx / cd) * outV; node.vy -= (cdy / cd) * outV; }
                     }
+
+                    // For loose nodes in parent cluster, push away from child subclusters so they don't clip
+                    if (container === c) {
+                        const childSubs = subClusters.filter(s => s.parentClusterId === c.id && s.radius > 0);
+                        for (const s of childSubs) {
+                            const sdx = node.x - s.centroid.x;
+                            const sdy = node.y - s.centroid.y;
+                            const sd = Math.hypot(sdx, sdy) || 0.001;
+                            const minSd = s.radius + node.radius + 3;
+                            if (sd < minSd) {
+                                const push = minSd - sd;
+                                node.x += (sdx / sd) * push;
+                                node.y += (sdy / sd) * push;
+                                node.vx += (sdx / sd) * 0.5;
+                                node.vy += (sdy / sd) * 0.5;
+                            }
+                        }
+                    }
                 }
             }
 
@@ -559,7 +641,7 @@ export class BubbleSimulation {
             node.vx *= damping; node.vy *= damping;
         }
 
-        updateClusterHulls(this.clusters, this.nodeMap, 18, visibleNodeIds);
+        updateClusterHulls(this.clusters, this.nodeMap, 18, visibleNodeIds, isBubbleMode);
         this.alpha *= (1 - this.alphaDecay);
         // In bubble mode: always keep running (gravity is a continuous living force)
         return isBubbleMode ? true : (this.alpha >= this.alphaMin || this.isDragging);

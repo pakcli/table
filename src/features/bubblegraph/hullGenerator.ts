@@ -132,7 +132,8 @@ export function updateClusterHulls(
     clusters: BubbleCluster[],
     nodeMap: Map<string, BubbleNode>,
     padding: number = 18,
-    visibleNodeIds?: Set<string> | null
+    visibleNodeIds?: Set<string> | null,
+    isBubbleMode: boolean = false
 ): void {
     // Process subclusters (depth 2) first so top-level clusters (depth 1) know subcluster boundaries
     const sorted = [...clusters].sort((a, b) => b.depth - a.depth);
@@ -150,6 +151,19 @@ export function updateClusterHulls(
             cluster.hullPolygon = [];
             cluster.radius = 0;
             cluster.boundingBox = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+            continue;
+        }
+
+        if (isBubbleMode) {
+            // In bubble mode, centroid and radius are authoritatively managed by the PBD bubble simulation.
+            // Preserving exact radius and centroid guarantees circles never overlap and "just touch" as simulated.
+            cluster.boundingBox = {
+                minX: cluster.centroid.x - cluster.radius,
+                minY: cluster.centroid.y - cluster.radius,
+                maxX: cluster.centroid.x + cluster.radius,
+                maxY: cluster.centroid.y + cluster.radius
+            };
+            cluster.hullPolygon = generateCircleHull(cluster.centroid, cluster.radius, 48);
             continue;
         }
 
