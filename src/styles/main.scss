@@ -996,6 +996,92 @@ body.codeblock-scalefit {
     }
 }
 
+.tablite-row-option {
+    opacity: 0.75;
+    font-style: italic;
+}
+
+/* --- View group with counter --- */
+.tablite-view-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tablite-view-counter {
+    font-size: 10px;
+    font-family: var(--font-monospace);
+    color: var(--text-muted);
+    background: var(--background-modifier-border);
+    border-radius: 10px;
+    padding: 1px 6px;
+    white-space: nowrap;
+    user-select: none;
+}
+
+/* --- Columns panel section titles --- */
+.tablite-columns-section-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 6px 4px 2px;
+    border-top: 1px solid var(--background-modifier-border);
+    margin-top: 4px;
+
+    &:first-of-type {
+        border-top: none;
+        margin-top: 0;
+    }
+}
+
+.tablite-menu-show-all {
+    background: var(--interactive-accent) !important;
+    color: var(--text-on-accent) !important;
+    border-color: var(--interactive-accent) !important;
+    font-weight: 700 !important;
+
+    &:hover {
+        opacity: 0.9;
+    }
+}
+
+.tablite-menu-secondary {
+    font-weight: 400 !important;
+    font-size: 11px !important;
+    opacity: 0.85;
+}
+
+.tablite-menu-empty {
+    font-size: 11px;
+    color: var(--text-faint);
+    padding: 3px 6px;
+    font-style: italic;
+}
+
+/* --- Floating bar Show / Hide row styles --- */
+.tablite-fa-show-all {
+    background: var(--interactive-accent) !important;
+    color: var(--text-on-accent) !important;
+    border-color: var(--interactive-accent) !important;
+    font-weight: 600;
+
+    &:hover {
+        opacity: 0.9;
+        background: var(--interactive-accent-hover, var(--interactive-accent)) !important;
+    }
+}
+
+.tablite-fa-show {
+    color: var(--interactive-accent) !important;
+    border-color: var(--interactive-accent) !important;
+
+    &:hover {
+        background: rgba(var(--interactive-accent-rgb, 100, 130, 255), 0.12) !important;
+    }
+}
+
 .tablite-freeze-control {
     display: inline-flex;
     align-items: center;
@@ -1268,21 +1354,23 @@ body.codeblock-scalefit {
     border-right: 1px solid var(--background-modifier-border);
     border-bottom: 1px solid var(--background-modifier-border);
     background-color: var(--background-secondary);
-    padding: 4px 8px;
+    padding: 0;
+    margin: 0;
     font-weight: 600;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
     user-select: none;
     position: relative;
     box-sizing: border-box;
-    min-height: 32px;
+    vertical-align: top;
 
     &.tablite-th-row-num {
         width: 55px;
         min-width: 45px;
         text-align: center;
-        justify-content: center;
+        justify-content: flex-start;
         color: var(--text-faint);
         background-color: var(--background-secondary-alt);
         cursor: pointer;
@@ -1292,21 +1380,26 @@ body.codeblock-scalefit {
             color: var(--text-normal);
         }
     }
-}
 
-.tablite-row-num-header {
-    font-weight: 600;
-    color: var(--text-muted);
-    font-size: 11px;
-    user-select: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
+    &.tablite-col-selected {
+        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.12) !important;
+        border-bottom: 2px solid var(--interactive-accent) !important;
 
-    &:hover {
-        color: var(--text-accent);
+        .tablite-header-row-letter {
+            background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.35) !important;
+            color: var(--text-accent) !important;
+            font-weight: 800 !important;
+        }
+
+        .tablite-header-name {
+            color: var(--text-accent) !important;
+            font-weight: 700 !important;
+        }
+
+        .tablite-sort-indicator {
+            opacity: 1 !important;
+            color: var(--text-accent) !important;
+        }
     }
 }
 
@@ -1314,9 +1407,11 @@ body.codeblock-scalefit {
     display: flex;
     flex-direction: column;
     width: 100%;
+    height: 100%;
     position: relative;
     box-sizing: border-box;
-    cursor: grab;
+    cursor: default;
+    user-select: none;
     transition: background-color 0.15s ease, border-left-color 0.15s ease;
 
     &:active {
@@ -1329,13 +1424,72 @@ body.codeblock-scalefit {
     }
 }
 
-.tablite-header-top {
+/* 1- Sub-row 1 (thin): A, B, C, D... */
+.tablite-header-row-1,
+.tablite-header-row-letter {
+    height: 20px;
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--background-secondary-alt);
+    border-bottom: 1px solid var(--background-modifier-border);
+    font-size: 11px;
+    font-family: var(--font-monospace);
+    font-weight: 700;
+    color: var(--text-muted);
+    user-select: none;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background-color 0.12s ease, color 0.12s ease;
+
+    &:hover {
+        background-color: var(--background-modifier-hover);
+        color: var(--text-normal);
+    }
+}
+
+.tablite-row-num-letter {
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+        color: var(--text-accent);
+    }
+}
+
+/* 2- Sub-row 2: Column name, type, clipboard toggle */
+.tablite-header-row-2,
+.tablite-header-row-meta {
+    min-height: 28px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    width: 100%;
     gap: 4px;
+    padding: 2px 6px;
+    border-bottom: 1px solid var(--background-modifier-border);
     position: relative;
+    box-sizing: border-box;
+}
+
+.tablite-col-drag-dots {
+    cursor: grab;
+    user-select: none;
+    color: var(--text-faint);
+    font-size: 11px;
+    line-height: 1;
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: opacity 0.15s ease, color 0.15s ease;
+
+    &:hover {
+        opacity: 1;
+        color: var(--text-normal);
+    }
+
+    &:active {
+        cursor: grabbing;
+    }
 }
 
 .tablite-header-name {
@@ -1347,13 +1501,18 @@ body.codeblock-scalefit {
     white-space: nowrap;
     cursor: pointer;
     flex: 1 1 auto;
+    min-width: 0;
+
+    &:hover {
+        color: var(--text-accent);
+    }
 }
 
 .tablite-header-type {
     font-size: 9px;
     font-family: var(--font-monospace);
     color: var(--text-muted);
-    padding: 1px 5px;
+    padding: 1px 4px;
     border-radius: 3px;
     background-color: var(--background-modifier-hover);
     flex-shrink: 0;
@@ -1403,7 +1562,7 @@ body.codeblock-scalefit {
 
 .tablite-resize-handle {
     position: absolute;
-    right: -8px;
+    right: 0;
     top: 0;
     bottom: 0;
     width: 6px;
@@ -1417,10 +1576,328 @@ body.codeblock-scalefit {
     }
 }
 
+/* 3- Sub-row 3: Split (dropdown filter, dropdown sort, toggle sort) */
+.tablite-header-row-3,
+.tablite-header-row-filter-sort {
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 3px 6px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    box-sizing: border-box;
+    position: relative;
+}
+
+/* 1. Dropdown filter pill button */
+.tablite-filter-dropdown-wrap {
+    flex: 1 1 auto;
+    min-width: 36px;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.tablite-filter-pill-btn {
+    width: 100%;
+    height: 22px;
+    padding: 1px 8px;
+    border-radius: 12px;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 11px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: all 0.15s ease;
+
+    &:hover {
+        background-color: var(--background-modifier-hover);
+        border-color: var(--interactive-accent);
+    }
+
+    &.is-filtered {
+        border-color: var(--interactive-accent);
+        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.12);
+        color: var(--text-accent);
+        font-weight: 600;
+    }
+}
+
+.tablite-filter-pill-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tablite-filter-popup {
+    position: absolute;
+    top: calc(100% + 3px);
+    left: 0;
+    z-index: 1000;
+    min-width: 190px;
+    max-width: 280px;
+    max-height: 260px;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tablite-filter-search-input {
+    height: 22px;
+    padding: 2px 6px;
+    font-size: 11px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    width: 100%;
+    box-sizing: border-box;
+
+    &:focus {
+        border-color: var(--interactive-accent);
+        outline: none;
+    }
+}
+
+.tablite-filter-popup-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 4px;
+    margin-bottom: 2px;
+}
+
+.tablite-filter-action-btn {
+    font-size: 10.5px;
+    color: var(--text-accent);
+    background: transparent;
+    border: none;
+    padding: 1px 4px;
+    cursor: pointer;
+    font-weight: 600;
+    border-radius: 3px;
+
+    &:hover {
+        background-color: var(--background-modifier-hover);
+    }
+}
+
+.tablite-filter-popup-range {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: 3px;
+}
+
+.tablite-filter-range-input {
+    width: 100%;
+    height: 20px;
+    font-size: 10.5px;
+    padding: 1px 4px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 3px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    box-sizing: border-box;
+}
+
+.tablite-filter-item-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+/* 3. Force sort radio button */
+.tablite-sort-force-wrap {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.tablite-sort-force-btn {
+    width: 19px;
+    height: 19px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1.5px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+
+    &:hover {
+        border-color: var(--interactive-accent);
+        background-color: var(--background-modifier-hover);
+        transform: scale(1.08);
+    }
+
+    &.is-active {
+        border-color: var(--interactive-accent);
+        background-color: var(--background-primary);
+        box-shadow: 0 0 4px rgba(var(--color-accent-rgb, 100, 150, 255), 0.4);
+
+        .tablite-sort-radio-inner {
+            transform: scale(1);
+            opacity: 1;
+            background-color: var(--interactive-accent);
+        }
+    }
+}
+
+.tablite-sort-radio-inner {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: transparent;
+    opacity: 0;
+    transform: scale(0.3);
+    transition: all 0.15s ease;
+}
+
+/* 3. Toggle sort circular buttons */
+.tablite-sort-toggle-group,
+.tablite-sort-group {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+.tablite-sort-circle-btn,
+.tablite-sort-btn {
+    width: 19px;
+    height: 19px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 8px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    transition: all 0.12s ease;
+
+    &:hover {
+        background-color: var(--background-modifier-hover);
+        color: var(--text-normal);
+        transform: scale(1.06);
+    }
+
+    &.is-active {
+        background-color: var(--interactive-accent);
+        color: var(--text-on-accent, #fff);
+        border-color: var(--interactive-accent);
+        font-weight: 800;
+        box-shadow: 0 0 4px rgba(var(--color-accent-rgb, 100, 150, 255), 0.5);
+    }
+}
+
+/* 4- Sub-row 4: Calc dropdown & badges */
+.tablite-header-row-4,
+.tablite-header-row-calc {
+    min-height: 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 3px 6px;
+    box-sizing: border-box;
+}
+
+.tablite-calc-select {
+    width: 100%;
+    height: 22px;
+    font-size: 11px;
+    padding: 1px 4px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 3px;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+
+    &:focus {
+        border-color: var(--interactive-accent);
+        outline: none;
+    }
+}
+
+.tablite-calc-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-family: var(--font-monospace);
+    user-select: none;
+}
+
+.tablite-header-calc-results,
+.tablite-calc-badge-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 1px;
+}
+
+.tablite-header-calc-item,
+.tablite-calc-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    line-height: 1.2;
+    padding: 1px 4px;
+    background: var(--background-modifier-hover);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 3px;
+    font-family: var(--font-monospace);
+
+    &.tablite-calc-badge-error {
+        color: var(--text-error, #f55);
+        border-color: var(--text-error, #f55);
+    }
+}
+
+.tablite-header-calc-fn,
+.tablite-calc-badge-prefix {
+    color: var(--text-accent);
+    font-weight: 600;
+}
+
+.tablite-header-calc-val,
+.tablite-calc-badge-val {
+    color: var(--text-normal);
+}
+
 .tablite-column-filter {
     padding: 2px 6px;
     font-size: 11px;
-    margin-top: 4px;
+    margin: 0;
     width: 100%;
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--radius-s);
@@ -1549,6 +2026,13 @@ body.codeblock-scalefit {
         background-color: rgba(var(--interactive-accent-rgb, 100, 100, 255), 0.12);
     }
 
+    &.tablite-td-editing {
+        padding: 0 4px;
+        outline: 2px solid var(--interactive-accent);
+        outline-offset: -2px;
+        background-color: var(--background-primary);
+    }
+
     &.tablite-td-selected {
         background-color: rgba(var(--interactive-accent-rgb, 100, 100, 255), 0.18);
     }
@@ -1558,16 +2042,17 @@ body.codeblock-scalefit {
     }
 
     &.tablite-row-num-selected {
-        background-color: var(--background-modifier-active-hover);
-        color: var(--text-accent);
-        font-weight: 600;
+        background-color: rgba(var(--color-accent-rgb, 100, 150, 255), 0.22) !important;
+        color: var(--text-accent) !important;
+        font-weight: 700 !important;
+        border-left: 2px solid var(--interactive-accent) !important;
     }
 }
 
 .tablite-frozen-cell {
     position: sticky;
     z-index: 5;
-    background-color: var(--background-secondary);
+    background-color: var(--background-primary);
 }
 
 th.tablite-frozen-cell {
@@ -1620,13 +2105,18 @@ th.tablite-frozen-cell {
 .tablite-cell-input {
     width: 100%;
     height: 100%;
-    padding: 0;
+    min-height: 24px;
+    padding: 2px 4px;
     border: none;
     outline: none;
     background: transparent;
     color: var(--text-normal);
     font-size: 12px;
     font-family: inherit;
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+    box-sizing: border-box;
 }
 
 /* --- YouTube Thumbnail Cell --- */

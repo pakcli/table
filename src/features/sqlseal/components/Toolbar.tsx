@@ -52,6 +52,12 @@ interface ToolbarProps {
   onOpenAddCalcPreset?: () => void;
   textWrap?: boolean;
   onToggleTextWrap?: () => void;
+  onAddRow?: () => void;
+  onAddColumn?: () => void;
+  hiddenRows?: Set<number>;
+  onToggleRowVisibility?: (rowIndex: number) => void;
+  onShowAllRows?: () => void;
+  onShowAllVisibility?: () => void;
 }
 
 const DELIMITER_LABELS: Record<string, string> = {
@@ -110,6 +116,12 @@ export function Toolbar({
   onOpenAddCalcPreset,
   textWrap = false,
   onToggleTextWrap,
+  onAddRow,
+  onAddColumn,
+  hiddenRows,
+  onToggleRowVisibility,
+  onShowAllRows,
+  onShowAllVisibility,
 }: ToolbarProps) {
   const undoBtnRef = useRef<HTMLButtonElement>(null);
   const redoBtnRef = useRef<HTMLButtonElement>(null);
@@ -279,6 +291,57 @@ export function Toolbar({
   return (
     <div class="tablite-toolbar">
       <div class="tablite-toolbar-left">
+        {/* 1. Find & Replace */}
+        {onToggleFindReplace && (
+          <button
+            type="button"
+            class={`tablite-btn ${isFindOpen ? "tablite-btn-primary" : ""}`}
+            onClick={onToggleFindReplace}
+            title="Toggle Find & Replace (Ctrl+F / Ctrl+H)"
+          >
+            🔍 Find & Replace
+          </button>
+        )}
+
+        {/* 2. View */}
+        {views && (
+          <div class="tablite-view-group">
+            <select ref={viewSelectRef} class="tablite-select" value={activeView} title="View Presets">
+              {Object.keys(views).map((name) => (
+                <option key={name} value={name}>
+                  View: {name}
+                </option>
+              ))}
+              <option disabled>──────────</option>
+              <option value="__action_reset">🔄 Reset current view to default</option>
+              <option value="__action_add">+ Add new view...</option>
+              <option value="__action_duplicate">📄 Duplicate current...</option>
+              <option value="__action_delete">🗑️ Delete current</option>
+            </select>
+            <span
+              class="tablite-view-counter"
+              title={`${colCount} columns × ${rowCount} rows (current view)`}
+            >
+              {colCount}×{rowCount}
+            </span>
+          </div>
+        )}
+
+        {/* 3. Raw View */}
+        {onToggleViewMode && (
+          <button
+            type="button"
+            class={`tablite-btn ${viewMode === "raw" ? "tablite-btn-primary" : ""}`}
+            onClick={onToggleViewMode}
+            title={viewMode === "raw" ? "Switch to Spreadsheet Table View" : "Switch to Raw CSV Text View"}
+          >
+            {viewMode === "raw" ? "📊 Table View" : "📝 Raw View"}
+          </button>
+        )}
+
+        <span class="tablite-separator" />
+
+        {/* 4. Undo Redo */}
         <button
           ref={undoBtnRef}
           class="tablite-icon-btn"
@@ -298,7 +361,34 @@ export function Toolbar({
 
         <span class="tablite-separator" />
 
-        <select ref={delimiterRef} class="tablite-select" value={delimiter}>
+        {/* 5. Add new row */}
+        {onAddRow && (
+          <button
+            type="button"
+            class="tablite-btn"
+            onClick={onAddRow}
+            title="Add row (inserts below selected row or appends at bottom)"
+          >
+            ➕ Row
+          </button>
+        )}
+
+        {/* 6. Add new column */}
+        {onAddColumn && (
+          <button
+            type="button"
+            class="tablite-btn"
+            onClick={onAddColumn}
+            title="Add column (inserts next to selected column or appends at end)"
+          >
+            ➕ Col
+          </button>
+        )}
+
+        <span class="tablite-separator" />
+
+        {/* 7. Comma (Delimiter) */}
+        <select ref={delimiterRef} class="tablite-select" value={delimiter} title="Delimiter">
           {Object.entries(DELIMITER_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
@@ -306,47 +396,81 @@ export function Toolbar({
           ))}
         </select>
 
-        <select ref={encodingRef} class="tablite-select" value={encoding}>
+        {/* 8. UTF (Encoding) */}
+        <select ref={encodingRef} class="tablite-select" value={encoding} title="Encoding">
           <option value="utf-8">UTF-8</option>
           <option value="gbk">GBK</option>
           <option value="windows-1252">Windows-1252</option>
           <option value="shift_jis">Shift-JIS</option>
         </select>
 
-        {views && (
-          <select ref={viewSelectRef} class="tablite-select" value={activeView}>
-            {Object.keys(views).map((name) => (
-              <option key={name} value={name}>
-                View: {name}
+        {/* 9. Freeze */}
+        <label class="tablite-freeze-control" title="Freeze leading columns">
+          <span class="tablite-freeze-label">Freeze</span>
+          <select ref={freezeRef} class="tablite-select" value={String(frozenCount)}>
+            {Array.from({ length: Math.min(6, colCount) + 1 }, (_, index) => (
+              <option key={index} value={String(index)}>
+                {index}
               </option>
             ))}
-            <option disabled>──────────</option>
-            <option value="__action_reset">🔄 Reset current view to default</option>
-            <option value="__action_add">+ Add new view...</option>
-            <option value="__action_duplicate">📄 Duplicate current...</option>
-            <option value="__action_delete">🗑️ Delete current</option>
           </select>
-        )}
-
-        <span class="tablite-separator" />
-
-        <label class="tablite-toggle-label" title="First row is header">
-          <input ref={headerToggleRef} type="checkbox" checked={hasHeader} class="tablite-toggle-input" />
-          <span class="tablite-toggle-track" />
-          <span class="tablite-toggle-text">Header</span>
         </label>
 
-        <label class="tablite-toggle-label" title="Cross highlight on selection">
-          <input ref={crossHLRef} type="checkbox" checked={crossHighlight} class="tablite-toggle-input" />
-          <span class="tablite-toggle-track" />
-          <span
-            class="tablite-toggle-text"
-            dangerouslySetInnerHTML={{
-              __html: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>',
-            }}
-          />
-        </label>
+        {/* 10. Dropdown column + rows */}
+        <details class="tablite-columns-panel">
+          <summary class="tablite-select" title="Toggle visible columns &amp; rows">Columns</summary>
+          <div class="tablite-columns-menu">
+            {/* Show All */}
+            <button
+              type="button"
+              class="tablite-menu-button tablite-menu-show-all"
+              onClick={() => { onShowAllColumns?.(); onShowAllRows?.(); }}
+              title="Show all hidden columns and rows"
+            >
+              👁 Show All
+            </button>
 
+            {/* Columns section */}
+            <div class="tablite-columns-section-title">Columns</div>
+            <button type="button" class="tablite-menu-button tablite-menu-secondary" onClick={onShowAllColumns}>
+              Show all columns
+            </button>
+            {orderedHeaders.map(({ index, name }) => (
+              <label key={index} class="tablite-column-option">
+                <input
+                  type="checkbox"
+                  checked={!hiddenColumns.includes(index)}
+                  onChange={() => onToggleColumnVisibility(index)}
+                />
+                <span>{resolveHeaderName(name, autocompleteColumns || "")}</span>
+              </label>
+            ))}
+
+            {/* Rows section */}
+            <div class="tablite-columns-section-title">Rows</div>
+            {hiddenRows && hiddenRows.size > 0 ? (
+              <>
+                <button type="button" class="tablite-menu-button tablite-menu-secondary" onClick={onShowAllRows}>
+                  Show all rows
+                </button>
+                {Array.from(hiddenRows).sort((a, b) => a - b).map((rowIndex) => (
+                  <label key={rowIndex} class="tablite-column-option tablite-row-option">
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      onChange={() => onToggleRowVisibility?.(rowIndex)}
+                    />
+                    <span>Row {rowIndex + 1}</span>
+                  </label>
+                ))}
+              </>
+            ) : (
+              <span class="tablite-menu-empty">No hidden rows</span>
+            )}
+          </div>
+        </details>
+
+        {/* 11. Toggle wrap text */}
         {onToggleTextWrap && viewMode !== "raw" && (
           <label class="tablite-toggle-label" title="Toggle text wrap for table cells">
             <input
@@ -360,36 +484,9 @@ export function Toolbar({
           </label>
         )}
 
-        <details class="tablite-columns-panel">
-          <summary class="tablite-select">Columns</summary>
-          <div class="tablite-columns-menu">
-            <button type="button" class="tablite-menu-button" onClick={onShowAllColumns}>
-              Show all
-            </button>
-            {orderedHeaders.map(({ index, name }) => (
-              <label key={index} class="tablite-column-option">
-                <input
-                  type="checkbox"
-                  checked={!hiddenColumns.includes(index)}
-                  onChange={() => onToggleColumnVisibility(index)}
-                />
-                <span>{resolveHeaderName(name, autocompleteColumns || "")}</span>
-              </label>
-            ))}
-          </div>
-        </details>
+        <span class="tablite-separator" />
 
-        <label class="tablite-freeze-control">
-          <span class="tablite-freeze-label">Freeze</span>
-          <select ref={freezeRef} class="tablite-select" value={String(frozenCount)}>
-            {Array.from({ length: Math.min(4, colCount) + 1 }, (_, index) => (
-              <option key={index} value={String(index)}>
-                {index}
-              </option>
-            ))}
-          </select>
-        </label>
-
+        {/* 12. Calc dropdown and toggle */}
         {onCalcPositionChange && (
           <label class="tablite-freeze-control" title="Calculation row position (Above header, Below rows, Both, or Off)">
             <span class="tablite-freeze-label">∑ Calc</span>
@@ -398,8 +495,8 @@ export function Toolbar({
               value={calcPosition}
               onChange={(e) => onCalcPositionChange((e.target as HTMLSelectElement).value as 'below' | 'above' | 'both' | 'none')}
             >
-              <option value="below">Below</option>
               <option value="above">Above</option>
+              <option value="below">Below</option>
               <option value="both">Both</option>
               <option value="none">Off</option>
             </select>
@@ -419,6 +516,7 @@ export function Toolbar({
           </label>
         )}
 
+        {/* 13. Add calc */}
         {onOpenAddCalcPreset && (
           <button
             type="button"
@@ -430,20 +528,7 @@ export function Toolbar({
           </button>
         )}
 
-        {onToggleViewMode && (
-          <>
-            <span class="tablite-separator" />
-            <button
-              type="button"
-              class={`tablite-btn ${viewMode === "raw" ? "tablite-btn-primary" : ""}`}
-              onClick={onToggleViewMode}
-              title={viewMode === "raw" ? "Switch to Spreadsheet Table View" : "Switch to Raw CSV Text View"}
-            >
-              {viewMode === "raw" ? "📊 Table View" : "📝 Raw View"}
-            </button>
-          </>
-        )}
-
+        {/* 14. Cache thumbnail */}
         {onDownloadThumbnails && (
           <button
             type="button"
@@ -454,6 +539,24 @@ export function Toolbar({
             🎬 Cache Thumbnails
           </button>
         )}
+
+        {/* Optional Header toggle & cross highlight */}
+        <span class="tablite-separator" />
+        <label class="tablite-toggle-label" title="First row is header">
+          <input ref={headerToggleRef} type="checkbox" checked={hasHeader} class="tablite-toggle-input" />
+          <span class="tablite-toggle-track" />
+          <span class="tablite-toggle-text">Header</span>
+        </label>
+        <label class="tablite-toggle-label" title="Cross highlight on selection">
+          <input ref={crossHLRef} type="checkbox" checked={crossHighlight} class="tablite-toggle-input" />
+          <span class="tablite-toggle-track" />
+          <span
+            class="tablite-toggle-text"
+            dangerouslySetInnerHTML={{
+              __html: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>',
+            }}
+          />
+        </label>
       </div>
 
       <div class="tablite-toolbar-right">
@@ -466,16 +569,7 @@ export function Toolbar({
           )}
         </span>
 
-        {onToggleFindReplace ? (
-          <button
-            type="button"
-            class={`tablite-btn ${isFindOpen ? "tablite-btn-primary" : ""}`}
-            onClick={onToggleFindReplace}
-            title="Toggle Find & Replace (Ctrl+F / Ctrl+H)"
-          >
-            🔍 Find & Replace
-          </button>
-        ) : (
+        {!onToggleFindReplace && (
           <div class="tablite-search-group">
             <input
               ref={searchInputRef}

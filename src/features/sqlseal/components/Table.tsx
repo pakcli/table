@@ -76,6 +76,14 @@ interface TableProps {
   calcPresets?: CalcPreset[];
   onColumnCalcChange?: (colIndex: number, calcType: string) => void;
   textWrap?: boolean;
+  editingCell?: { row: number; col: number; initialValue?: string } | null;
+  onStartEdit?: (rowIndex: number, colIndex: number, initialValue?: string) => void;
+  onStopEdit?: () => void;
+  onNavigateAfterEdit?: (direction: "down" | "up" | "right" | "left") => void;
+  hiddenRows?: Set<number>;
+  onToggleRowVisibility?: (rowIndex: number) => void;
+  onToggleColumnVisibility?: (colIndex: number) => void;
+  onShowAllVisibility?: () => void;
 }
 
 interface RangeFilterValue {
@@ -191,6 +199,46 @@ const dateRangeFilter: FilterFn<string[]> = (row, columnId, filterValue) => {
   return true;
 };
 
+const universalFilter: FilterFn<string[]> = (row, columnId, filterValue) => {
+  if (filterValue === undefined || filterValue === null || filterValue === "") return true;
+  const raw = String(row.getValue(columnId) ?? "").trim();
+
+  // Array of values (multiselect)
+  if (Array.isArray(filterValue)) {
+    if (filterValue.length === 0) return true;
+    return filterValue.includes(raw);
+  }
+
+  // Range { min, max }
+  if (typeof filterValue === "object") {
+    const range = filterValue as RangeFilterValue;
+    if (!range.min && !range.max) return true;
+    if (!raw) return false;
+    const num = Number(raw);
+    if (!Number.isNaN(num)) {
+      const min = range.min != null && range.min !== "" ? Number(range.min) : undefined;
+      const max = range.max != null && range.max !== "" ? Number(range.max) : undefined;
+      if (min != null && !Number.isNaN(min) && num < min) return false;
+      if (max != null && !Number.isNaN(max) && num > max) return false;
+      return true;
+    }
+    const dt = Date.parse(raw);
+    if (!Number.isNaN(dt)) {
+      const min = range.min ? Date.parse(range.min) : undefined;
+      const max = range.max ? Date.parse(range.max) : undefined;
+      if (min && !Number.isNaN(min) && dt < min) return false;
+      if (max && !Number.isNaN(max) && dt > max) return false;
+      return true;
+    }
+    return true;
+  }
+
+  // Text search
+  const query = String(filterValue).trim().toLowerCase();
+  if (!query) return true;
+  return raw.toLowerCase().includes(query);
+};
+
 export function Table({
   headers,
   data,
@@ -231,6 +279,14 @@ export function Table({
   calcPresets = [],
   onColumnCalcChange,
   textWrap = false,
+  editingCell,
+  onStartEdit,
+  onStopEdit,
+  onNavigateAfterEdit,
+  hiddenRows,
+  onToggleRowVisibility,
+  onToggleColumnVisibility,
+  onShowAllVisibility,
 }: TableProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
@@ -333,24 +389,38 @@ export function Table({
         enableColumnFilter: false,
         size: 34,
         minSize: 34,
-        header: () => (
-          <div class="tablite-row-select-header" title="Select / Deselect All">
-            <input
-              type="checkbox"
-              class="tablite-row-checkbox"
-              checked={selectedRows.size === data.length && data.length > 0}
-              indeterminate={selectedRows.size > 0 && selectedRows.size < data.length}
-              onChange={(e) => {
-                const checked = (e.target as HTMLInputElement).checked;
-                if (checked) {
-                  setSelectedRows(new Set(data.map((_, i) => i)));
-                } else {
-                  setSelectedRows(new Set());
-                }
-              }}
-            />
-          </div>
-        ),
+        header: () => {
+          const allSelected = data.length > 0 && selectedRows.size === data.length;
+          return (
+            <div class="tablite-header-cell tablite-select-header-cell" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+              <div
+                class="tablite-header-row-1 tablite-header-row-letter"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+                title="Select / Deselect All Rows"
+              >
+                <input
+                  type="checkbox"
+                  class="tablite-row-checkbox"
+                  checked={allSelected}
+                  indeterminate={selectedRows.size > 0 && selectedRows.size < data.length}
+                  onChange={(e) => {
+                    const checked = (e.target as HTMLInputElement).checked;
+                    if (checked) {
+                      setSelectedRows(new Set(data.map((_, i) => i)));
+                    } else {
+                      setSelectedRows(new Set());
+                    }
+                  }}
+                />
+              </div>
+              <div class="tablite-header-row-2 tablite-header-row-meta" />
+              <div class="tablite-header-row-3 tablite-header-row-filter-sort" />
+              {calcPosition !== "none" && (
+                <div class="tablite-header-row-4 tablite-header-row-calc" />
+              )}
+            </div>
+          );
+        },
         cell: ({ row }) => (
           <div class="tablite-row-select-cell" onClick={(e) => e.stopPropagation()}>
             <input
@@ -394,17 +464,85 @@ export function Table({
         sortingFn: (rowA, rowB) => rowA.index - rowB.index,
         header: ({ column }) => {
           const sortDir = column.getIsSorted();
-          const sortIndicator = sortDir === "asc" ? " ▲" : sortDir === "desc" ? " ▼" : "";
           return (
-            <div
-              class="tablite-row-num tablite-row-num-header"
-              style={{ cursor: "pointer", userSelect: "none" }}
-              title="Click to sort by Row ID (#) | Drag row to reorder"
-              onClick={() => {
-                column.toggleSorting(undefined, true);
-              }}
-            >
-              #{sortIndicator}
+            <div class="tablite-header-cell tablite-row-num-header-cell" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+              <div
+                class="tablite-header-row-1 tablite-header-row-letter tablite-row-num-letter"
+                title="Click to select all cells"
+                onClick={() => {
+                  onActiveCellChange({ row: 0, col: 0 });
+                  onSelectionChange({
+                    startRow: 0,
+                    startCol: 0,
+                    endRow: Math.max(0, data.length - 1),
+                    endCol: Math.max(0, headers.length - 1),
+                  });
+                }}
+              >
+                #
+              </div>
+              <div class="tablite-header-row-2 tablite-header-row-meta" style={{ justifyContent: "center" }}>
+                <span class="tablite-header-name" style={{ textAlign: "center", width: "100%", fontSize: "11px" }}>
+                  Row
+                </span>
+              </div>
+              <div class="tablite-header-row-3 tablite-header-row-filter-sort" style={{ justifyContent: "center", gap: "3px" }}>
+                <div class="tablite-sort-toggle-group">
+                  <button
+                    type="button"
+                    class={`tablite-sort-circle-btn ${sortDir ? "is-active" : ""}`}
+                    title={
+                      sortDir === "asc"
+                        ? "Sorted Ascending. Click for Descending"
+                        : sortDir === "desc"
+                          ? "Sorted Descending. Click to clear sort"
+                          : "Sort row numbers (click for Ascending)"
+                    }
+                    onClick={() => {
+                      if (!sortDir) {
+                        column.toggleSorting(false, true);
+                      } else if (sortDir === "asc") {
+                        column.toggleSorting(true, true);
+                      } else {
+                        column.clearSorting();
+                      }
+                    }}
+                  >
+                    {sortDir === "asc" ? "▲" : sortDir === "desc" ? "▼" : "⇅"}
+                  </button>
+                </div>
+                <div class="tablite-sort-force-wrap" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={sorting.length === 1 && sorting[0]?.id === "__row_num"}
+                    class={`tablite-sort-force-btn ${sorting.length === 1 && sorting[0]?.id === "__row_num" ? "is-active" : ""}`}
+                    title={
+                      sorting.length === 1 && sorting[0]?.id === "__row_num"
+                        ? "Row number is the ONLY sort column. Click to clear"
+                        : "Force row number as the ONLY sort column"
+                    }
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (sorting.length === 1 && sorting[0]?.id === "__row_num") {
+                        onSortingChange([]);
+                      } else {
+                        const existing = sorting.find((s) => s.id === "__row_num");
+                        const desc = existing ? existing.desc : false;
+                        onSortingChange([{ id: "__row_num", desc }]);
+                      }
+                    }}
+                  >
+                    <span class="tablite-sort-radio-inner" />
+                  </button>
+                </div>
+              </div>
+              {calcPosition !== "none" && (
+                <div class="tablite-header-row-4 tablite-header-row-calc" style={{ alignItems: "center", justifyContent: "center" }}>
+                  <span class="tablite-calc-label" title="Column Calculations">∑ Calc</span>
+                </div>
+              )}
             </div>
           );
         },
@@ -415,88 +553,112 @@ export function Table({
           return (
             <div
               class="tablite-row-num tablite-row-num-drag"
-              draggable
-              title="Drag to reorder row (or Shift+Click to multiselect)"
+              data-row-index={row.index}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "3px", width: "100%", height: "100%", userSelect: "none", cursor: "pointer" }}
+              title="Click to select row, Shift+Click to extend, or drag to multi-select"
+              onMouseDown={(e) => {
+                const target = e.target as HTMLElement;
+                if (target.closest(".tablite-drag-dots")) return;
+                handleCellMouseDown(e as unknown as MouseEvent, row.index, -1);
+              }}
               onClick={(e) => {
+                const target = e.target as HTMLElement;
+                if (target.closest(".tablite-drag-dots")) return;
                 const mouseEvent = e as unknown as MouseEvent;
-                if (mouseEvent.shiftKey && lastSelectedRowRef.current !== null) {
-                  const start = Math.min(lastSelectedRowRef.current, row.index);
-                  const end = Math.max(lastSelectedRowRef.current, row.index);
-                  setSelectedRows((prev) => {
-                    const next = new Set(prev);
-                    for (let i = start; i <= end; i++) {
-                      next.add(i);
-                    }
-                    return next;
+                if (mouseEvent.shiftKey && (selection || activeCell)) {
+                  const startRow = selection ? selection.startRow : (activeCell?.row ?? row.index);
+                  onSelectionChange({
+                    startRow: startRow,
+                    startCol: 0,
+                    endRow: row.index,
+                    endCol: headers.length - 1,
+                  });
+                } else {
+                  onActiveCellChange({ row: row.index, col: 0 });
+                  onSelectionChange({
+                    startRow: row.index,
+                    startCol: 0,
+                    endRow: row.index,
+                    endCol: headers.length - 1,
                   });
                 }
               }}
-              onDragStart={(e) => {
-                const indicesToDrag =
-                  isSelected && selectedRows.size > 1
-                    ? Array.from(selectedRows).sort((a, b) => a - b)
-                    : [row.index];
-                e.dataTransfer?.setData("text/tablite-rows", JSON.stringify(indicesToDrag));
-                e.dataTransfer?.setData("text/tablite-row", String(row.index));
-                e.dataTransfer?.setData("text/plain", `[Row ${row.index + 1}]`);
-                e.dataTransfer.effectAllowed = "move";
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-                setDragOverRow(row.index);
-              }}
-              onDragLeave={() => {
-                setDragOverRow(null);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOverRow(null);
-                let sourceIndices: number[] = [];
-                const rowsJson = e.dataTransfer?.getData("text/tablite-rows");
-                if (rowsJson) {
-                  try {
-                    sourceIndices = JSON.parse(rowsJson);
-                  } catch {}
-                }
-                if (sourceIndices.length === 0) {
-                  const single = Number(e.dataTransfer?.getData("text/tablite-row"));
-                  if (!Number.isNaN(single)) sourceIndices = [single];
-                }
-
-                if (sourceIndices.length > 0) {
-                  if (sourceIndices.length === 1 && sourceIndices[0] === row.index) return;
-                  const count = sourceIndices.length;
-                  const targetPos = row.index + 1;
-                  const msg =
-                    count === 1
-                      ? `Are you sure you want to move Row #${sourceIndices[0] + 1} to position #${targetPos}?`
-                      : `Are you sure you want to move ${count} selected rows to position #${targetPos}?`;
-
-                  const globalApp = window.app;
-                  const executeMove = () => {
-                    if (onMoveRows) {
-                      onMoveRows(sourceIndices, row.index);
-                    } else if (onMoveRow && sourceIndices.length === 1) {
-                      onMoveRow(sourceIndices[0], row.index);
-                    }
-                  };
-
-                  if (globalApp) {
-                    new ConfirmReorderModal(
-                      globalApp,
-                      count === 1 ? "Move Row" : "Move Selected Rows",
-                      msg,
-                      executeMove,
-                    ).open();
-                  } else {
-                    executeMove();
-                  }
-                }
-              }}
             >
-              <span class="tablite-drag-dots">⋮⋮</span>
-              <span>{row.index + 1}</span>
+              <span
+                class="tablite-drag-dots"
+                draggable
+                title="Drag grip to reorder row"
+                style={{ cursor: "grab" }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                }}
+                onDragStart={(e) => {
+                  const indicesToDrag =
+                    isSelected && selectedRows.size > 1
+                      ? Array.from(selectedRows).sort((a, b) => a - b)
+                      : [row.index];
+                  e.dataTransfer?.setData("text/tablite-rows", JSON.stringify(indicesToDrag));
+                  e.dataTransfer?.setData("text/tablite-row", String(row.index));
+                  e.dataTransfer?.setData("text/plain", `[Row ${row.index + 1}]`);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  setDragOverRow(row.index);
+                }}
+                onDragLeave={() => {
+                  setDragOverRow(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverRow(null);
+                  let sourceIndices: number[] = [];
+                  const rowsJson = e.dataTransfer?.getData("text/tablite-rows");
+                  if (rowsJson) {
+                    try {
+                      sourceIndices = JSON.parse(rowsJson);
+                    } catch {}
+                  }
+                  if (sourceIndices.length === 0) {
+                    const single = Number(e.dataTransfer?.getData("text/tablite-row"));
+                    if (!Number.isNaN(single)) sourceIndices = [single];
+                  }
+
+                  if (sourceIndices.length > 0) {
+                    if (sourceIndices.length === 1 && sourceIndices[0] === row.index) return;
+                    const count = sourceIndices.length;
+                    const targetPos = row.index + 1;
+                    const msg =
+                      count === 1
+                        ? `Are you sure you want to move Row #${sourceIndices[0] + 1} to position #${targetPos}?`
+                        : `Are you sure you want to move ${count} selected rows to position #${targetPos}?`;
+
+                    const globalApp = window.app;
+                    const executeMove = () => {
+                      if (onMoveRows) {
+                        onMoveRows(sourceIndices, row.index);
+                      } else if (onMoveRow && sourceIndices.length === 1) {
+                        onMoveRow(sourceIndices[0], row.index);
+                      }
+                    };
+
+                    if (globalApp) {
+                      new ConfirmReorderModal(
+                        globalApp,
+                        count === 1 ? "Move Row" : "Move Selected Rows",
+                        msg,
+                        executeMove,
+                      ).open();
+                    } else {
+                      executeMove();
+                    }
+                  }
+                }}
+              >
+                ⋮⋮
+              </span>
+              <span style={{ cursor: "pointer" }}>{row.index + 1}</span>
             </div>
           );
         },
@@ -507,14 +669,7 @@ export function Table({
           accessorFn: (row) => row[sourceIndex] ?? "",
           size: columnSizing[String(sourceIndex)] ?? 150,
           minSize: 50,
-          filterFn:
-            columnFilterVariants[sourceIndex] === "select"
-              ? selectFilter
-              : columnFilterVariants[sourceIndex] === "numberRange"
-                ? numberRangeFilter
-                : columnFilterVariants[sourceIndex] === "dateRange"
-                  ? dateRangeFilter
-                  : textFilter,
+          filterFn: universalFilter,
           sortingFn: (rowA, rowB, columnId) => {
             const a = String(rowA.getValue(columnId) ?? "").trim();
             const b = String(rowB.getValue(columnId) ?? "").trim();
@@ -551,27 +706,49 @@ export function Table({
             dataType: columnTypes[sourceIndex],
             filterVariant: columnFilterVariants[sourceIndex],
           },
-          header: ({ column }) => (
-            <HeaderCell
-              name={headers[sourceIndex]}
-              displayName={resolveHeaderName(headers[sourceIndex], autocompleteColumns || "")}
-              colIndex={sourceIndex}
-              column={column}
-              onUpdateHeader={(colIndex, value) => onUpdateHeaderRef.current(colIndex, value)}
-              onResize={(colIndex, width) => {
-                onColumnSizingChange({
-                  ...columnSizing,
-                  [String(colIndex)]: width,
-                });
-              }}
-              onMoveColumn={onColumnOrderChange}
-              isEasyCopy={easyCopyCols.has(sourceIndex)}
-              onToggleEasyCopy={handleToggleEasyCopy}
-              onSelectColumn={handleColumnSelect}
-            />
-          ),
+          header: ({ column }) => {
+            const colId = `col_${sourceIndex}`;
+            const isOnlySorted = sorting.length === 1 && sorting[0].id === colId;
+            return (
+              <HeaderCell
+                name={headers[sourceIndex]}
+                displayName={resolveHeaderName(headers[sourceIndex], autocompleteColumns || "")}
+                colIndex={sourceIndex}
+                column={column}
+                onUpdateHeader={(colIndex, value) => onUpdateHeaderRef.current(colIndex, value)}
+                onResize={(colIndex, width) => {
+                  onColumnSizingChange({
+                    ...columnSizing,
+                    [String(colIndex)]: width,
+                  });
+                }}
+                onMoveColumn={onColumnOrderChange}
+                isEasyCopy={easyCopyCols.has(sourceIndex)}
+                onToggleEasyCopy={handleToggleEasyCopy}
+                onSelectColumn={handleColumnSelect}
+                data={data}
+                plugin={plugin}
+                columnCalcs={columnCalcs}
+                onColumnCalcChange={onColumnCalcChange}
+                calcPresets={calcPresets}
+                calcPosition={calcPosition}
+                uniqueValues={uniqueValues[sourceIndex] || []}
+                isOnlySorted={isOnlySorted}
+                onForceOnlySort={() => {
+                  if (sorting.length === 1 && sorting[0].id === colId) {
+                    onSortingChange([]);
+                  } else {
+                    const existing = sorting.find((s) => s.id === colId);
+                    const desc = existing ? existing.desc : false;
+                    onSortingChange([{ id: colId, desc }]);
+                  }
+                }}
+              />
+            );
+          },
           cell: ({ row }) => {
             const isAutocomplete = autocompleteCols.includes(headers[sourceIndex].toLowerCase());
+            const isEditing = editingCell?.row === row.index && editingCell?.col === sourceIndex;
             return (
               <Cell
                 value={row.original[sourceIndex] ?? ""}
@@ -584,6 +761,11 @@ export function Table({
                 filePath={filePath}
                 columnName={headers[sourceIndex]}
                 isEasyCopy={easyCopyCols.has(sourceIndex)}
+                isEditing={isEditing}
+                initialEditValue={isEditing ? editingCell?.initialValue : undefined}
+                onStartEdit={onStartEdit}
+                onStopEdit={onStopEdit}
+                onNavigateAfterEdit={onNavigateAfterEdit}
               />
             );
           },
@@ -609,6 +791,15 @@ export function Table({
       easyCopyCols,
       handleToggleEasyCopy,
       handleColumnSelect,
+      editingCell,
+      onStartEdit,
+      onStopEdit,
+      onNavigateAfterEdit,
+      plugin,
+      columnCalcs,
+      onColumnCalcChange,
+      calcPresets,
+      calcPosition,
     ],
   );
 
@@ -678,6 +869,35 @@ export function Table({
     [selection],
   );
 
+  const handleColumnMouseDown = useCallback(
+    (event: MouseEvent, colIndex: number) => {
+      if (event.button !== 0 || colIndex < 0) return;
+      const maxRow = Math.max(0, data.length - 1);
+
+      if (event.shiftKey && (selection || activeCell)) {
+        const startCol = selection ? selection.startCol : (activeCell?.col ?? colIndex);
+        onSelectionChange({
+          startRow: 0,
+          startCol: startCol,
+          endRow: maxRow,
+          endCol: colIndex,
+        });
+        return;
+      }
+
+      isDraggingRef.current = true;
+      dragStartRef.current = { row: -1, col: colIndex };
+      onActiveCellChange({ row: 0, col: colIndex });
+      onSelectionChange({
+        startRow: 0,
+        startCol: colIndex,
+        endRow: maxRow,
+        endCol: colIndex,
+      });
+    },
+    [data.length, selection, activeCell, onSelectionChange, onActiveCellChange],
+  );
+
   const handleCellMouseDown = useCallback(
     (event: MouseEvent, rowIndex: number, colIndex: number) => {
       if (event.button !== 0) return; // left click only
@@ -691,7 +911,6 @@ export function Table({
             endRow: rowIndex,
             endCol: headers.length - 1,
           });
-          event.preventDefault();
           return;
         }
         // Row selection mode (clicked on row number column)
@@ -704,7 +923,6 @@ export function Table({
           endRow: rowIndex,
           endCol: headers.length - 1,
         });
-        event.preventDefault();
         return;
       }
 
@@ -716,7 +934,6 @@ export function Table({
           endRow: rowIndex,
           endCol: colIndex,
         });
-        event.preventDefault();
         return;
       }
 
@@ -739,26 +956,46 @@ export function Table({
 
       // Find cell under cursor
       const target = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
-      const td = target?.closest<HTMLElement>("[data-row-index]");
-      if (!td) return;
-
-      const rowIndex = Number(td.dataset.rowIndex);
-      const colIndexAttr = td.getAttribute("data-col-index");
-      const colIndex = colIndexAttr !== null && colIndexAttr !== "" ? Number(colIndexAttr) : -1;
-      
-      if (Number.isNaN(rowIndex)) return;
+      if (!target) return;
 
       const start = dragStartRef.current;
       if (start.col === -1) {
         // Row drag selection mode
-        onSelectionChange({
-          startRow: start.row,
-          startCol: 0,
-          endRow: rowIndex,
-          endCol: headers.length - 1,
-        });
+        const td = target.closest<HTMLElement>("[data-row-index]");
+        if (td) {
+          const rowIndex = Number(td.dataset.rowIndex);
+          if (!Number.isNaN(rowIndex)) {
+            onSelectionChange({
+              startRow: start.row,
+              startCol: 0,
+              endRow: rowIndex,
+              endCol: headers.length - 1,
+            });
+          }
+        }
+      } else if (start.row === -1) {
+        // Column drag selection mode
+        const colEl = target.closest<HTMLElement>("[data-col-index]");
+        if (colEl) {
+          const colAttr = colEl.getAttribute("data-col-index");
+          const targetCol = colAttr !== null && colAttr !== "" ? Number(colAttr) : -1;
+          if (targetCol >= 0) {
+            onSelectionChange({
+              startRow: 0,
+              startCol: start.col,
+              endRow: Math.max(0, data.length - 1),
+              endCol: targetCol,
+            });
+          }
+        }
       } else {
         // Normal cell drag selection mode
+        const td = target.closest<HTMLElement>("[data-row-index]");
+        if (!td) return;
+        const rowIndex = Number(td.dataset.rowIndex);
+        const colIndexAttr = td.getAttribute("data-col-index");
+        const colIndex = colIndexAttr !== null && colIndexAttr !== "" ? Number(colIndexAttr) : -1;
+        if (Number.isNaN(rowIndex)) return;
         const targetCol = colIndex >= 0 ? colIndex : 0;
         if (rowIndex !== start.row || targetCol !== start.col) {
           onSelectionChange({
@@ -781,7 +1018,7 @@ export function Table({
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [onSelectionChange, headers.length]);
+  }, [onSelectionChange, headers.length, data.length]);
 
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
@@ -906,6 +1143,8 @@ export function Table({
     <div
       ref={tableContainerRef}
       class={`tablite-table-container ${textWrap ? "tablite-wrap-text" : ""}`}
+      tabIndex={-1}
+      style={{ outline: "none" }}
     >
       <table class="tablite-table" style={{ display: "grid" }}>
         <thead
@@ -936,6 +1175,7 @@ export function Table({
                 return (
                   <th
                     key={header.id}
+                    data-col-index={colIdx >= 0 ? colIdx : undefined}
                     class={thClass}
                     style={{
                       display: "flex",
@@ -944,11 +1184,20 @@ export function Table({
                       flexShrink: 0,
                       ...getPinnedStyles(header.column.id, position, true),
                     }}
+                    onMouseDown={(event) => {
+                      const target = event.target as HTMLElement;
+                      if (
+                        !isSpecialCol &&
+                        !target.closest("input, select, .tablite-multiselect, .tablite-copy-toggle, .tablite-resize-handle, .tablite-col-drag-dots")
+                      ) {
+                        handleColumnMouseDown(event as unknown as MouseEvent, colIdx);
+                      }
+                    }}
                     onClick={(event) => {
                       const target = event.target as HTMLElement;
                       if (
                         !isSpecialCol &&
-                        !target.closest("input, select, .tablite-multiselect, .tablite-copy-toggle, .tablite-resize-handle")
+                        !target.closest("input, select, .tablite-multiselect, .tablite-copy-toggle, .tablite-resize-handle, .tablite-col-drag-dots")
                       ) {
                         handleColumnSelect(colIdx, event.shiftKey);
                       }
@@ -960,21 +1209,6 @@ export function Table({
               })}
             </tr>
           ))}
-          {(calcPosition === "above" || calcPosition === "both") && table.getHeaderGroups()[0] && (
-            <CalculationRow
-              headers={table.getHeaderGroups()[0].headers}
-              data={data}
-              plugin={plugin}
-              columnCalcs={columnCalcs}
-              onColumnCalcChange={onColumnCalcChange || (() => {})}
-              calcPresets={calcPresets}
-              frozenCount={frozenCount}
-              frozenOffsets={frozenOffsets}
-              totalWidth={totalWidth}
-              position="above"
-              calcFreeze={calcFreeze}
-            />
-          )}
         </thead>
         <tbody
           style={{
@@ -985,11 +1219,46 @@ export function Table({
         >
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index];
-            const isChecked = selectedRows.has(row.index);
+            const isHiddenRow = hiddenRows?.has(row.index) ?? false;
+            const isRowRangeSelected = selection != null &&
+              selection.startCol === 0 &&
+              selection.endCol >= headers.length - 1 &&
+              row.index >= Math.min(selection.startRow, selection.endRow) &&
+              row.index <= Math.max(selection.startRow, selection.endRow);
+            const isChecked = selectedRows.has(row.index) || isRowRangeSelected;
             const isDragTarget = dragOverRow === row.index;
             let trClass = "tablite-tr";
             if (isChecked) trClass += " tablite-tr-checked";
             if (isDragTarget) trClass += " tablite-tr-drag-over";
+            if (isHiddenRow) trClass += " tablite-tr-hidden";
+
+            if (isHiddenRow) {
+              return (
+                <tr
+                  key={row.id}
+                  data-index={virtualRow.index}
+                  data-row-index={row.index}
+                  class={trClass}
+                  ref={(element) => {
+                    if (element) rowVirtualizer.measureElement(element);
+                  }}
+                  style={{
+                    display: "flex",
+                    position: "absolute",
+                    transform: `translateY(${virtualRow.start}px)`,
+                    width: `${totalWidth}px`,
+                    minWidth: "100%",
+                    height: 0,
+                    overflow: "hidden",
+                    visibility: "hidden",
+                    pointerEvents: "none",
+                    minHeight: 0,
+                    padding: 0,
+                    border: "none",
+                  }}
+                />
+              );
+            }
 
             return (
               <tr
@@ -1074,13 +1343,16 @@ export function Table({
                      ? (row.index >= Math.min(selection.startRow, selection.endRow) && row.index <= Math.max(selection.startRow, selection.endRow))
                      : (activeCell?.row === row.index);
  
+                   const isEditing = !isSelect && !isRowNum && editingCell?.row === row.index && editingCell?.col === colIdx;
+
                    let className = "tablite-td";
                    if (isSelect) {
                      className += " tablite-td-select";
                    } else if (isRowNum) {
                      if (isRowSelected) className += " tablite-row-num-selected";
                    } else {
-                     if (isActive && !selection) className += " tablite-td-active";
+                     if (isEditing) className += " tablite-td-editing";
+                     else if (isActive && !selection) className += " tablite-td-active";
                      else if (isActive || isSelected) className += " tablite-td-selected";
                      else if (isRowHL || isColHL) className += " tablite-td-cross";
                    }
@@ -1097,12 +1369,26 @@ export function Table({
                         width: cell.column.getSize(),
                         minWidth: cell.column.columnDef.minSize,
                         flexShrink: 0,
-                        userSelect: "none",
+                        userSelect: isEditing ? "text" : "none",
                         ...getPinnedStyles(cell.column.id, position, false),
                       }}
                       onMouseDown={(event) => {
-                        if (!isSelect && !isRowNum) {
-                          handleCellMouseDown(event as unknown as MouseEvent, row.index, colIdx);
+                        const target = event.target as HTMLElement;
+                        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.closest("input, textarea, select")) {
+                          return;
+                        }
+                        tableContainerRef.current?.focus();
+                        if (!isSelect) {
+                          handleCellMouseDown(event as unknown as MouseEvent, row.index, isRowNum ? -1 : colIdx);
+                        }
+                      }}
+                      onDblClick={(event) => {
+                        const target = event.target as HTMLElement;
+                        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.closest("input, textarea, select")) {
+                          return;
+                        }
+                        if (!isSelect && !isRowNum && colIdx >= 0) {
+                          onStartEdit?.(row.index, colIdx);
                         }
                       }}
                       onContextMenu={(event) => onContextMenu(event as unknown as MouseEvent, row.index, colIdx)}
@@ -1141,78 +1427,112 @@ export function Table({
           </tfoot>
         )}
       </table>
-      {selectedRows.size > 0 && (
+      {(selectedRows.size > 0 || (onShowAllVisibility && hiddenRows && hiddenRows.size > 0)) && (
         <div class="tablite-floating-actions">
-          <div class="tablite-fa-info">
-            <span class="tablite-fa-badge">{selectedRows.size}</span>
-            <span>row{selectedRows.size === 1 ? "" : "s"} selected</span>
-          </div>
-          <button
-            type="button"
-            class="tablite-fa-btn"
-            title="Copy selected rows as CSV to clipboard"
-            onClick={() => {
-              const selectedIndices = Array.from(selectedRows).sort((a, b) => a - b);
-              const selectedData = selectedIndices.map((i) => data[i]);
-              const csv = serializeCSV(headers, selectedData, ",", false);
-              navigator.clipboard?.writeText(csv);
-              new Notice(`✓ Copied ${selectedIndices.length} rows to clipboard!`);
-            }}
-          >
-            📋 Copy CSV
-          </button>
-          <button
-            type="button"
-            class="tablite-fa-btn"
-            title="Cache YouTube thumbnails for selected rows"
-            onClick={() => {
-              const selectedIndices = Array.from(selectedRows);
-              const selectedData = selectedIndices.map((i) => data[i]);
-              const globalApp = window.app;
-              if (globalApp) {
-                downloadAllYtThumbnails(globalApp, selectedData);
-              }
-            }}
-          >
-            🎬 Cache YT
-          </button>
-          <button
-            type="button"
-            class="tablite-fa-btn tablite-fa-danger"
-            title="Delete selected rows"
-            onClick={() => {
-              const globalApp = window.app;
-              const count = selectedRows.size;
-              const doDelete = () => {
-                if (onDeleteRows) onDeleteRows(Array.from(selectedRows));
-                setSelectedRows(new Set());
-                new Notice(`Deleted ${count} rows.`);
-              };
+          {/* Show All — always visible at top when anything is hidden */}
+          {onShowAllVisibility && hiddenRows && hiddenRows.size > 0 && (
+            <button
+              type="button"
+              class="tablite-fa-btn tablite-fa-show-all"
+              title={`Show all ${hiddenRows.size} hidden row(s)`}
+              onClick={onShowAllVisibility}
+            >
+              👁 Show All ({hiddenRows.size})
+            </button>
+          )}
 
-              if (globalApp) {
-                new ConfirmReorderModal(
-                  globalApp,
-                  "Delete Selected Rows",
-                  `Are you sure you want to delete ${count} selected row${count === 1 ? "" : "s"}? You can undo this with Ctrl+Z.`,
-                  doDelete,
-                ).open();
-              } else {
-                doDelete();
-              }
-            }}
-          >
-            🗑️ Delete ({selectedRows.size})
-          </button>
-          <button
-            type="button"
-            class="tablite-fa-close"
-            title="Clear selection"
-            onClick={() => setSelectedRows(new Set())}
-          >
-            ✕
-          </button>
+          {selectedRows.size > 0 && (
+            <>
+              <div class="tablite-fa-info">
+                <span class="tablite-fa-badge">{selectedRows.size}</span>
+                <span>row{selectedRows.size === 1 ? "" : "s"} selected</span>
+              </div>
+              <button
+                type="button"
+                class="tablite-fa-btn"
+                title="Copy selected rows as CSV to clipboard"
+                onClick={() => {
+                  const selectedIndices = Array.from(selectedRows).sort((a, b) => a - b);
+                  const selectedData = selectedIndices.map((i) => data[i]);
+                  const csv = serializeCSV(headers, selectedData, ",", false);
+                  navigator.clipboard?.writeText(csv);
+                  new Notice(`✓ Copied ${selectedIndices.length} rows to clipboard!`);
+                }}
+              >
+                📋 Copy CSV
+              </button>
+              <button
+                type="button"
+                class="tablite-fa-btn"
+                title="Cache YouTube thumbnails for selected rows"
+                onClick={() => {
+                  const selectedIndices = Array.from(selectedRows);
+                  const selectedData = selectedIndices.map((i) => data[i]);
+                  const globalApp = window.app;
+                  if (globalApp) {
+                    downloadAllYtThumbnails(globalApp, selectedData);
+                  }
+                }}
+              >
+                🎬 Cache YT
+              </button>
+              {/* Hide / Show selected rows */}
+              {onToggleRowVisibility && (() => {
+                const selectedArr = Array.from(selectedRows);
+                const allHidden = selectedArr.length > 0 && selectedArr.every((i) => hiddenRows?.has(i));
+                return (
+                  <button
+                    type="button"
+                    class={`tablite-fa-btn ${allHidden ? "tablite-fa-show" : ""}`}
+                    title={allHidden ? "Show selected rows" : "Hide selected rows"}
+                    onClick={() => {
+                      selectedArr.forEach((i) => onToggleRowVisibility(i));
+                    }}
+                  >
+                    {allHidden ? "👁 Show Rows" : "🚫 Hide Rows"}
+                  </button>
+                );
+              })()}
+              <button
+                type="button"
+                class="tablite-fa-btn tablite-fa-danger"
+                title="Delete selected rows"
+                onClick={() => {
+                  const globalApp = window.app;
+                  const count = selectedRows.size;
+                  const doDelete = () => {
+                    if (onDeleteRows) onDeleteRows(Array.from(selectedRows));
+                    setSelectedRows(new Set());
+                    new Notice(`Deleted ${count} rows.`);
+                  };
+
+                  if (globalApp) {
+                    new ConfirmReorderModal(
+                      globalApp,
+                      "Delete Selected Rows",
+                      `Are you sure you want to delete ${count} selected row${count === 1 ? "" : "s"}? You can undo this with Ctrl+Z.`,
+                      doDelete,
+                    ).open();
+                  } else {
+                    doDelete();
+                  }
+                }}
+              >
+                🗑️ Delete ({selectedRows.size})
+              </button>
+              <button
+                type="button"
+                class="tablite-fa-close"
+                title="Clear selection"
+                onClick={() => setSelectedRows(new Set())}
+              >
+                ✕
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
   );
 }
+

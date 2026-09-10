@@ -203,6 +203,11 @@ export function App({
   const [crossHighlight, setCrossHighlight] = useState(true);
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
   const [selection, setSelection] = useState<SelectionRange | null>(null);
+  const [editingCell, setEditingCell] = useState<{
+    row: number;
+    col: number;
+    initialValue?: string;
+  } | null>(null);
   const [hasHeader, setHasHeader] = useState<boolean>(initialParsed.hasHeader);
   const sortedRowIndicesRef = useRef<number[] | null>(null);
   const [ctrlPressed, setCtrlPressed] = useState(false);
@@ -321,20 +326,47 @@ export function App({
 
       // Select the newly pasted range
       const endRow = targetRow + matrix.length - 1;
-      const maxCols = Math.max(...matrix.map((r) => r.length));
-      const endCol = Math.min(headers.length - 1, targetCol + maxCols - 1);
+      const maxCols = Math.max(...matrix.map((r) => r.length), 0);
+      const endCol = targetCol + Math.max(0, maxCols - 1);
       setSelection({
         startRow: targetRow,
         startCol: targetCol,
         endRow: endRow,
         endCol: endCol,
       });
+      setActiveCell({ row: targetRow, col: targetCol });
 
       const totalCells = matrix.reduce((sum, r) => sum + r.length, 0);
       new Notice(`📋 Pasted ${totalCells} cell${totalCells === 1 ? "" : "s"} (${matrix.length} row${matrix.length === 1 ? "" : "s"} × ${maxCols} col${maxCols === 1 ? "" : "s"}) starting from R${targetRow + 1}:C${targetCol + 1}`);
     },
-    [selection, activeCell, pasteCells, headers.length],
+    [selection, activeCell, pasteCells],
   );
+
+  const handleAddRow = useCallback(() => {
+    const afterIdx = selection
+      ? Math.max(selection.startRow, selection.endRow)
+      : (activeCell ? activeCell.row : data.length - 1);
+    insertRow(afterIdx);
+    const newRowIdx = Math.min(data.length, afterIdx + 1);
+    setActiveCell({ row: newRowIdx, col: activeCell?.col ?? 0 });
+    setSelection({
+      startRow: newRowIdx,
+      startCol: 0,
+      endRow: newRowIdx,
+      endCol: headers.length - 1,
+    });
+    new Notice(`➕ Added row #${newRowIdx + 1}`);
+  }, [selection, activeCell, data.length, insertRow, headers.length]);
+
+  const handleAddColumn = useCallback(() => {
+    const afterIdx = selection
+      ? Math.max(selection.startCol, selection.endCol)
+      : (activeCell ? activeCell.col : headers.length - 1);
+    insertColumn(afterIdx);
+    const newColIdx = Math.min(headers.length, afterIdx + 1);
+    setActiveCell({ row: 0, col: newColIdx });
+    new Notice(`➕ Added column #${newColIdx + 1}`);
+  }, [selection, activeCell, headers.length, insertColumn]);
 
   // Progressive loading: feed rows to Table in chunks
   const { visibleCount, loading, progress } = useProgressiveLoad(data.length);
@@ -903,6 +935,27 @@ export function App({
     setColumnConfig((prev) => normalizeColumnConfig({ ...prev, hidden: [] }, headers.length));
   }, [headers.length]);
 
+  // --- Row Visibility ---
+  const [hiddenRows, setHiddenRows] = useState<Set<number>>(new Set());
+
+  const toggleRowVisibility = useCallback((rowIndex: number) => {
+    setHiddenRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowIndex)) {
+        next.delete(rowIndex);
+      } else {
+        next.add(rowIndex);
+      }
+      return next;
+    });
+  }, []);
+
+  const showAllRows = useCallback(() => setHiddenRows(new Set()), []);
+
+  const showAllVisibility = useCallback(() => {
+    setHiddenRows(new Set());
+  }, []);
+
   const moveColumn = useCallback((sourceIndex: number, targetIndex: number) => {
     setColumnConfig((prev) => {
       if (sourceIndex === targetIndex) return prev;
@@ -939,6 +992,33 @@ export function App({
     [data.length],
   );
 
+  const handleActiveCellChange = useCallback(
+    (cell: ActiveCell | null) => {
+      setActiveCell(cell);
+      if (editingCell && (cell?.row !== editingCell.row || cell?.col !== editingCell.col)) {
+        setEditingCell(null);
+      }
+    },
+    [editingCell],
+  );
+
+  const handleNavigateAfterEdit = useCallback(
+    (direction: "down" | "up" | "right" | "left") => {
+      setEditingCell(null);
+      setActiveCell((prev) => {
+        if (!prev) return null;
+        let nextRow = prev.row;
+        let nextCol = prev.col;
+        if (direction === "down") nextRow = getAdjacentRow(prev.row, 1);
+        else if (direction === "up") nextRow = getAdjacentRow(prev.row, -1);
+        else if (direction === "right") nextCol = Math.min(headers.length - 1, prev.col + 1);
+        else if (direction === "left") nextCol = Math.max(0, prev.col - 1);
+        return { row: nextRow, col: nextCol };
+      });
+    },
+    [headers.length, getAdjacentRow],
+  );
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -946,6 +1026,8 @@ export function App({
         target?.tagName === "INPUT" ||
         target?.tagName === "TEXTAREA" ||
         target?.tagName === "SELECT";
+
+      if (isTextInput || editingCell) return;
 
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
         if (!isTextInput && (activeCell || selection)) {
@@ -982,8 +1064,14 @@ export function App({
         return;
       }
 
-      const isInsideTablite = !!target?.closest(".tablite-container");
-      if (isTextInput || !isInsideTablite) return;
+      const container = containerRef.current;
+      const isInsideThisView =
+        (container && (container.contains(target) || document.activeElement === container)) ||
+        !!target?.closest(`[data-file-path="${filePath}"]`) ||
+        !!target?.closest(".tablite-container") ||
+        (container?.closest(".workspace-leaf.mod-active") && activeCell);
+
+      if (!isInsideThisView) return;
 
       if (!activeCell) return;
 
@@ -1040,6 +1128,45 @@ export function App({
           setSelection(null);
           setActiveCell({ row: activeCell.row, col: headers.length - 1 });
           break;
+        case "Enter":
+        case "F2":
+          event.preventDefault();
+          setSelection(null);
+          setEditingCell({ row: activeCell.row, col: activeCell.col });
+          break;
+        case "Delete":
+        case "Backspace":
+          event.preventDefault();
+          if (selection) {
+            const minRow = Math.min(selection.startRow, selection.endRow);
+            const maxRow = Math.max(selection.startRow, selection.endRow);
+            const minCol = Math.min(selection.startCol, selection.endCol);
+            const maxCol = Math.max(selection.startCol, selection.endCol);
+            for (let r = minRow; r <= maxRow; r++) {
+              for (let c = minCol; c <= maxCol; c++) {
+                updateCell(r, c, "");
+              }
+            }
+          } else {
+            updateCell(activeCell.row, activeCell.col, "");
+          }
+          break;
+        default:
+          if (
+            !event.ctrlKey &&
+            !event.metaKey &&
+            !event.altKey &&
+            event.key.length === 1
+          ) {
+            event.preventDefault();
+            setSelection(null);
+            setEditingCell({
+              row: activeCell.row,
+              col: activeCell.col,
+              initialValue: event.key,
+            });
+          }
+          break;
       }
     };
 
@@ -1063,7 +1190,7 @@ export function App({
       document.removeEventListener("keydown", onKeyDown, true);
       document.removeEventListener("paste", onPaste);
     };
-  }, [activeCell, data, selection, headers.length, navigateSearch, getAdjacentRow, handlePaste]);
+  }, [activeCell, data, selection, headers.length, navigateSearch, getAdjacentRow, handlePaste, editingCell, updateCell, filePath]);
 
   const activeMatchIndex = useMemo(
     () => searchMatches.findIndex((match) => match.row === activeCell?.row && match.col === activeCell?.col),
@@ -1150,6 +1277,12 @@ export function App({
         onOpenAddCalcPreset={handleOpenAddCalcPreset}
         textWrap={columnConfig.textWrap}
         onToggleTextWrap={handleToggleTextWrap}
+        onAddRow={handleAddRow}
+        onAddColumn={handleAddColumn}
+        hiddenRows={hiddenRows}
+        onToggleRowVisibility={toggleRowVisibility}
+        onShowAllRows={showAllRows}
+        onShowAllVisibility={showAllVisibility}
       />
       <FindReplaceBar
         isOpen={isFindOpen}
@@ -1191,12 +1324,16 @@ export function App({
           crossHighlight={crossHighlight}
           activeCell={activeCell}
           selection={selection}
+          editingCell={editingCell}
           columnOrder={columnConfig.order}
           hiddenColumns={columnConfig.hidden}
           columnSizing={columnConfig.sizing}
           frozenCount={columnConfig.frozenCount}
-          onActiveCellChange={setActiveCell}
+          onActiveCellChange={handleActiveCellChange}
           onSelectionChange={setSelection}
+          onStartEdit={(row, col, initialValue) => setEditingCell({ row, col, initialValue })}
+          onStopEdit={() => setEditingCell(null)}
+          onNavigateAfterEdit={handleNavigateAfterEdit}
           onCopy={() => copySelectionToClipboard(data, selection, activeCell, sortedRowIndicesRef.current)}
           onPaste={() => handlePaste()}
           onColumnOrderChange={moveColumn}
@@ -1224,6 +1361,10 @@ export function App({
           calcPresets={plugin?.settings.calcPresets || []}
           onColumnCalcChange={handleColumnCalcChange}
           textWrap={columnConfig.textWrap}
+          hiddenRows={hiddenRows}
+          onToggleRowVisibility={toggleRowVisibility}
+          onToggleColumnVisibility={toggleColumnVisibility}
+          onShowAllVisibility={showAllVisibility}
         />
       )}
     </div>

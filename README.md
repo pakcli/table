@@ -5,9 +5,13 @@
 ## Features
 
 - 📊 **CSV & Tablite Grid Editor**:
-  - **Multi-Cell Selection & Drag**: Click and drag across cells or `Shift+Click` to select rectangular ranges. Click row numbers or column headers (with `Shift+Click` extension) to select entire rows or columns.
-  - **Copy & Paste (Excel / TSV / CSV Compatible)**: Full clipboard support (`Ctrl+C` / `Ctrl+V`, context menu). Copy single or multiple cells, rows, or columns.
-  - **Exact-Cell Starting Paste**: Selecting any target cell and pasting immediately places clipboard data starting from that exact cell (expanding table rows automatically if needed) with full undo support (`Ctrl+Z`).
+  - **Quick Add Row & Column**: Toolbar buttons `➕ Row` and `➕ Col` to instantly append or insert rows below the active row and columns next to the active column.
+  - **Multi-Cell, Row & Column Shift-Drag Selection**:
+    - **Cells**: Click and drag across cells or `Shift+Click` to select rectangular ranges.
+    - **Rows**: Click row numbers (`#`), `Shift+Click` for continuous row ranges, or drag down/up across row numbers to select multiple entire rows. Reorder rows with the dedicated `⋮⋮` grip handle.
+    - **Columns**: Click column headers, `Shift+Click` for multi-column spans, or drag across headers to select multiple entire columns. Reorder columns with the dedicated `⋮⋮` grip handle.
+  - **Copy & Paste (Excel / Sheets / TSV Compatible)**: Full clipboard support (`Ctrl+C` / `Ctrl+V`, context menu). Copy any selected cells, rows, or columns in TSV format.
+  - **Exact-Cell Starting Paste**: Selecting any target cell and pasting immediately places clipboard data starting from that exact cell, automatically expanding table rows and columns as needed with full undo support (`Ctrl+Z`).
   - **Easy Clipboard / Click-to-Copy Toggle**: Click the clipboard icon in any column header to toggle click-to-copy mode for that column. Clicking any cell immediately copies its content to your clipboard with toast notification and visual flash feedback.
   - **Text Wrap Toggle**: Easily toggle text wrapping on or off from the toolbar (`Wrap` toggle) with state persisted per view and artifact, allowing multi-line cell content to wrap cleanly without truncating.
   - **Virtual Scrolling & High Performance**: Effortlessly handle large CSV/TSV datasets with row virtualization and lazy loading.

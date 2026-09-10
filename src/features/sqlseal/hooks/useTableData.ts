@@ -292,11 +292,21 @@ export function useTableData(
       if (!matrix || matrix.length === 0) return;
       pushHistory();
       const neededRowCount = startRow + matrix.length;
-      const colCount = Math.max(1, headers.length);
+      const maxColsInMatrix = Math.max(...matrix.map((r) => r.length), 0);
+      const neededColCount = Math.max(headers.length, startCol + maxColsInMatrix);
 
-      const nextData = data.map((r) => [...r]);
+      const nextHeaders = [...headers];
+      while (nextHeaders.length < neededColCount) {
+        nextHeaders.push(`Column ${nextHeaders.length + 1}`);
+      }
+
+      const nextData = data.map((r) => {
+        const row = [...r];
+        while (row.length < neededColCount) row.push("");
+        return row;
+      });
       while (nextData.length < neededRowCount) {
-        nextData.push(new Array(colCount).fill(""));
+        nextData.push(new Array(neededColCount).fill(""));
       }
 
       for (let r = 0; r < matrix.length; r++) {
@@ -305,14 +315,15 @@ export function useTableData(
         if (!rowCells) continue;
         for (let c = 0; c < rowCells.length; c++) {
           const targetCol = startCol + c;
-          if (targetCol < colCount) {
-            nextData[targetRow][targetCol] = rowCells[c] ?? "";
-          }
+          nextData[targetRow][targetCol] = rowCells[c] ?? "";
         }
       }
 
+      if (nextHeaders.length !== headers.length) {
+        setHeaders(nextHeaders);
+      }
       setData(nextData);
-      notify(headers, nextData);
+      notify(nextHeaders, nextData);
     },
     [pushHistory, data, headers, notify],
   );

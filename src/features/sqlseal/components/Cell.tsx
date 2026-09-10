@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "preact/hooks";
+import { useState, useRef, useEffect, useCallback } from "preact/hooks";
 import type { RefObject } from "preact";
 import { Fragment } from "preact";
 import { Notice } from "obsidian";
@@ -43,6 +43,11 @@ interface CellProps {
   filePath?: string;
   columnName?: string;
   isEasyCopy?: boolean;
+  isEditing?: boolean;
+  initialEditValue?: string;
+  onStartEdit?: (rowIndex: number, colIndex: number, initialValue?: string) => void;
+  onStopEdit?: () => void;
+  onNavigateAfterEdit?: (direction: "down" | "up" | "right" | "left") => void;
 }
 
 export function Cell({
@@ -56,29 +61,88 @@ export function Cell({
   filePath,
   columnName,
   isEasyCopy = false,
+  isEditing,
+  initialEditValue,
+  onStartEdit,
+  onStopEdit,
+  onNavigateAfterEdit,
 }: CellProps) {
-  const [editing, setEditing] = useState(false);
-  const [editValue, setEditValue] = useState(value);
+  const [localEditing, setLocalEditing] = useState(false);
+  const isEditingActive = isEditing !== undefined ? isEditing : localEditing;
+  const [editValue, setEditValue] = useState(() => (initialEditValue !== undefined ? initialEditValue : value));
   const [justCopied, setJustCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const latestValRef = useRef(editValue);
+  const committedRef = useRef(false);
 
-  // Sync value from parent when not editing
+  // When edit mode is toggled or initial value changed
   useEffect(() => {
-    if (!editing) setEditValue(value);
-  }, [value, editing]);
-
-  // Auto-focus when entering edit mode
-  useEffect(() => {
-    if (editing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+    if (isEditingActive) {
+      committedRef.current = false;
+      const initial = initialEditValue !== undefined ? initialEditValue : value;
+      setEditValue(initial);
+      latestValRef.current = initial;
+      if (inputRef.current) {
+        inputRef.current.focus();
+        if (initialEditValue !== undefined) {
+          const len = initial.length;
+          inputRef.current.setSelectionRange(len, len);
+        } else {
+          inputRef.current.select();
+        }
+      }
+    } else {
+      setLocalEditing(false);
+      setEditValue(value);
+      latestValRef.current = value;
     }
-  }, [editing]);
+  }, [isEditingActive, initialEditValue, value]);
+
+  // Focus & select when input renders
+  useEffect(() => {
+    if (isEditingActive && inputRef.current) {
+      inputRef.current.focus();
+      if (initialEditValue !== undefined) {
+        const len = (initialEditValue ?? "").length;
+        inputRef.current.setSelectionRange(len, len);
+      } else {
+        inputRef.current.select();
+      }
+    }
+  }, [isEditingActive]);
+
+  const commit = useCallback(() => {
+    if (committedRef.current) return;
+    committedRef.current = true;
+    const finalVal = latestValRef.current;
+    if (finalVal !== value) {
+      onUpdate(rowIndex, colIndex, finalVal);
+    }
+    setLocalEditing(false);
+    onStopEdit?.();
+  }, [value, rowIndex, colIndex, onUpdate, onStopEdit]);
+
+  const cancel = useCallback(() => {
+    committedRef.current = true;
+    setEditValue(value);
+    latestValRef.current = value;
+    setLocalEditing(false);
+    onStopEdit?.();
+  }, [value, onStopEdit]);
+
+  // Cleanup on unmount while editing
+  useEffect(() => {
+    return () => {
+      if (isEditingActive && !committedRef.current) {
+        commit();
+      }
+    };
+  }, [isEditingActive, commit]);
 
   const suggestRef = useRef<GenericTextSuggest | null>(null);
 
   useEffect(() => {
-    if (editing && inputRef.current && isAutocomplete) {
+    if (isEditingActive && inputRef.current && isAutocomplete) {
       const el = inputRef.current;
       const globalApp = window.app;
       if (globalApp) {
@@ -92,7 +156,7 @@ export function Cell({
     return () => {
       suggestRef.current = null;
     };
-  }, [editing, isAutocomplete]);
+  }, [isEditingActive, isAutocomplete]);
 
   useEffect(() => {
     if (suggestRef.current) {
@@ -100,35 +164,45 @@ export function Cell({
     }
   }, [values]);
 
-  if (editing) {
+  if (isEditingActive) {
     return (
       <Fragment>
         <input
           ref={inputRef}
           class="tablite-cell-input"
           value={editValue}
-          onInput={(e) => setEditValue((e.target as HTMLInputElement).value)}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onDblClick={(e) => e.stopPropagation()}
+          onInput={(e) => {
+            const v = (e.target as HTMLInputElement).value;
+            setEditValue(v);
+            latestValRef.current = v;
+          }}
           onBlur={() => {
-            window.setTimeout(() => {
-              if (inputRef.current) {
-                const latestVal = inputRef.current.value;
-                setEditing(false);
-                if (latestVal !== value) {
-                  onUpdate(rowIndex, colIndex, latestVal);
-                }
-              } else {
-                setEditing(false);
-              }
-            }, 200);
+            if (isAutocomplete) {
+              window.setTimeout(() => {
+                commit();
+              }, 150);
+            } else {
+              commit();
+            }
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              (e.target as HTMLInputElement).blur();
+              e.stopPropagation();
+              commit();
+              onNavigateAfterEdit?.(e.shiftKey ? "up" : "down");
+            } else if (e.key === "Tab") {
+              e.preventDefault();
+              e.stopPropagation();
+              commit();
+              onNavigateAfterEdit?.(e.shiftKey ? "left" : "right");
             } else if (e.key === "Escape") {
               e.preventDefault();
-              setEditValue(value);
-              setEditing(false);
+              e.stopPropagation();
+              cancel();
             }
           }}
         />
@@ -163,7 +237,7 @@ export function Cell({
           }
         }
       }
-    } else if (isEasyCopy && !editing) {
+    } else if (isEasyCopy && !isEditingActive) {
       e.stopPropagation();
       copyTextToClipboard(value ?? "");
       setJustCopied(true);
@@ -231,12 +305,16 @@ export function Cell({
           isEasyCopy ? "tablite-cell-easy-copy" : ""
         } ${justCopied ? "tablite-cell-just-copied" : ""}`}
         title={isEasyCopy ? `Click to copy: ${value || "(empty)"}` : undefined}
-        onDblClick={() => {
-          setEditValue(value);
-          setEditing(true);
+        onDblClick={(e) => {
+          e.stopPropagation();
+          if (onStartEdit) {
+            onStartEdit(rowIndex, colIndex);
+          } else {
+            setLocalEditing(true);
+          }
         }}
         onClick={(e) => {
-          if (isEasyCopy && !editing && !e.ctrlKey && !e.metaKey) {
+          if (isEasyCopy && !isEditingActive && !e.ctrlKey && !e.metaKey) {
             e.stopPropagation();
             copyTextToClipboard(value ?? "");
             setJustCopied(true);
@@ -253,7 +331,7 @@ export function Cell({
           loading="lazy"
           title={`Click to open YouTube video (${ytVideoId})`}
           onClick={(e) => {
-            if (!editing) {
+            if (!isEditingActive) {
               e.stopPropagation();
               window.open(value, "_blank");
             }
@@ -265,7 +343,7 @@ export function Cell({
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => {
-            if (editing) e.preventDefault();
+            if (isEditingActive) e.preventDefault();
           }}
         >
           {value}
@@ -282,9 +360,13 @@ export function Cell({
         isEasyCopy ? "tablite-cell-easy-copy" : ""
       } ${justCopied ? "tablite-cell-just-copied" : ""}`}
       title={isEasyCopy ? `Click to copy: ${value || "(empty)"}` : undefined}
-      onDblClick={() => {
-        setEditValue(value);
-        setEditing(true);
+      onDblClick={(e) => {
+        e.stopPropagation();
+        if (onStartEdit) {
+          onStartEdit(rowIndex, colIndex);
+        } else {
+          setLocalEditing(true);
+        }
       }}
       onClick={handleCellClick}
       onMouseOver={handleCellMouseOver}
