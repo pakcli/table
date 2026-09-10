@@ -148,7 +148,7 @@ export class CanvasRenderer {
             ctx.arc(cluster.centroid.x, cluster.centroid.y, cluster.radius, 0, Math.PI * 2);
 
             // Fill styling
-            const baseColor = cluster.color || '#38bdf8';
+            const baseColor = cluster.color || '#4a5568';
             if (cluster.depth === 1) {
                 // Top-level Parent Bubble
                 const fillAlpha = isHovered ? state.hullOpacity * 2.2 : state.hullOpacity;

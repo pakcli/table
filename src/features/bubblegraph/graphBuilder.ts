@@ -1,30 +1,60 @@
-import { App, TFile } from 'obsidian';
+import { App, TFile, normalizePath } from 'obsidian';
 import { BubbleNode, BubbleEdge, BubbleCluster, NodeGlyphType, GraphStats } from './types';
 import { computeClusterRadius } from './simulation';
+import { FolderRule } from '../tree/types';
 
-// Curated modern editorial palette for bubble hulls and clusters
-const CLUSTER_PALETTE = [
-    '#38bdf8', // Sky Cyan
-    '#818cf8', // Indigo
-    '#c084fc', // Purple/Violet
-    '#f472b6', // Pink
-    '#fb923c', // Amber/Orange
-    '#34d399', // Emerald Green
-    '#2dd4bf', // Teal
-    '#a78bfa', // Lavender
-    '#f87171', // Coral Red
-    '#fbbf24', // Sun Gold
-];
+// Critical design constraint: All non-captain folders (and all folders when captain colors toggle is off)
+// MUST remain dark gray. No random rainbow palettes.
+export const DARK_GRAY_COLOR = '#4a5568';
 
-export function getFolderColor(folderName: string): string {
-    if (!folderName || folderName === '/') return '#94a3b8'; // Neutral Slate for root
-    let hash = 0;
-    for (let i = 0; i < folderName.length; i++) {
-        hash = (hash << 5) - hash + folderName.charCodeAt(i);
-        hash |= 0;
+export function matchFolderRule(folderPath: string, rules: FolderRule[]): FolderRule | null {
+    if (!rules || rules.length === 0 || !folderPath) return null;
+    const activeRules = rules.filter(r => r.enabled);
+    const matches: FolderRule[] = [];
+    const normalizedPath = normalizePath(folderPath);
+
+    for (const rule of activeRules) {
+        const normalizedRulePath = normalizePath(rule.path || '');
+        if (normalizedRulePath.includes('*')) {
+            const regexParts = normalizedRulePath.split('/').map(part => {
+                if (part === '*') return '[^/]+';
+                if (part === '**') return '.*';
+                return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '[^/]+');
+            });
+            const regexString = regexParts.join('/');
+            const fullRegex = rule.includeChildren ? new RegExp(`^${regexString}(?:/.*)?$`) : new RegExp(`^${regexString}$`);
+            if (fullRegex.test(normalizedPath)) {
+                matches.push(rule);
+            }
+        } else if (rule.includeChildren) {
+            if (normalizedRulePath === "" || normalizedRulePath === ".") {
+                matches.push(rule);
+            } else if (normalizedPath === normalizedRulePath || normalizedPath.startsWith(normalizedRulePath + '/')) {
+                matches.push(rule);
+            }
+        } else {
+            if (normalizedPath === normalizedRulePath) {
+                matches.push(rule);
+            }
+        }
     }
-    const index = Math.abs(hash) % CLUSTER_PALETTE.length;
-    return CLUSTER_PALETTE[index];
+    if (matches.length === 0) return null;
+    matches.sort((a, b) => (b.path || '').length - (a.path || '').length);
+    return matches[0];
+}
+
+export function getFolderColor(
+    folderPath: string,
+    captainRules?: FolderRule[],
+    useCaptainColors: boolean = false
+): string {
+    if (useCaptainColors && captainRules && captainRules.length > 0 && folderPath && folderPath !== '/') {
+        const matchedRule = matchFolderRule(folderPath, captainRules);
+        if (matchedRule && matchedRule.color) {
+            return matchedRule.color;
+        }
+    }
+    return DARK_GRAY_COLOR;
 }
 
 export interface BuiltGraph {
@@ -36,7 +66,12 @@ export interface BuiltGraph {
     clusterMap: Map<string, BubbleCluster>;
 }
 
-export function buildVaultGraph(app: App, activeFilePath: string | null = null): BuiltGraph {
+export function buildVaultGraph(
+    app: App, 
+    activeFilePath: string | null = null,
+    captainRules?: FolderRule[],
+    useCaptainColors: boolean = false
+): BuiltGraph {
     const files: TFile[] = app.vault.getMarkdownFiles();
     const resolvedLinks = app.metadataCache.resolvedLinks || {};
 
@@ -120,7 +155,7 @@ export function buildVaultGraph(app: App, activeFilePath: string | null = null):
             radius = Math.round(3 + Math.sqrt(totalDeg));
         }
 
-        const color = getFolderColor(topLevelFolder);
+        const color = getFolderColor(folderPath || topLevelFolder, captainRules, useCaptainColors);
 
         const node: BubbleNode = {
             id: path,
@@ -212,7 +247,7 @@ export function buildVaultGraph(app: App, activeFilePath: string | null = null):
             nodeIds,
             centroid: { x: 0, y: 0 },
             radius: computeClusterRadius(nodeIds.length, 1),
-            color: getFolderColor(folder),
+            color: getFolderColor(folder, captainRules, useCaptainColors),
             hullPolygon: [],
             smoothedHull: [],
             boundingBox: { minX: 0, minY: 0, maxX: 0, maxY: 0 }
@@ -233,7 +268,7 @@ export function buildVaultGraph(app: App, activeFilePath: string | null = null):
             nodeIds,
             centroid: { x: 0, y: 0 },
             radius: computeClusterRadius(nodeIds.length, 2),
-            color: getFolderColor(topParent),
+            color: getFolderColor(subFolder, captainRules, useCaptainColors),
             hullPolygon: [],
             smoothedHull: [],
             boundingBox: { minX: 0, minY: 0, maxX: 0, maxY: 0 }

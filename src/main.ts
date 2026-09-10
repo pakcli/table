@@ -477,6 +477,17 @@ export default class PakCLITablePlugin extends Plugin {
 					});
 
 				new Setting(containerEl)
+					.setName('Captain Folder Colors')
+					.setDesc('When enabled, Captain Folders with a custom color set will highlight their bubbles in the Graph Topology. All other folders remain dark gray.')
+					.addToggle((t) => {
+						t.setValue(this.settings.bubbleUseCaptainColors === true)
+							.onChange(async (v) => {
+								this.settings.bubbleUseCaptainColors = v;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
 					.setName('Inter-Folder Link Neon Glow')
 					.setDesc('Apply luminous neon glow shader on inter-cluster cross links.')
 					.addToggle((t) => {
@@ -1119,6 +1130,7 @@ export default class PakCLITablePlugin extends Plugin {
 				let newScope = 'children';
 				let newSubCaptain = false;
 				let newTitleOverride: TitleOverrideOption = 'inherit';
+				let newColor = '#4a5568';
 
 				new Setting(addRuleDiv)
 					.setName('Folder Path')
@@ -1155,6 +1167,29 @@ export default class PakCLITablePlugin extends Plugin {
 						.setValue(newTitleOverride)
 						.onChange((value: string) => newTitleOverride = value as TitleOverrideOption));
 
+				const colorPickerSetting = addRuleDiv.createDiv({ cls: 'setting-item' });
+				const colorPickerInfo = colorPickerSetting.createDiv({ cls: 'setting-item-info' });
+				colorPickerInfo.createDiv({ cls: 'setting-item-name', text: 'Captain Folder Color' });
+				colorPickerInfo.createDiv({ cls: 'setting-item-description', text: 'Color shown in Bubble Graph when \'Captain Colors\' toggle is active. Default: dark gray.' });
+				const colorPickerControl = colorPickerSetting.createDiv({ cls: 'setting-item-control' });
+				const colorPreviewSpan = colorPickerControl.createEl('span', { cls: 'asset-router-color-preview' });
+				colorPreviewSpan.style.cssText = `display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--background-modifier-border);background:${newColor};margin-right:8px;vertical-align:middle;`;
+				const colorInput = colorPickerControl.createEl('input');
+				colorInput.type = 'color';
+				colorInput.value = newColor;
+				colorInput.style.cssText = 'width:40px;height:28px;cursor:pointer;border:none;background:none;padding:0;';
+				colorInput.oninput = () => {
+					newColor = colorInput.value;
+					colorPreviewSpan.style.background = newColor;
+				};
+				const resetColorBtn = colorPickerControl.createEl('button', { text: 'Reset', cls: 'mod-warning' });
+				resetColorBtn.style.cssText = 'font-size:11px;padding:2px 8px;margin-left:8px;';
+				resetColorBtn.onclick = () => {
+					newColor = '#4a5568';
+					colorInput.value = '#4a5568';
+					colorPreviewSpan.style.background = '#4a5568';
+				};
+
 				const addBtnContainer = addRuleDiv.createDiv();
 				addBtnContainer.style.textAlign = 'right';
 				addBtnContainer.style.marginTop = '10px';
@@ -1177,6 +1212,7 @@ export default class PakCLITablePlugin extends Plugin {
 					headerRow.createEl('th', { text: 'Scope' });
 					headerRow.createEl('th', { text: 'Sub-Captain' });
 					headerRow.createEl('th', { text: 'Title' });
+					headerRow.createEl('th', { text: 'Color' });
 					headerRow.createEl('th', { text: 'Actions' });
 
 					const tbody = table.createEl('tbody');
@@ -1195,6 +1231,25 @@ export default class PakCLITablePlugin extends Plugin {
 						row.createEl('td', { text: rule.includeChildren ? 'Children' : 'Folder' });
 						row.createEl('td', { text: rule.subCaptainMode ? 'Yes' : 'No' });
 						row.createEl('td', { text: rule.useNoteTitle });
+
+						// Color picker cell
+						const colorTd = row.createEl('td');
+						colorTd.style.cssText = 'text-align:center;vertical-align:middle;';
+						const colorSwatch = colorTd.createEl('span');
+						const currentColor = rule.color || '#4a5568';
+						colorSwatch.style.cssText = `display:inline-block;width:18px;height:18px;border-radius:3px;border:1px solid var(--background-modifier-border);background:${currentColor};margin-right:4px;vertical-align:middle;cursor:pointer;`;
+						const rowColorInput = colorTd.createEl('input');
+						rowColorInput.type = 'color';
+						rowColorInput.value = currentColor;
+						rowColorInput.title = 'Set Captain Folder color for Bubble Graph';
+						rowColorInput.style.cssText = 'width:28px;height:22px;cursor:pointer;border:none;background:none;padding:0;vertical-align:middle;';
+						rowColorInput.oninput = async () => {
+							rule.color = rowColorInput.value;
+							colorSwatch.style.background = rowColorInput.value;
+							await saveSettings();
+						};
+						// Click swatch to open picker
+						colorSwatch.onclick = () => rowColorInput.click();
 
 						const actionsTd = row.createEl('td');
 						const rescanBtn = new ButtonComponent(actionsTd)
@@ -1229,6 +1284,7 @@ export default class PakCLITablePlugin extends Plugin {
 							subCaptainMode: newSubCaptain,
 							useNoteTitle: newTitleOverride,
 							enabled: true,
+							color: newColor,
 						});
 						await saveSettings();
 						renderRulesTable();

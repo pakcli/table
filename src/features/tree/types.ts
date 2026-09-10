@@ -7,6 +7,7 @@ export interface FolderRule {
 	subCaptainMode?: boolean;// If true, each subfolder acts as a Sub-Captain with its own assets/ directory
 	useNoteTitle: TitleOverrideOption; // 'inherit' from global, or force override
 	enabled: boolean;        // Individual rule toggle
+	color?: string;          // Hex color code for Captain Folder (defaults to dark gray #4a5568)
 }
 
 export interface AssetRouterSettings {

@@ -1,7 +1,7 @@
 import { ItemView, WorkspaceLeaf, setIcon, TFile } from 'obsidian';
 import type PakCLITablePlugin from '../../main';
 import { BubbleNode, BubbleCluster } from './types';
-import { buildVaultGraph, BuiltGraph } from './graphBuilder';
+import { buildVaultGraph, BuiltGraph, getFolderColor, matchFolderRule } from './graphBuilder';
 import { BubbleSimulation } from './simulation';
 import { CanvasRenderer, ViewportTransform, RenderState } from './canvasRenderer';
 
@@ -55,6 +55,7 @@ export class BubbleGraphView extends ItemView {
     private wandBtnEl!: HTMLElement;
     private linesToggleBtnEl!: HTMLElement;
     private textToggleBtnEl!: HTMLElement;
+    private captainColorsBtnEl!: HTMLElement;
     private levelButtons: HTMLElement[] = [];
     private fontSizeSliderEl!: HTMLInputElement;
     private fontSizeDisplayEl!: HTMLElement;
@@ -62,6 +63,9 @@ export class BubbleGraphView extends ItemView {
     private timelineSliderEl!: HTMLInputElement;
     private timelineDateBadgeEl!: HTMLElement;
     private timelapseModeButtons: HTMLElement[] = [];
+
+    // Captain Folder Colors toggle
+    private useCaptainColors: boolean = false;
 
     constructor(leaf: WorkspaceLeaf, plugin: PakCLITablePlugin) {
         super(leaf);
@@ -90,6 +94,7 @@ export class BubbleGraphView extends ItemView {
         this.showLabels = this.plugin.settings.bubbleShowLabels !== false;
         this.showLines = this.plugin.settings.bubbleShowLines !== false;
         this.timelapseMode = this.plugin.settings.bubbleTimelapseMode || 'date';
+        this.useCaptainColors = this.plugin.settings.bubbleUseCaptainColors === true;
 
         // 1. Build Header Bar
         this.renderHeader(container);
@@ -149,7 +154,8 @@ export class BubbleGraphView extends ItemView {
 
     private reloadGraphData(): void {
         const activeFile = this.app.workspace.getActiveFile();
-        this.graphData = buildVaultGraph(this.app, activeFile ? activeFile.path : null);
+        const captainRules = this.plugin.settings.rules || [];
+        this.graphData = buildVaultGraph(this.app, activeFile ? activeFile.path : null, captainRules, this.useCaptainColors);
 
         // Sort all nodes chronologically by ctime for sequential vanilla timelapse
         this.sortedNodes = [...this.graphData.nodes].sort((a, b) => (a.ctime || 0) - (b.ctime || 0));
@@ -186,6 +192,22 @@ export class BubbleGraphView extends ItemView {
             if (activeNode) {
                 this.selectNode(activeNode, false);
             }
+        }
+    }
+
+    /**
+     * Hot-updates node and cluster colors based on the current useCaptainColors toggle state.
+     * Called when the toggle changes, avoiding a full simulation restart.
+     */
+    private applyCaptainFolderColors(): void {
+        if (!this.graphData) return;
+        const captainRules = this.plugin.settings.rules || [];
+
+        for (const node of this.graphData.nodes) {
+            node.color = getFolderColor(node.folderPath || node.topLevelFolder, captainRules, this.useCaptainColors);
+        }
+        for (const cluster of this.graphData.clusters) {
+            cluster.color = getFolderColor(cluster.id, captainRules, this.useCaptainColors);
         }
     }
 
@@ -282,6 +304,24 @@ export class BubbleGraphView extends ItemView {
             }
             this.plugin.settings.bubbleShowLabels = this.showLabels;
             await this.plugin.saveSettings();
+        };
+
+        // 3. Captain Folder Colors Toggle
+        this.captainColorsBtnEl = textGroup.createEl('button', {
+            cls: `pakcli-icon-btn pakcli-captain-colors-btn ${this.useCaptainColors ? 'active' : ''}`,
+            title: 'Toggle Captain Folder Colors (show custom colors on Captain Folders)'
+        });
+        setIcon(this.captainColorsBtnEl, 'anchor');
+        this.captainColorsBtnEl.onclick = async () => {
+            this.useCaptainColors = !this.useCaptainColors;
+            if (this.useCaptainColors) {
+                this.captainColorsBtnEl.addClass('active');
+            } else {
+                this.captainColorsBtnEl.removeClass('active');
+            }
+            this.plugin.settings.bubbleUseCaptainColors = this.useCaptainColors;
+            await this.plugin.saveSettings();
+            this.applyCaptainFolderColors();
         };
 
         // 2. Show Text Range Level 0-3
