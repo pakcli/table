@@ -32,7 +32,9 @@ export type CharacterCarouselProps = {
   brightness?: number;
   className?: string;
   style?: CSSProperties;
+  onCardClick?: (index: number) => void;
   onCardDoubleClick?: (index: number, src: string, name: string) => void;
+  onActiveIndexChange?: (index: number) => void;
 };
 
 export const CHARACTER_CAROUSEL_DEFAULTS = {
@@ -116,7 +118,7 @@ html, body, .stage { width: 100%; height: 100%; margin: 0; overflow: hidden; }
     if (event.data.type === 'character-carousel-controls') {
       var next = event.data.controls || {};
       if (Number.isFinite(next.speed)) controls.speed = Math.max(0.1, Math.min(3.0, next.speed));
-      if (Number.isFinite(next.scale)) controls.scale = Math.max(0.7, Math.min(1.3, next.scale));
+      if (Number.isFinite(next.scale)) controls.scale = Math.max(0.5, Math.min(4.0, next.scale));
       if (Number.isFinite(next.sideCards)) controls.sideCards = Math.max(0, Math.min(10, next.sideCards));
       if (next.orientation) controls.orientation = next.orientation;
       if (typeof next.cursorFollow === 'boolean') controls.cursorFollow = next.cursorFollow;
@@ -160,20 +162,25 @@ export function CharacterCarousel({
   brightness = CHARACTER_CAROUSEL_DEFAULTS.brightness,
   className = "",
   style,
+  onCardClick,
   onCardDoubleClick,
+  onActiveIndexChange,
 }: CharacterCarouselProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [hostVisible, setHostVisible] = useState(true);
   const [documentVisible, setDocumentVisible] = useState(() => typeof document === "undefined" || !document.hidden);
   const safeSpeed = clamp(speed, 0.1, 3.0);
-  const safeScale = clamp(scale, 0.7, 1.3);
+  const safeScale = clamp(scale, 0.5, 4.0);
   const safeSideCards = Math.max(0, Math.min(10, sideCards));
   const paused = !hostVisible || !documentVisible;
+  const itemsKey = useMemo(() => (items ? items.map(i => `${i.id}`).join(',') : ''), [items]);
   const source = useMemo(
     () => buildFocusedDocument(variant, items, safeSideCards, orientation, cursorFollow, autoPlay, direction, curve, switchDuration, holdDuration, safeSpeed),
-    [variant, items, safeSideCards, orientation, cursorFollow, autoPlay, direction, curve, switchDuration, holdDuration, safeSpeed]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [variant, itemsKey, safeSideCards, orientation, cursorFollow]
   );
 
+  // Post only the playback controls (no items, no focus) — runs on every relevant change.
   const postControls = useCallback(() => {
     iframeRef.current?.contentWindow?.postMessage({
       type: "character-carousel-controls",
@@ -191,19 +198,27 @@ export function CharacterCarousel({
         cursorFollow,
       },
     }, "*");
+  }, [paused, safeScale, safeSpeed, safeSideCards, orientation, autoPlay, direction, curve, switchDuration, holdDuration, cursorFollow]);
+
+  // Post items — only when the items list itself changes, not on every controls update.
+  const postItems = useCallback(() => {
     if (items && items.length > 0) {
       iframeRef.current?.contentWindow?.postMessage({
         type: "character-carousel-items",
         items,
       }, "*");
     }
+  }, [items]);
+
+  // Post focus — only when focusIndex explicitly changes.
+  const postFocus = useCallback(() => {
     if (typeof focusIndex === "number") {
       iframeRef.current?.contentWindow?.postMessage({
         type: "character-carousel-focus",
         index: focusIndex,
       }, "*");
     }
-  }, [paused, safeScale, safeSpeed, items, safeSideCards, orientation, focusIndex, autoPlay, direction, curve, switchDuration, holdDuration, cursorFollow]);
+  }, [focusIndex]);
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -221,6 +236,18 @@ export function CharacterCarousel({
   }, []);
 
   useEffect(() => {
+    if (!onCardClick) return undefined;
+    const handler = (e: MessageEvent) => {
+      if (!e.data) return;
+      if (e.data.type === "character-carousel-card-click" && typeof e.data.index === "number") {
+        onCardClick(e.data.index);
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [onCardClick]);
+
+  useEffect(() => {
     if (!onCardDoubleClick) return undefined;
     const handler = (e: MessageEvent) => {
       if (!e.data) return;
@@ -233,8 +260,43 @@ export function CharacterCarousel({
   }, [onCardDoubleClick]);
 
   useEffect(() => {
+    if (!onActiveIndexChange) return undefined;
+    const handler = (e: MessageEvent) => {
+      if (!e.data) return;
+      if (e.data.type === "character-carousel-active-index" && typeof e.data.index === "number") {
+        onActiveIndexChange(e.data.index);
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [onActiveIndexChange]);
+
+  // On initial load (source change), send everything: controls + items + focus.
+  const postAll = useCallback(() => {
     postControls();
-  }, [postControls, source]);
+    postItems();
+    postFocus();
+  }, [postControls, postItems, postFocus]);
+
+  useEffect(() => {
+    postAll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source]);
+
+  // Controls change (pause, speed, autoplay, etc.) — send controls only, never items.
+  useEffect(() => {
+    postControls();
+  }, [postControls]);
+
+  // Items change — send items without resetting playback state.
+  useEffect(() => {
+    postItems();
+  }, [postItems]);
+
+  // focusIndex change — send focus without rebuilding cards.
+  useEffect(() => {
+    postFocus();
+  }, [postFocus]);
 
   const isFilmstrip = variant === "filmstrip";
 
@@ -248,7 +310,7 @@ export function CharacterCarousel({
         title={isFilmstrip ? "Interactive character filmstrip" : "Interactive character wave"}
         srcDoc={source}
         sandbox="allow-scripts allow-same-origin"
-        onLoad={postControls}
+        onLoad={postAll}
         style={{
           position: "absolute",
           inset: 0,

@@ -148,7 +148,33 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
   const holdSec = typeof holdDuration === 'number' ? holdDuration : (parseFloat(String(holdDuration)) ?? 1.0);
   const [lightbox, setLightbox] = React.useState<{ src: string; name: string } | null>(null);
   const [zoom, setZoom] = React.useState(1);
-  const [focusIndex, setFocusIndex] = React.useState<number | undefined>(undefined);
+  const [carouselScale, setCarouselScale] = React.useState(1.0);
+  const [maxCarouselScale, setMaxCarouselScale] = React.useState(2.0);
+  const stageRef = React.useRef<HTMLDivElement>(null);
+
+  // Dynamically compute the scale at which the center card fills the canvas.
+  // Card base width: clamp(154, W*0.168, 238). Center card 3D+perspective factor ≈ 1.321.
+  React.useEffect(() => {
+    const compute = () => {
+      const el = stageRef.current;
+      if (!el) return;
+      const W = el.clientWidth;
+      const H = el.clientHeight;
+      if (W < 80 || H < 80) return;
+      const cardBaseW = Math.min(238, Math.max(154, W * 0.168));
+      const cardBaseH = cardBaseW / 0.72;
+      // 3D focus scale (1.23) × perspective factor (1450/1350)
+      const renderFactor = 1.23 * (1450 / 1350);
+      const renderedW = cardBaseW * renderFactor;
+      const renderedH = cardBaseH * renderFactor;
+      const fitScale = Math.min(W / renderedW, H / renderedH);
+      setMaxCarouselScale(Math.max(1.1, parseFloat(fitScale.toFixed(2))));
+    };
+    compute();
+    const ro = new (window as any).ResizeObserver(compute);
+    if (stageRef.current) ro.observe(stageRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   React.useEffect(() => {
     let active = true;
@@ -165,7 +191,6 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
     return () => { active = false; };
   }, [app, imageFiles]);
 
-  // Drag state
   const [dragOffset, setDragOffset] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = React.useState(false);
   const dragStartRef = React.useRef<{ x: number; y: number } | null>(null);
@@ -174,6 +199,15 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
   const currentFile = imageFiles[currentIndex];
 
   const getResourcePath = (file: TFile) => app.vault.getResourcePath(file);
+
+  const carouselItems = React.useMemo(() => {
+    return imageFiles.map((file, idx) => ({
+      id: file.path,
+      src: dataUrls[file.path] || app.vault.getResourcePath(file),
+      name: file.name,
+      role: `${idx + 1} / ${total} • ${file.extension.toUpperCase()}`,
+    }));
+  }, [imageFiles, dataUrls, total, app]);
 
   const handleSwipe = React.useCallback(
     (action: 'keep' | 'trash') => {
@@ -292,8 +326,22 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
           >
             {isPlaying ? '⏸' : '▶'}
           </button>
+          {/* Zoom slider — min=1.0 (default view), max=fit center card to canvas */}
+          <label className="triage-zoom-label" title={`Zoom ${Math.round(carouselScale * 100)}% — drag right to fill canvas`}>
+            <span className="triage-zoom-icon">🔍</span>
+            <input
+              type="range"
+              className="triage-zoom-slider"
+              min={1.0}
+              max={maxCarouselScale}
+              step={0.01}
+              value={carouselScale}
+              onChange={e => setCarouselScale(Number(e.target.value))}
+              title={`Scale: ${Math.round(carouselScale * 100)}%`}
+            />
+          </label>
 
-          {/* Speed dropdown */}
+
           <select
             className="triage-speed-select"
             value={animSpeed}
@@ -346,27 +394,30 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
         </div>
       ) : (
         <div
+          ref={stageRef}
           className="triage-carousel-stage"
           style={{ position: 'relative', width: '100%', height: '100%' }}
         >
           <CharacterCarousel
             variant="filmstrip"
-            items={imageFiles.map((file, idx) => ({
-              id: file.path,
-              src: dataUrls[file.path] || getResourcePath(file),
-              name: file.name,
-              role: `${idx + 1} / ${total} • ${file.extension.toUpperCase()}`,
-            }))}
+            items={carouselItems}
             sideCards={sideCards ?? 5}
             orientation={orientation}
-            focusIndex={mode === 'edit' ? currentIndex : focusIndex}
+            focusIndex={mode === 'edit' ? currentIndex : undefined}
             autoPlay={isPlaying}
             direction={animDirection}
             curve={animCurve}
             switchDuration={switchSec}
             holdDuration={holdSec}
             speed={animSpeed}
-            scale={1.0}
+            scale={carouselScale}
+            onActiveIndexChange={(idx) => {
+              setCurrentIndex(idx);
+            }}
+            onCardClick={(idx) => {
+              setIsPlaying(false);
+              setCurrentIndex(idx);
+            }}
             onCardDoubleClick={(_idx, src, name) => {
               setLightbox({ src, name });
               setZoom(1);

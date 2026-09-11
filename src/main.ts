@@ -1310,6 +1310,99 @@ export default class PakCLITablePlugin extends Plugin {
 								await this.saveSettings();
 							});
 					});
+
+				new Setting(containerEl)
+					.setName('Total Visible Side Cards (0 - 10 Slider)')
+					.setDesc('Set number of 3D cards visible on the left and right on the perspective rail (0 = active card only, 1-10 max).')
+					.addDropdown((d) => {
+						for (let i = 0; i <= 10; i++) {
+							d.addOption(String(i), String(i));
+						}
+						d.setValue(String(this.settings.carouselVisibleSideCards ?? 5))
+							.onChange(async (val) => {
+								this.settings.carouselVisibleSideCards = Number(val);
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Direction')
+					.setDesc('Choose direction for carousel auto-advance: Left Right (ping-pong bolak-balik), Left, or Right.')
+					.addDropdown((d) => {
+						d.addOption('left-right', 'Left Right (default ping-pong bolak-balik)')
+							.addOption('left', 'Left')
+							.addOption('right', 'Right')
+							.setValue(this.settings.carouselDirection || 'left-right')
+							.onChange(async (val) => {
+								this.settings.carouselDirection = val as 'left-right' | 'left' | 'right';
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Animation Setting')
+					.setDesc('Transition curve: exponential up and down (default kurva halus S-curve) or linear.')
+					.addDropdown((d) => {
+						d.addOption('exponential', 'exponential up and down (default kurva halus S-curve)')
+							.addOption('linear', 'linear')
+							.setValue(this.settings.carouselAnimationCurve || 'exponential')
+							.onChange(async (val) => {
+								this.settings.carouselAnimationCurve = val as 'exponential' | 'linear';
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Switch Duration (Seconds)')
+					.setDesc('Slide transition time for each card switch (0 - 5s).')
+					.addDropdown((d) => {
+						const options = ['0', '0.1', '0.25', '0.5', '0.75', '1', '1.5', '2', '3', '4', '5'];
+						for (const opt of options) {
+							d.addOption(opt, `${opt} s`);
+						}
+						d.setValue(String(this.settings.carouselSwitchDuration ?? 0.5))
+							.onChange(async (val) => {
+								this.settings.carouselSwitchDuration = Number(val);
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Hold Duration (Seconds)')
+					.setDesc('Hold/pause time on each card before advancing (0 - 3s).')
+					.addDropdown((d) => {
+						const options = ['0', '0.25', '0.5', '1', '1.5', '2', '3'];
+						for (const opt of options) {
+							d.addOption(opt, `${opt} s`);
+						}
+						d.setValue(String(this.settings.carouselHoldDuration ?? 1.0))
+							.onChange(async (val) => {
+								this.settings.carouselHoldDuration = Number(val);
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Enable Carousel Autoplay')
+					.setDesc('Automatically advance cards according to the timing and direction settings.')
+					.addToggle((t) => {
+						t.setValue(this.settings.carouselAutoPlay !== false)
+							.onChange(async (val) => {
+								this.settings.carouselAutoPlay = val;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Enable Cursor Follow / Mouse Parallax Effect')
+					.setDesc('Allow 3D cards on the carousel stage to shift/follow mouse movement (disabled by default).')
+					.addToggle((t) => {
+						t.setValue(Boolean(this.settings.carouselCursorFollow))
+							.onChange(async (val) => {
+								this.settings.carouselCursorFollow = val;
+								await this.saveSettings();
+							});
+					});
 			}
 		});
 
