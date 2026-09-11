@@ -44,6 +44,9 @@ export interface PakCLITableSettings extends
     enableTreeProcessor?: boolean;
     defaultTreeLayout?: string;
     fileConfigs?: Record<string, unknown>;
+    carouselOrientation?: 'horizontal' | 'vertical';
+    carouselVisibleSideCards?: number;
+    carouselCursorFollow?: boolean;
     [key: string]: unknown;
 }
 
@@ -96,5 +99,8 @@ export const DEFAULT_TABLE_SETTINGS: PakCLITableSettings = {
         { id: '2', language: 'ascii', behavior: 'scalefit' }
     ],
     enableAssetDrag: true,
+    carouselOrientation: 'horizontal',
+    carouselVisibleSideCards: 5,
+    carouselCursorFollow: false,
 };
 

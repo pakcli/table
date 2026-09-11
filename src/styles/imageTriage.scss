@@ -1,0 +1,546 @@
+/* ========================================================================= */
+/* ThreeUI CharacterCarousel & Image Triage Swiper Modal Styles              */
+/* ========================================================================= */
+
+.image-triage-modal {
+  .modal {
+    width: 90vw !important;
+    max-width: 960px !important;
+    height: 85vh !important;
+    max-height: 720px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #0d0f12 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6) !important;
+  }
+}
+
+.image-carousel-view-page {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  background: #0d0f12;
+}
+
+.image-carousel-empty-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  padding: 40px;
+  text-align: center;
+}
+
+.triage-view-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  color: #e2e8f0;
+  font-family: var(--font-sans), sans-serif;
+  user-select: none;
+
+  .triage-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: rgba(15, 23, 42, 0.85);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+
+    .triage-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      h3 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #f8fafc;
+      }
+
+      .triage-counter {
+        padding: 2px 10px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        background: rgba(99, 102, 241, 0.2);
+        color: #818cf8;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 12px;
+      }
+    }
+
+    .triage-toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .triage-tool-btn {
+        padding: 6px 12px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #cbd5e1;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.15);
+          color: #ffffff;
+        }
+      }
+
+      .triage-close-btn {
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 4px 8px;
+
+        &:hover {
+          color: #ffffff;
+        }
+      }
+    }
+  }
+
+  .triage-carousel-stage {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+
+    .carousel-image-overlay {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 80%;
+      max-height: 40%;
+      z-index: 10;
+      pointer-events: none;
+
+      .carousel-active-img {
+        max-width: 100%;
+        max-height: 260px;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        object-fit: contain;
+      }
+    }
+  }
+
+  .triage-deck-stage {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: radial-gradient(circle at 50% 40%, #1e293b 0%, #0f172a 100%);
+    overflow: hidden;
+
+    .triage-card {
+      position: relative;
+      width: clamp(240px, 32vw, 360px);
+      height: clamp(320px, 46vw, 440px);
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      cursor: grab;
+      touch-action: none;
+
+      &.dragging {
+        cursor: grabbing;
+        transition: none !important;
+      }
+
+      .triage-badge {
+        position: absolute;
+        top: 24px;
+        padding: 6px 16px;
+        font-size: 1.4rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        border-radius: 8px;
+        z-index: 20;
+        pointer-events: none;
+
+        &.trash-badge {
+          left: 20px;
+          color: #ef4444;
+          border: 3px solid #ef4444;
+          background: rgba(239, 68, 68, 0.15);
+          transform: rotate(-15deg);
+        }
+
+        &.keep-badge {
+          right: 20px;
+          color: #22c55e;
+          border: 3px solid #22c55e;
+          background: rgba(34, 197, 94, 0.15);
+          transform: rotate(15deg);
+        }
+      }
+
+      .card-image-container {
+        flex: 1;
+        width: 100%;
+        overflow: hidden;
+        background: #090d16;
+
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          display: block;
+        }
+      }
+
+      .card-footer {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        background: #0f172a;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+        .card-index {
+          font-weight: 800;
+          font-size: 0.85rem;
+          color: #6366f1;
+        }
+
+        .card-filename {
+          font-size: 0.85rem;
+          color: #cbd5e1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+    }
+
+    .triage-deck-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 20px;
+
+      .deck-btn {
+        padding: 10px 24px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        border-radius: 8px;
+        cursor: pointer;
+        border: none;
+        transition: all 0.15s ease;
+
+        &.trash {
+          background: rgba(239, 68, 68, 0.2);
+          color: #f87171;
+          border: 1px solid rgba(239, 68, 68, 0.4);
+
+          &:hover {
+            background: #ef4444;
+            color: #ffffff;
+          }
+        }
+
+        &.keep {
+          background: rgba(34, 197, 94, 0.2);
+          color: #4ade80;
+          border: 1px solid rgba(34, 197, 94, 0.4);
+
+          &:hover {
+            background: #22c55e;
+            color: #ffffff;
+          }
+        }
+
+        &.undo {
+          background: rgba(255, 255, 255, 0.08);
+          color: #94a3b8;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+
+          &:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+          }
+
+          &:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+
+    .triage-finish-early {
+      margin-top: 14px;
+
+      .triage-btn.secondary {
+        padding: 6px 16px;
+        font-size: 0.82rem;
+        background: transparent;
+        color: #94a3b8;
+        border: 1px dashed rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        cursor: pointer;
+
+        &:hover {
+          color: #ffffff;
+          border-color: rgba(255, 255, 255, 0.4);
+        }
+      }
+    }
+  }
+
+  .triage-complete-prompt {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    text-align: center;
+
+    h3 {
+      font-size: 1.5rem;
+      color: #f8fafc;
+      margin-bottom: 8px;
+    }
+
+    p {
+      color: #94a3b8;
+      margin-bottom: 24px;
+    }
+
+    .triage-btn.primary.large {
+      padding: 14px 32px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      background: #6366f1;
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+
+      &:hover {
+        background: #4f46e5;
+      }
+    }
+  }
+}
+
+/* Vertical Orientation Deck Adjustments */
+.triage-view-container.orientation-vertical {
+  .triage-deck-stage {
+    .triage-card {
+      width: clamp(260px, 42vw, 380px);
+      height: clamp(300px, 44vw, 420px);
+    }
+  }
+}
+
+/* ========================================================================= */
+/* Triage Summary Modal Styles                                               */
+/* ========================================================================= */
+
+.triage-summary-modal-container {
+  padding: 0 !important;
+
+  .triage-summary-wrapper {
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    color: var(--text-normal);
+
+    .triage-summary-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+
+      h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+
+        span {
+          color: var(--text-accent);
+        }
+      }
+
+      .triage-summary-stats {
+        display: flex;
+        gap: 10px;
+
+        .stat-badge {
+          padding: 4px 12px;
+          font-size: 0.82rem;
+          font-weight: 700;
+          border-radius: 12px;
+
+          &.keep {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+          }
+
+          &.trash {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+          }
+        }
+      }
+    }
+
+    .triage-summary-table-wrapper {
+      max-height: 420px;
+      overflow-y: auto;
+      border: 1px solid var(--background-modifier-border);
+      border-radius: 8px;
+      margin-bottom: 20px;
+
+      .triage-summary-table {
+        width: 100%;
+        border-collapse: collapse;
+
+        th {
+          position: sticky;
+          top: 0;
+          background: var(--background-secondary-alt);
+          padding: 10px 14px;
+          font-size: 0.8rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          border-bottom: 1px solid var(--background-modifier-border);
+          z-index: 5;
+        }
+
+        td {
+          padding: 10px 14px;
+          border-bottom: 1px solid var(--background-modifier-border);
+          font-size: 0.88rem;
+        }
+
+        tr.triage-row.trash {
+          opacity: 0.6;
+          background: rgba(239, 68, 68, 0.05);
+
+          .file-name {
+            text-decoration: line-through;
+            color: var(--text-faint);
+          }
+        }
+
+        .triage-thumb-cell {
+          .triage-thumb {
+            width: 54px;
+            height: 54px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid var(--background-modifier-border);
+          }
+        }
+
+        .triage-rename-input {
+          width: 100%;
+          padding: 6px 10px;
+          font-size: 0.85rem;
+          border: 1px solid var(--background-modifier-border);
+          border-radius: 6px;
+          background: var(--background-modifier-form-field);
+          color: var(--text-normal);
+        }
+
+        .triage-toggle-btn {
+          width: 100%;
+          padding: 6px 10px;
+          font-size: 0.78rem;
+          font-weight: 800;
+          border-radius: 6px;
+          cursor: pointer;
+          border: none;
+          transition: all 0.15s ease;
+
+          &.keep {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+
+            &:hover {
+              background: #22c55e;
+              color: #ffffff;
+            }
+          }
+
+          &.trash {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+
+            &:hover {
+              background: #ef4444;
+              color: #ffffff;
+            }
+          }
+        }
+      }
+    }
+
+    .triage-summary-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+
+      .triage-btn {
+        padding: 8px 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        &.secondary {
+          background: transparent;
+          border: 1px solid var(--background-modifier-border);
+          color: var(--text-normal);
+
+          &:hover {
+            background: var(--background-modifier-hover);
+          }
+        }
+
+        &.primary {
+          background: var(--interactive-accent);
+          color: var(--text-on-accent);
+          border: none;
+
+          &:hover {
+            background: var(--interactive-accent-hover);
+          }
+        }
+      }
+    }
+  }
+}

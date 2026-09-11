@@ -118,6 +118,20 @@ export const ECOSYSTEM_MODULES: BlueprintSection[] = [
     ],
   },
   {
+    id: "table-image-carousel",
+    category: "table",
+    title: "Image Carousel & Folder Triage",
+    icon: "gallery-thumbnails",
+    storeId: "pakcli-table",
+    repoUrl: "https://github.com/pakcli/table",
+    description: "Interactive card deck swiper and photo carousel for reviewing, triaging, renaming, and trashing folder images.",
+    fields: [
+      { key: "carouselOrientation", type: "dropdown", name: "Image Carousel Deck Orientation", desc: "Choose default layout for Scope Folder Image View/Edit: Horizontal (filmstrip) or Vertical (mobile stack).", defaultVal: "horizontal", options: ["horizontal", "vertical"] },
+      { key: "carouselVisibleSideCards", type: "dropdown", name: "Total Visible Side Cards (0 - 10 Slider)", desc: "Set number of 3D cards visible on the left (before active card) and right (after active card) on the perspective rail (0 = active card only / none, 1-10 max).", defaultVal: "5", options: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"] },
+      { key: "carouselCursorFollow", type: "toggle", name: "Enable Cursor Follow / Mouse Parallax Effect", desc: "Allow 3D cards on the carousel stage to shift/follow mouse movement (disabled by default).", defaultVal: false },
+    ],
+  },
+  {
     id: "table-tree",
     category: "table",
     title: "Tree Diagram & Hierarchy Explorer",

@@ -137,6 +137,26 @@ const workerPlugin = {
 	},
 };
 
+// Plugin to handle ?raw imports
+const rawPlugin = {
+	name: 'raw-loader',
+	setup(build) {
+		build.onResolve({ filter: /\?raw$/ }, args => {
+			return {
+				path: join(args.resolveDir, args.path.replace(/\?raw$/, '')),
+				namespace: 'raw-file',
+			};
+		});
+		build.onLoad({ filter: /.*/, namespace: 'raw-file' }, async (args) => {
+			const contents = await fs.readFile(args.path, 'utf8');
+			return {
+				contents: `export default ${JSON.stringify(contents)};`,
+				loader: 'js',
+			};
+		});
+	}
+};
+
 const prod = (process.argv[2] === "production");
 
 async function postBuild() {
@@ -235,9 +255,11 @@ const context = await esbuild.context({
 	metafile: true,
 	outfile: "dist/main.js",
 	loader: {
-		'.svg': 'text'
+		'.svg': 'text',
+		'.html': 'text'
 	},
 	plugins: [
+		rawPlugin,
 		wasmPlugin,
 		workerPlugin,
 		postBuildPlugin

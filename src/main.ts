@@ -3,6 +3,8 @@ import { PakCLITableSettings, DEFAULT_TABLE_SETTINGS } from './settings';
 import { handleArtifactRename, moveArtifactsBetweenFolders } from './features/sqlseal/utils/views';
 import { SplitViewManager } from './features/explorer/splitViewManager';
 import { ExplorerSectionId, EXPLORER_SECTIONS_INFO, DEFAULT_EXPLORER_SECTION_ORDER } from './features/explorer/types';
+import { ImageTriageModal } from './features/carousel/ImageTriageModal';
+import { IMAGE_CAROUSEL_VIEW_TYPE, ImageCarouselView } from './features/carousel/ImageCarouselView';
 
 // Hub Imports
 import { MasterDetailSettingsTab } from './features/hub/settingsHub';
@@ -158,6 +160,7 @@ export default class PakCLITablePlugin extends Plugin {
 
 		// 9. Initialize Graph Topology & Bubble View (Spec v18)
 		this.registerView(BUBBLE_GRAPH_VIEW_TYPE, (leaf) => new BubbleGraphView(leaf, this));
+		this.registerView(IMAGE_CAROUSEL_VIEW_TYPE, (leaf) => new ImageCarouselView(leaf));
 
 		this.addCommand({
 			id: 'open-bubble-graph',
@@ -259,7 +262,120 @@ export default class PakCLITablePlugin extends Plugin {
 			})
 		);
 
-		// Context menu for files (Backlog migration)
+		// Helper to open Image Carousel & Folder Triage as a workspace tab page
+		const openImageCarouselTab = async (folder: TFolder, mode: 'view' | 'edit') => {
+			const orientation = this.settings.carouselOrientation || 'horizontal';
+			const rawSide = this.settings.carouselVisibleSideCards;
+			const sideCards = typeof rawSide === 'number' ? rawSide : parseInt(String(rawSide || '5'), 10);
+			const safeSide = isNaN(sideCards) ? 5 : sideCards;
+
+			const existingLeaf = this.app.workspace.getLeavesOfType(IMAGE_CAROUSEL_VIEW_TYPE).find((l) => {
+				const state = l.getViewState().state;
+				return state && state.folderPath === folder.path;
+			});
+
+			if (existingLeaf) {
+				await existingLeaf.setViewState({
+					type: IMAGE_CAROUSEL_VIEW_TYPE,
+					active: true,
+					state: {
+						folderPath: folder.path,
+						mode,
+						orientation,
+						sideCards: safeSide,
+					},
+				});
+				this.app.workspace.revealLeaf(existingLeaf);
+				return;
+			}
+
+			const leaf = this.app.workspace.getLeaf('tab');
+			await leaf.setViewState({
+				type: IMAGE_CAROUSEL_VIEW_TYPE,
+				active: true,
+				state: {
+					folderPath: folder.path,
+					mode,
+					orientation,
+					sideCards: safeSide,
+				},
+			});
+			this.app.workspace.revealLeaf(leaf);
+		};
+
+		(this as any).openImageCarouselTab = openImageCarouselTab;
+
+		// Context menu for files and folders
+		const addFolderMenuItems = (menu: any, folder: TFolder) => {
+			if (menu.__pakcli_folder_menu_added) return;
+			menu.__pakcli_folder_menu_added = true;
+
+			const isFiltered = (this.settings.customRecentPaths || []).includes(folder.path);
+
+			menu.addItem((item: any) => {
+				item.setTitle('Scope Folder Image View')
+					.setIcon('image')
+					.onClick(() => {
+						openImageCarouselTab(folder, 'view');
+					});
+			});
+
+			menu.addItem((item: any) => {
+				item.setTitle('Scope Folder Image Edit')
+					.setIcon('gallery-thumbnails')
+					.onClick(() => {
+						openImageCarouselTab(folder, 'edit');
+					});
+			});
+
+			menu.addItem((item: any) => {
+				item.setTitle(isFiltered ? 'Remove from Recent Dropdown' : 'Add to Recent Dropdown')
+					.setIcon(isFiltered ? 'minus-circle' : 'plus-circle')
+					.onClick(() => {
+						if (isFiltered) {
+							this.splitViewManager?.removeFolderFromRecentFilter(folder.path);
+						} else {
+							this.splitViewManager?.addFolderToRecentFilter(folder.path, false);
+						}
+					});
+			});
+
+			menu.addItem((item: any) => {
+				item.setTitle('Add to Recent Dropdown & Activate')
+					.setIcon('filter')
+					.onClick(() => {
+						this.splitViewManager?.addFolderToRecentFilter(folder.path, true);
+					});
+			});
+
+			menu.addItem((item: any) => {
+				item.setTitle('Select / Filter Recent by this Folder')
+					.setIcon('folder')
+					.onClick(async () => {
+						this.settings.activeRecentFolderFilter = folder.path;
+						await this.saveSettings();
+						this.splitViewManager?.updateDropdownOptions();
+						this.splitViewManager?.renderRecentList();
+					});
+			});
+
+			menu.addItem((item: any) => {
+				item.setTitle('Move Folder to Backlog')
+					.setIcon('archive')
+					.onClick(() => {
+						this.splitViewManager?.moveToBacklog(folder, false);
+					});
+			});
+
+			menu.addItem((item: any) => {
+				item.setTitle('Move Folder to Backlog (Rename YYYY-MM-DD_HH-mm)')
+					.setIcon('clock')
+					.onClick(() => {
+						this.splitViewManager?.moveToBacklog(folder, true);
+					});
+			});
+		};
+
 		this.registerEvent(
 			this.app.workspace.on('file-menu', (menu, file) => {
 				if (file instanceof TFile) {
@@ -277,62 +393,16 @@ export default class PakCLITablePlugin extends Plugin {
 								this.splitViewManager?.moveToBacklog(file, true);
 							});
 					});
+				} else if (file instanceof TFolder) {
+					addFolderMenuItems(menu, file);
 				}
 			})
 		);
 
-		// Context menu for folders (Filter & Backlog options)
 		this.registerEvent(
 			this.app.workspace.on('folder-menu', (menu, folder) => {
 				if (folder instanceof TFolder) {
-					const isFiltered = (this.settings.customRecentPaths || []).includes(folder.path);
-
-					menu.addItem((item) => {
-						item.setTitle(isFiltered ? 'Remove from Recent Dropdown' : 'Add to Recent Dropdown')
-							.setIcon(isFiltered ? 'minus-circle' : 'plus-circle')
-							.onClick(() => {
-								if (isFiltered) {
-									this.splitViewManager?.removeFolderFromRecentFilter(folder.path);
-								} else {
-									this.splitViewManager?.addFolderToRecentFilter(folder.path, false);
-								}
-							});
-					});
-
-					menu.addItem((item) => {
-						item.setTitle('Add to Recent Dropdown & Activate')
-							.setIcon('filter')
-							.onClick(() => {
-								this.splitViewManager?.addFolderToRecentFilter(folder.path, true);
-							});
-					});
-
-					menu.addItem((item) => {
-						item.setTitle('Select / Filter Recent by this Folder')
-							.setIcon('folder')
-							.onClick(async () => {
-								this.settings.activeRecentFolderFilter = folder.path;
-								await this.saveSettings();
-								this.splitViewManager?.updateDropdownOptions();
-								this.splitViewManager?.renderRecentList();
-							});
-					});
-
-					menu.addItem((item) => {
-						item.setTitle('Move Folder to Backlog')
-							.setIcon('archive')
-							.onClick(() => {
-								this.splitViewManager?.moveToBacklog(folder, false);
-							});
-					});
-
-					menu.addItem((item) => {
-						item.setTitle('Move Folder to Backlog (Rename YYYY-MM-DD_HH-mm)')
-							.setIcon('clock')
-							.onClick(() => {
-								this.splitViewManager?.moveToBacklog(folder, true);
-							});
-					});
+					addFolderMenuItems(menu, folder);
 				}
 			})
 		);
@@ -1195,6 +1265,34 @@ export default class PakCLITablePlugin extends Plugin {
 
 				const foldersListContainer = containerEl.createDiv();
 				renderFolderFiltersList(foldersListContainer);
+			}
+		});
+
+		// 2.5 Image Carousel & Folder Triage (table-image-carousel)
+		settingsTab.registerLocalSection({
+			id: 'table-image-carousel',
+			category: 'table',
+			title: 'Image Carousel & Folder Triage',
+			icon: 'gallery-thumbnails',
+			isInstalled: true,
+			render: (containerEl) => {
+				new Setting(containerEl)
+					.setName('Image Carousel & Folder Triage')
+					.setDesc('Interactive card deck swiper and photo carousel for sorting, triaging, renaming, and trashing folder image assets.')
+					.setHeading();
+
+				new Setting(containerEl)
+					.setName('Image Carousel Deck Orientation')
+					.setDesc('Choose default layout for Scope Folder Image View/Edit: Horizontal (Desktop Filmstrip) or Vertical (Mobile Card Stack).')
+					.addDropdown((d) => {
+						d.addOption('horizontal', 'Horizontal (Desktop Filmstrip)')
+							.addOption('vertical', 'Vertical (Mobile Card Stack)')
+							.setValue(this.settings.carouselOrientation || 'horizontal')
+							.onChange(async (val) => {
+								this.settings.carouselOrientation = val as 'horizontal' | 'vertical';
+								await this.saveSettings();
+							});
+					});
 			}
 		});
 

@@ -1,0 +1,418 @@
+import { App, Modal, Notice, TFile, TFolder } from 'obsidian';
+import * as React from 'react';
+import { render, unmountComponentAtNode } from 'react-dom';
+import { CharacterCarousel } from '../../shaders/character-carousel/CharacterCarousel';
+import { TriageResultItem, TriageSummaryModal } from './TriageSummaryModal';
+
+export type DeckOrientation = 'horizontal' | 'vertical';
+export type TriageMode = 'view' | 'edit';
+
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp']);
+
+export class ImageTriageModal extends Modal {
+  private folder: TFolder;
+  private mode: TriageMode;
+  private orientation: DeckOrientation;
+
+  constructor(app: App, folder: TFolder, mode: TriageMode = 'edit', orientation: DeckOrientation = 'horizontal') {
+    super(app);
+    this.folder = folder;
+    this.mode = mode;
+    this.orientation = orientation;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass('image-triage-modal');
+
+    // Collect all image files in folder
+    const imageFiles: TFile[] = [];
+    const collectImages = (f: TFolder) => {
+      for (const child of f.children) {
+        if (child instanceof TFile && IMAGE_EXTENSIONS.has(child.extension.toLowerCase())) {
+          imageFiles.push(child);
+        } else if (child instanceof TFolder) {
+          collectImages(child);
+        }
+      }
+    };
+    collectImages(this.folder);
+
+    if (imageFiles.length === 0) {
+      new Notice(`No image files found in folder "${this.folder.name}".`);
+      this.close();
+      return;
+    }
+
+    render(
+      <ImageTriageView
+        app={this.app}
+        folder={this.folder}
+        imageFiles={imageFiles}
+        initialMode={this.mode}
+        initialOrientation={this.orientation}
+        onClose={() => this.close()}
+        onFinishTriage={(results) => {
+          this.close();
+          new TriageSummaryModal(this.app, this.folder, results).open();
+        }}
+      />,
+      contentEl
+    );
+  }
+
+  onClose() {
+    const { contentEl } = this;
+    unmountComponentAtNode(contentEl);
+    contentEl.empty();
+  }
+}
+
+export interface ImageTriageViewProps {
+  app: App;
+  folder: TFolder;
+  imageFiles: TFile[];
+  initialMode: TriageMode;
+  initialOrientation: DeckOrientation;
+  sideCards?: number;
+  onClose: () => void;
+  onFinishTriage: (results: TriageResultItem[]) => void;
+}
+
+async function getFileDataUrl(app: App, file: TFile): Promise<string> {
+  try {
+    const buffer = await app.vault.readBinary(file);
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+    }
+    const base64 = btoa(binary);
+    const ext = file.extension.toLowerCase();
+    const mime = ext === 'png' ? 'image/png'
+      : (ext === 'jpg' || ext === 'jpeg') ? 'image/jpeg'
+      : ext === 'webp' ? 'image/webp'
+      : ext === 'gif' ? 'image/gif'
+      : ext === 'svg' ? 'image/svg+xml'
+      : 'image/png';
+    return `data:${mime};base64,${base64}`;
+  } catch {
+    return app.vault.getResourcePath(file);
+  }
+}
+
+export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
+  app,
+  folder,
+  imageFiles,
+  initialMode,
+  initialOrientation,
+  sideCards = 5,
+  onClose,
+  onFinishTriage,
+}) => {
+  const [mode, setMode] = React.useState<TriageMode>(initialMode);
+  const [orientation, setOrientation] = React.useState<DeckOrientation>(initialOrientation);
+  const [currentIndex, setCurrentIndex] = React.useState(0);
+  const [triageHistory, setTriageHistory] = React.useState<TriageResultItem[]>([]);
+  const [dataUrls, setDataUrls] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    let active = true;
+    const loadUrls = async () => {
+      const map: Record<string, string> = {};
+      for (const file of imageFiles) {
+        map[file.path] = await getFileDataUrl(app, file);
+      }
+      if (active) {
+        setDataUrls(map);
+      }
+    };
+    loadUrls();
+    return () => { active = false; };
+  }, [app, imageFiles]);
+
+  // Drag state
+  const [dragOffset, setDragOffset] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = React.useState(false);
+  const dragStartRef = React.useRef<{ x: number; y: number } | null>(null);
+
+  const total = imageFiles.length;
+  const currentFile = imageFiles[currentIndex];
+
+  const getResourcePath = (file: TFile) => app.vault.getResourcePath(file);
+
+  const handleSwipe = React.useCallback(
+    (action: 'keep' | 'trash') => {
+      if (currentIndex >= total) return;
+      const item: TriageResultItem = {
+        file: imageFiles[currentIndex],
+        originalName: imageFiles[currentIndex].name,
+        newName: imageFiles[currentIndex].name,
+        action,
+        resourcePath: getResourcePath(imageFiles[currentIndex]),
+      };
+
+      setTriageHistory(prev => [...prev, item]);
+      setCurrentIndex(prev => prev + 1);
+      setDragOffset({ x: 0, y: 0 });
+    },
+    [currentIndex, total, imageFiles, app]
+  );
+
+  const handleUndo = () => {
+    if (triageHistory.length === 0) return;
+    setTriageHistory(prev => prev.slice(0, prev.length - 1));
+    setCurrentIndex(prev => Math.max(0, prev - 1));
+    setDragOffset({ x: 0, y: 0 });
+  };
+
+  // Keyboard navigation
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (mode !== 'edit' || currentIndex >= total) return;
+
+      if (e.key === 'ArrowLeft' || (orientation === 'vertical' && e.key === 'ArrowUp')) {
+        e.preventDefault();
+        handleSwipe('trash');
+      } else if (e.key === 'ArrowRight' || (orientation === 'vertical' && e.key === 'ArrowDown')) {
+        e.preventDefault();
+        handleSwipe('keep');
+      } else if (e.key === 'Backspace' || (e.ctrlKey && e.key === 'z')) {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mode, currentIndex, total, orientation, handleSwipe]);
+
+  // Pointer event handlers for touch / mouse dragging
+  const onPointerDown = (e: React.PointerEvent) => {
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    setIsDragging(true);
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!isDragging || !dragStartRef.current) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    setDragOffset({ x: dx, y: dy });
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (!isDragging || !dragStartRef.current) return;
+    setIsDragging(false);
+
+    const threshold = 70;
+    const { x, y } = dragOffset;
+
+    if (orientation === 'horizontal') {
+      if (x < -threshold) {
+        handleSwipe('trash');
+      } else if (x > threshold) {
+        handleSwipe('keep');
+      } else {
+        setDragOffset({ x: 0, y: 0 });
+      }
+    } else {
+      // vertical layout
+      if (y < -threshold) {
+        handleSwipe('trash');
+      } else if (y > threshold) {
+        handleSwipe('keep');
+      } else {
+        setDragOffset({ x: 0, y: 0 });
+      }
+    }
+    dragStartRef.current = null;
+  };
+
+  // Check if triage finished
+  const isFinished = currentIndex >= total;
+
+  return (
+    <div className={`triage-view-container orientation-${orientation}`}>
+      {/* Header Toolbar */}
+      <div className="triage-toolbar">
+        <div className="triage-title">
+          <h3>Folder: {folder.name}</h3>
+          <span className="triage-counter">
+            {isFinished ? 'Complete' : `${currentIndex + 1} / ${total}`}
+          </span>
+        </div>
+
+        <div className="triage-toolbar-actions">
+          <button
+            type="button"
+            className="triage-tool-btn"
+            title="Toggle Mode"
+            onClick={() => setMode(m => (m === 'view' ? 'edit' : 'view'))}
+          >
+            {mode === 'view' ? '✏️ Edit / Triage Mode' : '🖼️ View Mode'}
+          </button>
+
+          <button
+            type="button"
+            className="triage-tool-btn"
+            title="Toggle Orientation"
+            onClick={() => setOrientation(o => (o === 'horizontal' ? 'vertical' : 'horizontal'))}
+          >
+            {orientation === 'horizontal' ? '📱 Vertical Deck' : '💻 Horizontal Deck'}
+          </button>
+
+          <button type="button" className="triage-close-btn" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+      </div>
+
+      {/* Main View Area (Both View and Edit modes use the 3D CharacterCarousel stage) */}
+      {isFinished && mode === 'edit' ? (
+        <div className="triage-complete-prompt">
+          <h3>🎉 All images triaged!</h3>
+          <p>Click below to review keep/trash selections and apply file renames.</p>
+          <button
+            type="button"
+            className="triage-btn primary large"
+            onClick={() => onFinishTriage(triageHistory)}
+          >
+            Review & Apply Triage ({triageHistory.length} items)
+          </button>
+        </div>
+      ) : (
+        <div
+          className="triage-carousel-stage"
+          style={{ position: 'relative', width: '100%', height: '100%' }}
+        >
+          <CharacterCarousel
+            variant="filmstrip"
+            items={imageFiles.map((file, idx) => ({
+              id: file.path,
+              src: dataUrls[file.path] || getResourcePath(file),
+              name: file.name,
+              role: `${idx + 1} / ${total} • ${file.extension.toUpperCase()}`,
+            }))}
+            sideCards={sideCards ?? 5}
+            orientation={orientation}
+            focusIndex={mode === 'edit' ? currentIndex : undefined}
+            speed={1.0}
+            scale={1.0}
+          />
+
+          {/* Interactive Drag & Triage Overlay when in Edit Mode */}
+          {mode === 'edit' && (
+            <div
+              className="triage-gesture-overlay"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                justify: 'space-between',
+                pointerEvents: 'auto',
+                touchAction: 'none',
+              }}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+            >
+              {/* Gesture Overlay Badge */}
+              <div style={{ pointerEvents: 'none', position: 'absolute', inset: 0, zIndex: 12 }}>
+                {orientation === 'horizontal' && dragOffset.x < -30 && (
+                  <div className="triage-badge trash-badge">TRASH</div>
+                )}
+                {orientation === 'horizontal' && dragOffset.x > 30 && (
+                  <div className="triage-badge keep-badge">KEEP</div>
+                )}
+                {orientation === 'vertical' && dragOffset.y < -30 && (
+                  <div className="triage-badge trash-badge">TRASH</div>
+                )}
+                {orientation === 'vertical' && dragOffset.y > 30 && (
+                  <div className="triage-badge keep-badge">KEEP</div>
+                )}
+              </div>
+
+              <div style={{ flex: 1 }} />
+
+              {/* Action buttons overlay at bottom */}
+              <div
+                className="triage-deck-controls-overlay"
+                style={{
+                  position: 'relative',
+                  zIndex: 20,
+                  pointerEvents: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  paddingBottom: '16px',
+                }}
+              >
+                <div className="triage-deck-controls">
+                  <button
+                    type="button"
+                    className="deck-btn trash"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSwipe('trash');
+                    }}
+                    title={orientation === 'horizontal' ? 'Swipe Left (Trash)' : 'Swipe Up (Trash)'}
+                  >
+                    ‹ TRASH
+                  </button>
+
+                  <button
+                    type="button"
+                    className="deck-btn undo"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUndo();
+                    }}
+                    disabled={triageHistory.length === 0}
+                    title="Undo last swipe"
+                  >
+                    ↩ UNDO
+                  </button>
+
+                  <button
+                    type="button"
+                    className="deck-btn keep"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSwipe('keep');
+                    }}
+                    title={orientation === 'horizontal' ? 'Swipe Right (Keep)' : 'Swipe Down (Keep)'}
+                  >
+                    KEEP ›
+                  </button>
+                </div>
+
+                {triageHistory.length > 0 && (
+                  <div className="triage-finish-early">
+                    <button
+                      type="button"
+                      className="triage-btn secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onFinishTriage(triageHistory);
+                      }}
+                    >
+                      Finish & Review Current Triage ({triageHistory.length})
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};

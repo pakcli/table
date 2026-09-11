@@ -82,6 +82,7 @@ export interface ExplorerSettings {
   folderIndexPrefix?: string;
   folderIndexSuffix?: string;
   folderIndexUseTimestamp?: boolean;
+  carouselOrientation?: 'horizontal' | 'vertical';
 }
 
 export const DEFAULT_EXPLORER_SETTINGS: ExplorerSettings = {
@@ -101,5 +102,6 @@ export const DEFAULT_EXPLORER_SETTINGS: ExplorerSettings = {
   folderIndexPrefix: '',
   folderIndexSuffix: '',
   folderIndexUseTimestamp: false,
+  carouselOrientation: 'horizontal',
 };
 
