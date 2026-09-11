@@ -268,6 +268,13 @@ export default class PakCLITablePlugin extends Plugin {
 			const rawSide = this.settings.carouselVisibleSideCards;
 			const sideCards = typeof rawSide === 'number' ? rawSide : parseInt(String(rawSide || '5'), 10);
 			const safeSide = isNaN(sideCards) ? 5 : sideCards;
+			const direction = this.settings.carouselDirection || 'left-right';
+			const curve = this.settings.carouselAnimationCurve || 'exponential';
+			const rawSwitch = this.settings.carouselSwitchDuration;
+			const switchDuration = typeof rawSwitch === 'number' ? rawSwitch : parseFloat(String(rawSwitch ?? '0.5'));
+			const rawHold = this.settings.carouselHoldDuration;
+			const holdDuration = typeof rawHold === 'number' ? rawHold : parseFloat(String(rawHold ?? '1.0'));
+			const autoPlay = this.settings.carouselAutoPlay !== false;
 
 			const existingLeaf = this.app.workspace.getLeavesOfType(IMAGE_CAROUSEL_VIEW_TYPE).find((l) => {
 				const state = l.getViewState().state;
@@ -283,6 +290,11 @@ export default class PakCLITablePlugin extends Plugin {
 						mode,
 						orientation,
 						sideCards: safeSide,
+						direction,
+						curve,
+						switchDuration: isNaN(switchDuration) ? 0.5 : switchDuration,
+						holdDuration: isNaN(holdDuration) ? 1.0 : holdDuration,
+						autoPlay,
 					},
 				});
 				this.app.workspace.revealLeaf(existingLeaf);
@@ -298,6 +310,11 @@ export default class PakCLITablePlugin extends Plugin {
 					mode,
 					orientation,
 					sideCards: safeSide,
+					direction,
+					curve,
+					switchDuration: isNaN(switchDuration) ? 0.5 : switchDuration,
+					holdDuration: isNaN(holdDuration) ? 1.0 : holdDuration,
+					autoPlay,
 				},
 			});
 			this.app.workspace.revealLeaf(leaf);

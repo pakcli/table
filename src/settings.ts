@@ -47,6 +47,11 @@ export interface PakCLITableSettings extends
     carouselOrientation?: 'horizontal' | 'vertical';
     carouselVisibleSideCards?: number;
     carouselCursorFollow?: boolean;
+    carouselDirection?: 'left-right' | 'left' | 'right';
+    carouselAnimationCurve?: 'linear' | 'exponential';
+    carouselSwitchDuration?: number;
+    carouselHoldDuration?: number;
+    carouselAutoPlay?: boolean;
     [key: string]: unknown;
 }
 
@@ -102,5 +107,10 @@ export const DEFAULT_TABLE_SETTINGS: PakCLITableSettings = {
     carouselOrientation: 'horizontal',
     carouselVisibleSideCards: 5,
     carouselCursorFollow: false,
+    carouselDirection: 'left-right',
+    carouselAnimationCurve: 'exponential',
+    carouselSwitchDuration: 0.5,
+    carouselHoldDuration: 1.0,
+    carouselAutoPlay: true,
 };
 

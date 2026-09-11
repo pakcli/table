@@ -328,29 +328,53 @@
         count = cards.length;
       }
 
+      const autoPlayState = {
+        currentCard: 0,
+        fromCard: 0,
+        toCard: 0,
+        stepDelta: 1,
+        startBase: 0,
+        phase: 'hold',
+        elapsed: 0,
+        pingPongDir: 1,
+      };
+
+      function easeInOutExpo(x) {
+        if (x <= 0) return 0;
+        if (x >= 1) return 1;
+        return x < 0.5 ? Math.pow(2, 20 * x - 10) / 2 : (2 - Math.pow(2, -20 * x + 10)) / 2;
+      }
+
       function wrappedDelta(index, phase) {
         if (!count) return 0;
-        let delta = index - phase;
+        let delta = (index - phase) % count;
         while (delta > count / 2) delta -= count;
         while (delta < -count / 2) delta += count;
-        return delta;
+        return Number.isFinite(delta) ? delta : 0;
       }
 
       function nearestIndex() {
         if (!count) return 0;
-        return (Math.round(state.phase) % count + count) % count;
+        const raw = (Math.round(state.phase) % count + count) % count;
+        return Number.isFinite(raw) ? raw : 0;
       }
 
       function moveTo(index) {
         if (!count) return;
         const current = nearestIndex();
-        let delta = index - current;
-        if (delta > count / 2) delta -= count;
-        if (delta < -count / 2) delta += count;
-        state.base += delta;
+        let delta = (index - current) % count;
+        while (delta > count / 2) delta -= count;
+        while (delta < -count / 2) delta += count;
+        state.base = state.phase + delta;
         state.target = state.base;
         state.active = false;
         state.lastInput = performance.now();
+
+        autoPlayState.currentCard = index;
+        autoPlayState.fromCard = index;
+        autoPlayState.toCard = index;
+        autoPlayState.phase = 'hold';
+        autoPlayState.elapsed = 0;
       }
 
       const initialItems = window.__CHARACTER_CAROUSEL_ITEMS;
@@ -367,6 +391,9 @@
           state.phase = 0;
           state.target = 0;
           state.base = 0;
+          autoPlayState.currentCard = 0;
+          autoPlayState.phase = 'hold';
+          autoPlayState.elapsed = 0;
         }
         if (event.data.type === "character-carousel-focus" && typeof event.data.index === "number") {
           moveTo(event.data.index);
@@ -404,6 +431,9 @@
         state.target = state.base;
         state.active = false;
         state.lastInput = performance.now();
+        autoPlayState.phase = 'hold';
+        autoPlayState.elapsed = 0;
+        autoPlayState.currentCard = nearestIndex();
       }, { passive: false });
 
       addEventListener("keydown", (event) => {
@@ -415,21 +445,106 @@
         state.target = state.base;
         state.active = false;
         state.lastInput = performance.now();
+        autoPlayState.phase = 'hold';
+        autoPlayState.elapsed = 0;
+        autoPlayState.currentCard = nearestIndex();
       });
 
       let previousTime = performance.now();
 
       function render(time) {
-        const deltaTime = Math.min(32, time - previousTime);
+        const deltaTime = Math.min(32, Math.max(0, time - previousTime));
         previousTime = time;
         const ease = reducedMotion ? 1 : 1 - Math.pow(0.001, deltaTime / 1000);
 
-        if (!state.active && time - state.lastInput > 3600) {
-          const idle = time - state.lastInput - 3600;
-          state.target = state.base + Math.sin(idle * 0.00042) * 2.45;
+        const ctrl = window.__CHARACTER_CAROUSEL_CONTROLS || {};
+        const autoPlayEnabled = ctrl.autoPlay !== false && !ctrl.paused;
+        const animSpeed = Math.max(0.1, ctrl.speed || 1.0);
+        const holdDurationMs = Math.max(0, (ctrl.holdDuration ?? 1.0) * 1000);
+        const switchDurationMs = Math.max(10, (ctrl.switchDuration ?? 0.5) * 1000);
+        const curveType = String(ctrl.curve || 'exponential').toLowerCase();
+        const dir = String(ctrl.direction || 'left-right').toLowerCase().replace(/\s+/g, '-');
+
+        if (autoPlayEnabled && !state.active && holdDurationMs === 0 && curveType === 'linear' && count > 1) {
+          // Continuous marquee glide
+          const glideSpeed = (1 / switchDurationMs) * (deltaTime * animSpeed);
+          let moveDir = 1;
+          if (dir === 'right') {
+            moveDir = -1;
+          } else if (dir === 'left') {
+            moveDir = 1;
+          } else {
+            if (state.phase >= count - 1) autoPlayState.pingPongDir = -1;
+            else if (state.phase <= 0) autoPlayState.pingPongDir = 1;
+            moveDir = autoPlayState.pingPongDir;
+          }
+          state.base += moveDir * glideSpeed;
+          state.target = state.base;
+          state.phase = state.base;
+          autoPlayState.currentCard = nearestIndex();
+        } else if (autoPlayEnabled && !state.active && count > 1) {
+          // Discrete card-by-card stepping
+          autoPlayState.elapsed += deltaTime * animSpeed;
+
+          if (autoPlayState.phase === 'hold') {
+            state.target = state.base;
+            state.phase += (state.target - state.phase) * ease;
+
+            if (autoPlayState.elapsed >= holdDurationMs) {
+              autoPlayState.phase = 'switch';
+              autoPlayState.elapsed = 0;
+              autoPlayState.fromCard = nearestIndex();
+
+              let nextIndex;
+              if (dir === 'left') {
+                nextIndex = (autoPlayState.fromCard + 1) % count;
+              } else if (dir === 'right') {
+                nextIndex = (autoPlayState.fromCard - 1 + count) % count;
+              } else {
+                let candidate = autoPlayState.fromCard + autoPlayState.pingPongDir;
+                if (candidate >= count) {
+                  autoPlayState.pingPongDir = -1;
+                  candidate = Math.max(0, count - 2);
+                } else if (candidate < 0) {
+                  autoPlayState.pingPongDir = 1;
+                  candidate = Math.min(count - 1, 1);
+                }
+                nextIndex = candidate;
+              }
+              autoPlayState.toCard = nextIndex;
+
+              let stepDelta = (autoPlayState.toCard - autoPlayState.fromCard) % count;
+              while (stepDelta > count / 2) stepDelta -= count;
+              while (stepDelta < -count / 2) stepDelta += count;
+              autoPlayState.stepDelta = stepDelta;
+              autoPlayState.startBase = state.base;
+            }
+          } else if (autoPlayState.phase === 'switch') {
+            const progress = Math.min(1, Math.max(0, autoPlayState.elapsed / switchDurationMs));
+            let easedT = progress;
+            if (curveType === 'exponential' || curveType.includes('expo')) {
+              easedT = easeInOutExpo(progress);
+            }
+
+            const stepDelta = autoPlayState.stepDelta ?? 1;
+            state.base = autoPlayState.startBase + stepDelta * easedT;
+            state.target = state.base;
+            state.phase = state.base;
+
+            if (progress >= 1) {
+              autoPlayState.phase = 'hold';
+              autoPlayState.elapsed = 0;
+              autoPlayState.currentCard = autoPlayState.toCard;
+              state.base = Math.round(state.base);
+              state.target = state.base;
+              state.phase = state.base;
+            }
+          }
+        } else {
+          // Manual navigation or paused
+          state.phase += (state.target - state.phase) * ease;
         }
 
-        state.phase += (state.target - state.phase) * ease;
         const compact = innerWidth < 650;
         const isVerticalControls = (window.__CHARACTER_CAROUSEL_CONTROLS && window.__CHARACTER_CAROUSEL_CONTROLS.orientation === 'vertical');
         const activeIndex = nearestIndex();

@@ -19,6 +19,11 @@ export type CharacterCarouselProps = {
   orientation?: "horizontal" | "vertical";
   focusIndex?: number;
   cursorFollow?: boolean;
+  autoPlay?: boolean;
+  direction?: 'left-right' | 'left' | 'right';
+  curve?: 'linear' | 'exponential';
+  switchDuration?: number;
+  holdDuration?: number;
   speed?: number;
   scale?: number;
   opacity?: number;
@@ -38,7 +43,12 @@ export const CHARACTER_CAROUSEL_DEFAULTS = {
   hue: 0,
   saturation: 1,
   brightness: 1,
-} as const satisfies Required<Pick<CharacterCarouselProps, "variant" | "speed" | "scale" | "opacity" | "hue" | "saturation" | "brightness">>;
+  autoPlay: true,
+  direction: 'left-right',
+  curve: 'exponential',
+  switchDuration: 0.5,
+  holdDuration: 1.0,
+} as const satisfies Required<Pick<CharacterCarouselProps, "variant" | "speed" | "scale" | "opacity" | "hue" | "saturation" | "brightness" | "autoPlay" | "direction" | "curve" | "switchDuration" | "holdDuration">>;
 
 const SOURCE_BY_VARIANT: Record<CharacterCarouselVariant, string> = {
   filmstrip: characterFilmstripSource,
@@ -49,7 +59,19 @@ function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
-function buildFocusedDocument(variant: CharacterCarouselVariant, items?: CarouselItem[], sideCards: number = 5, orientation: string = "horizontal", cursorFollow: boolean = false) {
+function buildFocusedDocument(
+  variant: CharacterCarouselVariant,
+  items?: CarouselItem[],
+  sideCards: number = 5,
+  orientation: string = "horizontal",
+  cursorFollow: boolean = false,
+  autoPlay: boolean = true,
+  direction: string = 'left-right',
+  curve: string = 'exponential',
+  switchDuration: number = 0.5,
+  holdDuration: number = 1.0,
+  speed: number = 1.0,
+) {
   const focusStyles = `<style data-character-carousel-focus>
 :root { --character-carousel-scale: 1; }
 html, body, .stage { width: 100%; height: 100%; margin: 0; overflow: hidden; }
@@ -64,24 +86,28 @@ html, body, .stage { width: 100%; height: 100%; margin: 0; overflow: hidden; }
   const controls = `<script data-character-carousel-controls>
 (function () {
   var nativeFrame = window.requestAnimationFrame.bind(window);
-  var clock = { real: null, virtual: null };
-  var controls = window.__CHARACTER_CAROUSEL_CONTROLS = { speed: 1, scale: 1, paused: false, sideCards: ${sideCards}, orientation: ${JSON.stringify(orientation)}, cursorFollow: ${Boolean(cursorFollow)} };
+  var controls = window.__CHARACTER_CAROUSEL_CONTROLS = {
+    speed: ${Number(speed) || 1},
+    scale: 1,
+    paused: false,
+    autoPlay: ${Boolean(autoPlay)},
+    direction: ${JSON.stringify(direction)},
+    curve: ${JSON.stringify(curve)},
+    switchDuration: ${Number(switchDuration) || 0.5},
+    holdDuration: ${Number(holdDuration) ?? 1.0},
+    sideCards: ${sideCards},
+    orientation: ${JSON.stringify(orientation)},
+    cursorFollow: ${Boolean(cursorFollow)}
+  };
   window.__CHARACTER_CAROUSEL_NOW = function () {
-    return clock.virtual === null ? performance.now() : clock.virtual;
+    return performance.now();
   };
   window.requestAnimationFrame = function (callback) {
     function tick(realTime) {
-      if (clock.real === null) {
-        clock.real = realTime;
-        clock.virtual = realTime;
-      } else {
-        if (!controls.paused) clock.virtual += (realTime - clock.real) * controls.speed;
-        clock.real = realTime;
-      }
       if (controls.paused) {
         return nativeFrame(tick);
       }
-      callback(clock.virtual);
+      callback(realTime);
     }
     return nativeFrame(tick);
   };
@@ -89,11 +115,16 @@ html, body, .stage { width: 100%; height: 100%; margin: 0; overflow: hidden; }
     if (!event.data) return;
     if (event.data.type === 'character-carousel-controls') {
       var next = event.data.controls || {};
-      if (Number.isFinite(next.speed)) controls.speed = Math.max(0, Math.min(2.5, next.speed));
+      if (Number.isFinite(next.speed)) controls.speed = Math.max(0.1, Math.min(3.0, next.speed));
       if (Number.isFinite(next.scale)) controls.scale = Math.max(0.7, Math.min(1.3, next.scale));
       if (Number.isFinite(next.sideCards)) controls.sideCards = Math.max(0, Math.min(10, next.sideCards));
       if (next.orientation) controls.orientation = next.orientation;
       if (typeof next.cursorFollow === 'boolean') controls.cursorFollow = next.cursorFollow;
+      if (typeof next.autoPlay === 'boolean') controls.autoPlay = next.autoPlay;
+      if (typeof next.direction === 'string') controls.direction = next.direction;
+      if (typeof next.curve === 'string') controls.curve = next.curve;
+      if (Number.isFinite(next.switchDuration)) controls.switchDuration = Math.max(0, next.switchDuration);
+      if (Number.isFinite(next.holdDuration)) controls.holdDuration = Math.max(0, next.holdDuration);
       controls.paused = Boolean(next.paused);
       document.documentElement.style.setProperty('--character-carousel-scale', String(controls.scale));
     }
@@ -116,6 +147,11 @@ export function CharacterCarousel({
   orientation = "horizontal",
   focusIndex,
   cursorFollow = false,
+  autoPlay = CHARACTER_CAROUSEL_DEFAULTS.autoPlay,
+  direction = CHARACTER_CAROUSEL_DEFAULTS.direction,
+  curve = CHARACTER_CAROUSEL_DEFAULTS.curve,
+  switchDuration = CHARACTER_CAROUSEL_DEFAULTS.switchDuration,
+  holdDuration = CHARACTER_CAROUSEL_DEFAULTS.holdDuration,
   speed = CHARACTER_CAROUSEL_DEFAULTS.speed,
   scale = CHARACTER_CAROUSEL_DEFAULTS.scale,
   opacity = CHARACTER_CAROUSEL_DEFAULTS.opacity,
@@ -129,16 +165,31 @@ export function CharacterCarousel({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [hostVisible, setHostVisible] = useState(true);
   const [documentVisible, setDocumentVisible] = useState(() => typeof document === "undefined" || !document.hidden);
-  const safeSpeed = clamp(speed, 0, 2.5);
+  const safeSpeed = clamp(speed, 0.1, 3.0);
   const safeScale = clamp(scale, 0.7, 1.3);
   const safeSideCards = Math.max(0, Math.min(10, sideCards));
   const paused = !hostVisible || !documentVisible;
-  const source = useMemo(() => buildFocusedDocument(variant, items, safeSideCards, orientation, cursorFollow), [variant, items, safeSideCards, orientation, cursorFollow]);
+  const source = useMemo(
+    () => buildFocusedDocument(variant, items, safeSideCards, orientation, cursorFollow, autoPlay, direction, curve, switchDuration, holdDuration, safeSpeed),
+    [variant, items, safeSideCards, orientation, cursorFollow, autoPlay, direction, curve, switchDuration, holdDuration, safeSpeed]
+  );
 
   const postControls = useCallback(() => {
     iframeRef.current?.contentWindow?.postMessage({
       type: "character-carousel-controls",
-      controls: { speed: safeSpeed, scale: safeScale, paused, sideCards: safeSideCards, orientation, cursorFollow },
+      controls: {
+        speed: safeSpeed,
+        scale: safeScale,
+        paused,
+        autoPlay,
+        direction,
+        curve,
+        switchDuration,
+        holdDuration,
+        sideCards: safeSideCards,
+        orientation,
+        cursorFollow,
+      },
     }, "*");
     if (items && items.length > 0) {
       iframeRef.current?.contentWindow?.postMessage({
@@ -152,7 +203,7 @@ export function CharacterCarousel({
         index: focusIndex,
       }, "*");
     }
-  }, [paused, safeScale, safeSpeed, items, safeSideCards, orientation, focusIndex]);
+  }, [paused, safeScale, safeSpeed, items, safeSideCards, orientation, focusIndex, autoPlay, direction, curve, switchDuration, holdDuration, cursorFollow]);
 
   useEffect(() => {
     const iframe = iframeRef.current;

@@ -13,6 +13,11 @@ export class ImageCarouselView extends ItemView {
   private mode: TriageMode = 'view';
   private orientation: DeckOrientation = 'horizontal';
   private sideCards: number = 5;
+  private direction: string = 'left-right';
+  private curve: string = 'exponential';
+  private switchDuration: number = 0.5;
+  private holdDuration: number = 1.0;
+  private autoPlay: boolean = true;
 
   constructor(leaf: WorkspaceLeaf) {
     super(leaf);
@@ -36,6 +41,11 @@ export class ImageCarouselView extends ItemView {
     if (state.mode) this.mode = state.mode;
     if (state.orientation) this.orientation = state.orientation;
     if (state.sideCards !== undefined) this.sideCards = Number(state.sideCards);
+    if (state.direction) this.direction = state.direction;
+    if (state.curve) this.curve = state.curve;
+    if (state.switchDuration !== undefined) this.switchDuration = Number(state.switchDuration);
+    if (state.holdDuration !== undefined) this.holdDuration = Number(state.holdDuration);
+    if (state.autoPlay !== undefined) this.autoPlay = Boolean(state.autoPlay);
     await super.setState(state, result);
     this.renderView();
   }
@@ -46,6 +56,11 @@ export class ImageCarouselView extends ItemView {
       mode: this.mode,
       orientation: this.orientation,
       sideCards: this.sideCards,
+      direction: this.direction,
+      curve: this.curve,
+      switchDuration: this.switchDuration,
+      holdDuration: this.holdDuration,
+      autoPlay: this.autoPlay,
     };
   }
 
@@ -100,6 +115,11 @@ export class ImageCarouselView extends ItemView {
         initialMode={this.mode}
         initialOrientation={this.orientation}
         sideCards={this.sideCards}
+        direction={this.direction}
+        curve={this.curve}
+        switchDuration={this.switchDuration}
+        holdDuration={this.holdDuration}
+        autoPlay={this.autoPlay}
         onClose={() => this.leaf.detach()}
         onFinishTriage={(results) => {
           new TriageSummaryModal(this.app, folder, results).open();

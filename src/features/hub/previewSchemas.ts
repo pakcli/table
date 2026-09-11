@@ -128,6 +128,11 @@ export const ECOSYSTEM_MODULES: BlueprintSection[] = [
     fields: [
       { key: "carouselOrientation", type: "dropdown", name: "Image Carousel Deck Orientation", desc: "Choose default layout for Scope Folder Image View/Edit: Horizontal (filmstrip) or Vertical (mobile stack).", defaultVal: "horizontal", options: ["horizontal", "vertical"] },
       { key: "carouselVisibleSideCards", type: "dropdown", name: "Total Visible Side Cards (0 - 10 Slider)", desc: "Set number of 3D cards visible on the left (before active card) and right (after active card) on the perspective rail (0 = active card only / none, 1-10 max).", defaultVal: "5", options: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"] },
+      { key: "carouselDirection", type: "dropdown", name: "Direction", desc: "Choose direction for carousel auto-advance: Left Right (ping-pong), Left, or Right.", defaultVal: "Left Right", options: ["Left Right", "Left", "Right"] },
+      { key: "carouselAnimationCurve", type: "dropdown", name: "Animation Setting", desc: "Transition curve: linear or exponential up and down.", defaultVal: "exponential up and down", options: ["linear", "exponential up and down"] },
+      { key: "carouselSwitchDuration", type: "dropdown", name: "Switch Duration (Seconds)", desc: "Slide transition time for each card switch (0 - 5s).", defaultVal: "0.5", options: ["0", "0.1", "0.25", "0.5", "0.75", "1", "1.5", "2", "3", "4", "5"] },
+      { key: "carouselHoldDuration", type: "dropdown", name: "Hold Duration (Seconds)", desc: "Hold/pause time on each card before advancing (0 - 3s).", defaultVal: "1", options: ["0", "0.25", "0.5", "1", "1.5", "2", "3"] },
+      { key: "carouselAutoPlay", type: "toggle", name: "Enable Carousel Autoplay", desc: "Automatically advance cards according to the timing and direction settings.", defaultVal: true },
       { key: "carouselCursorFollow", type: "toggle", name: "Enable Cursor Follow / Mouse Parallax Effect", desc: "Allow 3D cards on the carousel stage to shift/follow mouse movement (disabled by default).", defaultVal: false },
     ],
   },

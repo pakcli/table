@@ -76,8 +76,25 @@ export interface ImageTriageViewProps {
   initialMode: TriageMode;
   initialOrientation: DeckOrientation;
   sideCards?: number;
+  direction?: 'left-right' | 'left' | 'right' | string;
+  curve?: 'linear' | 'exponential' | string;
+  switchDuration?: number | string;
+  holdDuration?: number | string;
+  autoPlay?: boolean;
   onClose: () => void;
   onFinishTriage: (results: TriageResultItem[]) => void;
+}
+
+function normalizeDirection(val?: string): 'left-right' | 'left' | 'right' {
+  const s = String(val || 'left-right').toLowerCase().replace(/\s+/g, '-');
+  if (s.includes('right') && !s.includes('left')) return 'right';
+  if (s.includes('left') && !s.includes('right')) return 'left';
+  return 'left-right';
+}
+
+function normalizeCurve(val?: string): 'linear' | 'exponential' {
+  const s = String(val || 'exponential').toLowerCase();
+  return s.includes('linear') ? 'linear' : 'exponential';
 }
 
 async function getFileDataUrl(app: App, file: TFile): Promise<string> {
@@ -110,6 +127,11 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
   initialMode,
   initialOrientation,
   sideCards = 5,
+  direction = 'left-right',
+  curve = 'exponential',
+  switchDuration = 0.5,
+  holdDuration = 1.0,
+  autoPlay = true,
   onClose,
   onFinishTriage,
 }) => {
@@ -118,8 +140,12 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [triageHistory, setTriageHistory] = React.useState<TriageResultItem[]>([]);
   const [dataUrls, setDataUrls] = React.useState<Record<string, string>>({});
-  const [isPlaying, setIsPlaying] = React.useState(true);
+  const [isPlaying, setIsPlaying] = React.useState(autoPlay);
   const [animSpeed, setAnimSpeed] = React.useState(1.0);
+  const animDirection = normalizeDirection(direction);
+  const animCurve = normalizeCurve(curve);
+  const switchSec = typeof switchDuration === 'number' ? switchDuration : (parseFloat(String(switchDuration)) || 0.5);
+  const holdSec = typeof holdDuration === 'number' ? holdDuration : (parseFloat(String(holdDuration)) ?? 1.0);
   const [lightbox, setLightbox] = React.useState<{ src: string; name: string } | null>(null);
   const [zoom, setZoom] = React.useState(1);
   const [focusIndex, setFocusIndex] = React.useState<number | undefined>(undefined);
@@ -261,7 +287,7 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
           <button
             type="button"
             className="triage-tool-btn"
-            title={isPlaying ? 'Pause animation' : 'Play animation'}
+            title={isPlaying ? 'Pause autoplay' : 'Play autoplay'}
             onClick={() => setIsPlaying(p => !p)}
           >
             {isPlaying ? '⏸' : '▶'}
@@ -272,7 +298,7 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
             className="triage-speed-select"
             value={animSpeed}
             onChange={e => setAnimSpeed(Number(e.target.value))}
-            title="Animation speed"
+            title="Animation speed multiplier"
           >
             <option value={0.25}>0.25×</option>
             <option value={0.5}>0.5×</option>
@@ -334,7 +360,12 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
             sideCards={sideCards ?? 5}
             orientation={orientation}
             focusIndex={mode === 'edit' ? currentIndex : focusIndex}
-            speed={isPlaying ? animSpeed : 0}
+            autoPlay={isPlaying}
+            direction={animDirection}
+            curve={animCurve}
+            switchDuration={switchSec}
+            holdDuration={holdSec}
+            speed={animSpeed}
             scale={1.0}
             onCardDoubleClick={(_idx, src, name) => {
               setLightbox({ src, name });
