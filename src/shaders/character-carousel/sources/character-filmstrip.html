@@ -113,7 +113,7 @@
       appearance: none;
       outline: none;
       transform-style: preserve-3d;
-      will-change: transform, opacity, filter;
+      will-change: transform, opacity;
       cursor: pointer;
     }
 
@@ -719,7 +719,8 @@
           card.style.setProperty("--focus", focus.toFixed(4));
           card.style.zIndex = String(Math.round(1000 - distance * 100));
           card.style.opacity = String(Math.max(0.13, side * 0.76 + focus * 0.24));
-          card.style.filter = `blur(${Math.max(0, distance - 1.5) * 0.38}px)`;
+          const blurPx = Math.max(0, distance - 1.5) * 0.38;
+          card.style.filter = blurPx > 0.01 ? `blur(${blurPx.toFixed(2)}px)` : '';
           card.style.transform = [
             "translate(-50%, -50%)",
             `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, ${z.toFixed(2)}px)`,
