@@ -505,16 +505,16 @@ export function HeaderCell({
           </button>
         </div>
 
-        {/* 3. Force this as the ONLY sort column */}
+        {/* 3. Force this as the ONLY sort column checkbox toggle */}
         <div class="tablite-sort-force-wrap" onClick={(event) => event.stopPropagation()}>
           <button
             type="button"
-            role="radio"
+            role="checkbox"
             aria-checked={isOnlySorted}
             class={`tablite-sort-force-btn ${isOnlySorted ? "is-active" : ""}`}
             title={
               isOnlySorted
-                ? `Currently the ONLY sort column (${sortDir || "active"}). Click to clear sort`
+                ? `Force sort is ON for "${displayName}" (ONLY this column sorted). Click to clear sort`
                 : `Force "${displayName}" as the ONLY sort column (clears other column sorts)`
             }
             onClick={(event) => {
@@ -523,7 +523,11 @@ export function HeaderCell({
               handleForceOnlySort();
             }}
           >
-            <span class="tablite-sort-radio-inner" />
+            {isOnlySorted ? (
+              <span class="tablite-sort-check-icon">✓</span>
+            ) : (
+              <span class="tablite-sort-check-placeholder" />
+            )}
           </button>
         </div>
       </div>

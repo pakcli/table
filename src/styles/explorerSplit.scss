@@ -1,6 +1,7 @@
 /* ── PakCLI Explorer Additions & Split View ──────────────────────────────── */
 
-.pakcli-explorer-split-btn {
+.pakcli-explorer-split-btn,
+.pakcli-explorer-base-btn {
   transition: color 0.15s ease, background 0.15s ease;
 
   &.is-active {
@@ -105,6 +106,51 @@
         }
       }
 
+      .pakcli-recent-base-btn {
+        display: flex;
+        align-items: center;
+        color: var(--text-faint);
+        cursor: pointer;
+        padding: 2px 3px;
+        border-radius: 4px;
+        transition: color 0.15s ease, background 0.15s ease;
+
+        svg {
+          width: 12px;
+          height: 12px;
+        }
+
+        &.is-active {
+          color: var(--interactive-accent) !important;
+          background: var(--background-modifier-hover);
+        }
+
+        &:hover {
+          color: var(--interactive-accent);
+          background: var(--background-modifier-hover);
+        }
+      }
+
+      .pakcli-recent-csv-btn {
+        display: flex;
+        align-items: center;
+        color: var(--text-faint);
+        cursor: pointer;
+        padding: 2px 3px;
+        border-radius: 4px;
+        transition: color 0.15s ease, background 0.15s ease;
+
+        svg {
+          width: 12px;
+          height: 12px;
+        }
+
+        &:hover {
+          color: var(--interactive-accent);
+          background: var(--background-modifier-hover);
+        }
+      }
+
       .pakcli-recent-clear-btn {
         display: flex;
         align-items: center;
@@ -125,6 +171,11 @@
         }
       }
     }
+  }
+
+  &.is-drag-over {
+    border: 2px dashed var(--interactive-accent) !important;
+    background: var(--background-primary-alt) !important;
   }
 
   .pakcli-recent-list {

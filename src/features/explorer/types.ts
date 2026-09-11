@@ -72,6 +72,16 @@ export interface ExplorerSettings {
   explorerMaxRecentFiles: number;
   explorerRecentShowIcons: boolean;
   explorerRecentTimeFilter?: RecentTimeFilter;
+  recentsArtifactFolderPath: string;
+  customRecentPaths?: string[];
+  activeRecentFolderFilter?: string;
+  backlogFolderPath?: string;
+  enableBaseExplorerMode?: boolean;
+  baseExplorerActive?: boolean;
+  enableAutoFolderIndex?: boolean;
+  folderIndexPrefix?: string;
+  folderIndexSuffix?: string;
+  folderIndexUseTimestamp?: boolean;
 }
 
 export const DEFAULT_EXPLORER_SETTINGS: ExplorerSettings = {
@@ -81,5 +91,15 @@ export const DEFAULT_EXPLORER_SETTINGS: ExplorerSettings = {
   explorerMaxRecentFiles: 20,
   explorerRecentShowIcons: false,
   explorerRecentTimeFilter: 'all',
+  recentsArtifactFolderPath: 'artifacts/pakcli-table',
+  customRecentPaths: [],
+  activeRecentFolderFilter: '',
+  backlogFolderPath: 'Backlog',
+  enableBaseExplorerMode: false,
+  baseExplorerActive: false,
+  enableAutoFolderIndex: false,
+  folderIndexPrefix: '',
+  folderIndexSuffix: '',
+  folderIndexUseTimestamp: false,
 };
 

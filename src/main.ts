@@ -1,4 +1,4 @@
-import { Plugin, Notice, Setting, PluginSettingTab, ButtonComponent, TFile, TextComponent, setIcon } from 'obsidian';
+import { Plugin, Notice, Setting, PluginSettingTab, ButtonComponent, TFile, TFolder, TextComponent, setIcon } from 'obsidian';
 import { PakCLITableSettings, DEFAULT_TABLE_SETTINGS } from './settings';
 import { handleArtifactRename, moveArtifactsBetweenFolders } from './features/sqlseal/utils/views';
 import { SplitViewManager } from './features/explorer/splitViewManager';
@@ -255,6 +255,84 @@ export default class PakCLITablePlugin extends Plugin {
 			this.app.vault.on('rename', async (file, oldPath) => {
 				if (file instanceof TFile && file.extension?.toLowerCase() === 'csv') {
 					await handleArtifactRename(this.app, oldPath, file.path, this.settings.csvArtifactFolderPath);
+				}
+			})
+		);
+
+		// Context menu for files (Backlog migration)
+		this.registerEvent(
+			this.app.workspace.on('file-menu', (menu, file) => {
+				if (file instanceof TFile) {
+					menu.addItem((item) => {
+						item.setTitle('Move to Backlog')
+							.setIcon('archive')
+							.onClick(() => {
+								this.splitViewManager?.moveToBacklog(file, false);
+							});
+					});
+					menu.addItem((item) => {
+						item.setTitle('Move to Backlog (Rename YYYY-MM-DD_HH-mm)')
+							.setIcon('clock')
+							.onClick(() => {
+								this.splitViewManager?.moveToBacklog(file, true);
+							});
+					});
+				}
+			})
+		);
+
+		// Context menu for folders (Filter & Backlog options)
+		this.registerEvent(
+			this.app.workspace.on('folder-menu', (menu, folder) => {
+				if (folder instanceof TFolder) {
+					const isFiltered = (this.settings.customRecentPaths || []).includes(folder.path);
+
+					menu.addItem((item) => {
+						item.setTitle(isFiltered ? 'Remove from Recent Dropdown' : 'Add to Recent Dropdown')
+							.setIcon(isFiltered ? 'minus-circle' : 'plus-circle')
+							.onClick(() => {
+								if (isFiltered) {
+									this.splitViewManager?.removeFolderFromRecentFilter(folder.path);
+								} else {
+									this.splitViewManager?.addFolderToRecentFilter(folder.path, false);
+								}
+							});
+					});
+
+					menu.addItem((item) => {
+						item.setTitle('Add to Recent Dropdown & Activate')
+							.setIcon('filter')
+							.onClick(() => {
+								this.splitViewManager?.addFolderToRecentFilter(folder.path, true);
+							});
+					});
+
+					menu.addItem((item) => {
+						item.setTitle('Select / Filter Recent by this Folder')
+							.setIcon('folder')
+							.onClick(async () => {
+								this.settings.activeRecentFolderFilter = folder.path;
+								await this.saveSettings();
+								this.splitViewManager?.updateDropdownOptions();
+								this.splitViewManager?.renderRecentList();
+							});
+					});
+
+					menu.addItem((item) => {
+						item.setTitle('Move Folder to Backlog')
+							.setIcon('archive')
+							.onClick(() => {
+								this.splitViewManager?.moveToBacklog(folder, false);
+							});
+					});
+
+					menu.addItem((item) => {
+						item.setTitle('Move Folder to Backlog (Rename YYYY-MM-DD_HH-mm)')
+							.setIcon('clock')
+							.onClick(() => {
+								this.splitViewManager?.moveToBacklog(folder, true);
+							});
+					});
 				}
 			})
 		);
@@ -899,6 +977,52 @@ export default class PakCLITablePlugin extends Plugin {
 					.setName('Recent Files Pane Preferences')
 					.setHeading();
 
+				let recentsFolderInput: TextComponent | null = null;
+				new Setting(containerEl)
+					.setName('Recent Files CSV Artifact Folder')
+					.setDesc('Vault folder where the recent files history CSV artifact (recents.csv with path, time last open, date last open) is stored (default: artifacts/pakcli-table).')
+					.addText((text) => {
+						recentsFolderInput = text;
+						text.setPlaceholder('artifacts/pakcli-table')
+							.setValue(this.settings.recentsArtifactFolderPath || 'artifacts/pakcli-table')
+							.onChange(async (val) => {
+								this.settings.recentsArtifactFolderPath = val.trim() || 'artifacts/pakcli-table';
+								await this.saveSettings();
+								if (this.splitViewManager) {
+									await this.splitViewManager.saveRecentsCsvArtifact();
+								}
+							});
+					})
+					.addButton((btn) => {
+						btn.setButtonText('Open CSV')
+							.setTooltip('Open recents.csv in the workspace')
+							.onClick(async () => {
+								if (this.splitViewManager) {
+									const file = await this.splitViewManager.saveRecentsCsvArtifact();
+									if (file) {
+										const leaf = this.app.workspace.getLeaf(false);
+										await leaf.openFile(file);
+										new Notice('Opened Recents CSV artifact');
+									}
+								}
+							});
+					})
+					.addButton((btn) => {
+						btn.setButtonText('Reset')
+							.setTooltip('Reset folder back to default (artifacts/pakcli-table)')
+							.onClick(async () => {
+								this.settings.recentsArtifactFolderPath = 'artifacts/pakcli-table';
+								if (recentsFolderInput) {
+									recentsFolderInput.setValue('artifacts/pakcli-table');
+								}
+								await this.saveSettings();
+								if (this.splitViewManager) {
+									await this.splitViewManager.saveRecentsCsvArtifact();
+								}
+								new Notice('🔄 Reset recents CSV artifact folder to "artifacts/pakcli-table".');
+							});
+					});
+
 				new Setting(containerEl)
 					.setName('Max Recent Files')
 					.setDesc('Maximum number of recently opened files to display in the pane (5 - 50).')
@@ -946,6 +1070,131 @@ export default class PakCLITablePlugin extends Plugin {
 								}
 							});
 					});
+
+				new Setting(containerEl)
+					.setName('Backlog Migration & Archive')
+					.setHeading();
+
+				new Setting(containerEl)
+					.setName('Backlog Target Folder Path')
+					.setDesc('Vault folder path where files/folders are moved when using "Move to Backlog" (default: Backlog).')
+					.addText((text) => {
+						text.setPlaceholder('Backlog')
+							.setValue(this.settings.backlogFolderPath || 'Backlog')
+							.onChange(async (val) => {
+								this.settings.backlogFolderPath = val.trim() || 'Backlog';
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Base Explorer Filter Mode')
+					.setHeading();
+
+				new Setting(containerEl)
+					.setName('Enable Base Explorer Mode Feature')
+					.setDesc('Allows filtering the Obsidian file explorer tree to display folders and Base files only (.base, .base.json, .base.md, index.md).')
+					.addToggle((t) => {
+						t.setValue(this.settings.enableBaseExplorerMode === true)
+							.onChange(async (val) => {
+								this.settings.enableBaseExplorerMode = val;
+								if (!val) {
+									this.settings.baseExplorerActive = false;
+								}
+								await this.saveSettings();
+								if (this.splitViewManager) {
+									this.splitViewManager.applyBaseExplorerFilter();
+								}
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Add Index Setup (Folder Auto Index)')
+					.setHeading();
+
+				new Setting(containerEl)
+					.setName('Enable Auto Index Creation on Folder Click')
+					.setDesc('Clicking folder name in file explorer will check if index.md exists. If missing, automatically creates index.md with title frontmatter and opens it.')
+					.addToggle((t) => {
+						t.setValue(this.settings.enableAutoFolderIndex === true)
+							.onChange(async (val) => {
+								this.settings.enableAutoFolderIndex = val;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Folder Index Title Prefix')
+					.setDesc('Custom prefix to add before the folder name in index.md title frontmatter.')
+					.addText((text) => {
+						text.setPlaceholder('e.g. Project - ')
+							.setValue(this.settings.folderIndexPrefix || '')
+							.onChange(async (val) => {
+								this.settings.folderIndexPrefix = val;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Folder Index Title Suffix')
+					.setDesc('Custom suffix to add after the folder name in index.md title frontmatter.')
+					.addText((text) => {
+						text.setPlaceholder('e.g. - Notes')
+							.setValue(this.settings.folderIndexSuffix || '')
+							.onChange(async (val) => {
+								this.settings.folderIndexSuffix = val;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Include Timestamp Prefix (YYYY-MM-DD_HH-mm_)')
+					.setDesc('Prepend current timestamp YYYY-MM-DD_HH-mm_ to index.md title frontmatter.')
+					.addToggle((t) => {
+						t.setValue(this.settings.folderIndexUseTimestamp === true)
+							.onChange(async (val) => {
+								this.settings.folderIndexUseTimestamp = val;
+								await this.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName('Custom Recent Folder Filters')
+					.setDesc('Manage folder paths available in the Recent Files timeframe/folder dropdown.')
+					.setHeading();
+
+				const renderFolderFiltersList = (listEl: HTMLElement) => {
+					listEl.empty();
+					const customPaths = this.settings.customRecentPaths || [];
+					if (customPaths.length === 0) {
+						listEl.createDiv({
+							text: 'No custom folder filters added. Right-click any folder in File Explorer and choose "Add to Recent Dropdown".',
+							cls: 'pakcli-calc-empty-note'
+						});
+						return;
+					}
+
+					for (const p of customPaths) {
+						new Setting(listEl)
+							.setName(p)
+							.addButton((btn) => {
+								btn.setButtonText('Remove')
+									.setWarning()
+									.onClick(async () => {
+										if (this.splitViewManager) {
+											await this.splitViewManager.removeFolderFromRecentFilter(p);
+										} else {
+											this.settings.customRecentPaths = (this.settings.customRecentPaths || []).filter(item => item !== p);
+											await this.saveSettings();
+										}
+										renderFolderFiltersList(listEl);
+									});
+							});
+					}
+				};
+
+				const foldersListContainer = containerEl.createDiv();
+				renderFolderFiltersList(foldersListContainer);
 			}
 		});
 

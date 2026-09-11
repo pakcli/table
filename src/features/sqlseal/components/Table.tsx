@@ -514,12 +514,12 @@ export function Table({
                 <div class="tablite-sort-force-wrap" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
-                    role="radio"
+                    role="checkbox"
                     aria-checked={sorting.length === 1 && sorting[0]?.id === "__row_num"}
                     class={`tablite-sort-force-btn ${sorting.length === 1 && sorting[0]?.id === "__row_num" ? "is-active" : ""}`}
                     title={
                       sorting.length === 1 && sorting[0]?.id === "__row_num"
-                        ? "Row number is the ONLY sort column. Click to clear"
+                        ? "Force sort is ON for row number (ONLY row number sorted). Click to clear sort"
                         : "Force row number as the ONLY sort column"
                     }
                     onClick={(e) => {
@@ -534,7 +534,11 @@ export function Table({
                       }
                     }}
                   >
-                    <span class="tablite-sort-radio-inner" />
+                    {sorting.length === 1 && sorting[0]?.id === "__row_num" ? (
+                      <span class="tablite-sort-check-icon">✓</span>
+                    ) : (
+                      <span class="tablite-sort-check-placeholder" />
+                    )}
                   </button>
                 </div>
               </div>

@@ -74,6 +74,8 @@ export function Cell({
   const inputRef = useRef<HTMLInputElement>(null);
   const latestValRef = useRef(editValue);
   const committedRef = useRef(false);
+  const clickCountRef = useRef<number>(0);
+  const lastClickTimeRef = useRef<number>(0);
 
   // When edit mode is toggled or initial value changed
   useEffect(() => {
@@ -84,30 +86,23 @@ export function Cell({
       latestValRef.current = initial;
       if (inputRef.current) {
         inputRef.current.focus();
-        if (initialEditValue !== undefined) {
-          const len = initial.length;
-          inputRef.current.setSelectionRange(len, len);
-        } else {
-          inputRef.current.select();
-        }
+        const len = (initial ?? "").length;
+        inputRef.current.setSelectionRange(len, len);
       }
     } else {
       setLocalEditing(false);
       setEditValue(value);
       latestValRef.current = value;
+      clickCountRef.current = 0;
     }
   }, [isEditingActive, initialEditValue, value]);
 
-  // Focus & select when input renders
+  // Focus & cursor placement at end when input renders (editable without full selection)
   useEffect(() => {
     if (isEditingActive && inputRef.current) {
       inputRef.current.focus();
-      if (initialEditValue !== undefined) {
-        const len = (initialEditValue ?? "").length;
-        inputRef.current.setSelectionRange(len, len);
-      } else {
-        inputRef.current.select();
-      }
+      const len = inputRef.current.value.length;
+      inputRef.current.setSelectionRange(len, len);
     }
   }, [isEditingActive]);
 
@@ -172,8 +167,24 @@ export function Cell({
           class="tablite-cell-input"
           value={editValue}
           onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-          onDblClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            const now = Date.now();
+            // Third click detection: if clicked shortly after double-click into edit mode (triple click sequence)
+            if (clickCountRef.current === 2 && now - lastClickTimeRef.current < 750) {
+              inputRef.current?.select();
+              clickCountRef.current = 3;
+            } else {
+              clickCountRef.current = 1;
+            }
+            lastClickTimeRef.current = now;
+          }}
+          onDblClick={(e) => {
+            e.stopPropagation();
+            // Double click on already active input also selects the entire cell text
+            inputRef.current?.select();
+            clickCountRef.current = 3;
+          }}
           onInput={(e) => {
             const v = (e.target as HTMLInputElement).value;
             setEditValue(v);
@@ -307,6 +318,8 @@ export function Cell({
         title={isEasyCopy ? `Click to copy: ${value || "(empty)"}` : undefined}
         onDblClick={(e) => {
           e.stopPropagation();
+          clickCountRef.current = 2;
+          lastClickTimeRef.current = Date.now();
           if (onStartEdit) {
             onStartEdit(rowIndex, colIndex);
           } else {
@@ -362,6 +375,8 @@ export function Cell({
       title={isEasyCopy ? `Click to copy: ${value || "(empty)"}` : undefined}
       onDblClick={(e) => {
         e.stopPropagation();
+        clickCountRef.current = 2;
+        lastClickTimeRef.current = Date.now();
         if (onStartEdit) {
           onStartEdit(rowIndex, colIndex);
         } else {

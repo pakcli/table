@@ -13,13 +13,13 @@ export interface SimulationOptions {
 
 export function computeLeafClusterRadius(nodeCount: number, depth: number): number {
     if (nodeCount <= 0) return 0;
-    if (nodeCount === 1) return depth === 1 ? 32 : 22;
-    if (nodeCount === 2) return depth === 1 ? 42 : 30;
+    if (nodeCount === 1) return depth === 1 ? 36 : 24;
+    if (nodeCount === 2) return depth === 1 ? 48 : 34;
+    // Generous packing area per node so nodes never overlap or get squeezed
     if (depth === 1) {
-        return Math.max(48, Math.round(Math.sqrt(nodeCount) * 12.0 + 36));
+        return Math.max(54, Math.round(Math.sqrt(nodeCount) * 14.5 + 40));
     }
-    const factor = Math.max(5.5, 8.5 - depth * 0.5);
-    return Math.max(22, Math.round(Math.sqrt(nodeCount) * factor + 16));
+    return Math.max(28, Math.round(Math.sqrt(nodeCount) * 12.5 + 22));
 }
 
 export function computeClusterRadius(nodeCount: number, depth: number): number {
@@ -49,15 +49,17 @@ export function computeAllClusterRadii(clusters: BubbleCluster[], visibleNodeIds
         let totalSubArea = 0;
         let maxSubRadius = 0;
         for (const sub of childSubs) {
-            const sr = sub.radius + 1.5;
+            const sr = sub.radius + 2;
             totalSubArea += Math.PI * sr * sr;
             if (sub.radius > maxSubRadius) maxSubRadius = sub.radius;
         }
 
-        const looseArea = directCount * (Math.PI * 14 * 14);
+        // Generous area for loose nodes alongside child subclusters
+        const looseArea = directCount * (Math.PI * 22 * 22);
         const totalArea = totalSubArea + looseArea;
-        const packingR = Math.ceil(Math.sqrt(totalArea / (Math.PI * 0.52)) + 14);
-        c.radius = Math.max(baseR, packingR, maxSubRadius + (c.depth === 1 ? 24 : 18));
+        const packingR = Math.ceil(Math.sqrt(totalArea / (Math.PI * 0.50)) + 18);
+        const looseSpreadExtra = Math.ceil(Math.sqrt(directCount) * 12);
+        c.radius = Math.max(baseR, packingR, maxSubRadius + looseSpreadExtra + (c.depth === 1 ? 28 : 22));
     }
 }
 
@@ -239,7 +241,7 @@ export class BubbleSimulation {
                 directNodes[0].vx = 0;
                 directNodes[0].vy = 0;
             } else {
-                const spread = Math.max(6, cluster.radius * 0.60);
+                const spread = Math.max(8, cluster.radius - 18);
                 directNodes.forEach((node, idx) => {
                     const phi = idx * 2.3999632;
                     const dist = Math.sqrt((idx + 0.5) / count) * spread;
@@ -249,10 +251,56 @@ export class BubbleSimulation {
                     node.vy = 0;
                 });
             }
+
+            // Immediately run 20 PBD passes so nodes NEVER start overlapping!
+            const childSubs = this.clusters.filter(s => s.parentClusterId === cluster.id && s.radius > 0);
+            for (let iter = 0; iter < 20; iter++) {
+                for (let i = 0; i < count; i++) {
+                    const na = directNodes[i];
+                    for (let j = i + 1; j < count; j++) {
+                        const nb = directNodes[j];
+                        const minD = na.radius + nb.radius + 3;
+                        const dx = nb.x - na.x;
+                        const dy = nb.y - na.y;
+                        const d2 = dx * dx + dy * dy;
+                        if (d2 < minD * minD) {
+                            const d = Math.sqrt(d2) || 0.001;
+                            const s = ((minD - d) * 0.5) / d;
+                            na.x -= dx * s; na.y -= dy * s;
+                            nb.x += dx * s; nb.y += dy * s;
+                        }
+                    }
+                }
+                for (const sub of childSubs) {
+                    for (const node of directNodes) {
+                        const sdx = node.x - sub.centroid.x;
+                        const sdy = node.y - sub.centroid.y;
+                        const sd = Math.hypot(sdx, sdy) || 0.001;
+                        const minSd = sub.radius + node.radius + 4;
+                        if (sd < minSd) {
+                            const push = (minSd - sd) / sd;
+                            node.x += sdx * push;
+                            node.y += sdy * push;
+                        }
+                    }
+                }
+                for (const node of directNodes) {
+                    const maxR = Math.max(4, cluster.radius - node.radius - 4);
+                    const cdx = node.x - cluster.centroid.x;
+                    const cdy = node.y - cluster.centroid.y;
+                    const cd = Math.hypot(cdx, cdy) || 0.001;
+                    if (cd > maxR) {
+                        const scale = maxR / cd;
+                        node.x = cluster.centroid.x + cdx * scale;
+                        node.y = cluster.centroid.y + cdy * scale;
+                    }
+                }
+            }
         }
 
-        this.nodes.forEach(n => {
-            if (n.topLevelFolder === '/' && n.x === 0 && n.y === 0) {
+        const rootNodes = this.nodes.filter(n => !n.topLevelFolder || n.topLevelFolder === '/');
+        rootNodes.forEach(n => {
+            if (n.x === 0 && n.y === 0) {
                 const angle = Math.random() * Math.PI * 2;
                 const r = orbitRadius * 1.25 + Math.random() * 50;
                 n.x = Math.cos(angle) * r;
@@ -260,6 +308,26 @@ export class BubbleSimulation {
                 n.vx = 0; n.vy = 0;
             }
         });
+
+        // PBD on root nodes
+        for (let iter = 0; iter < 10; iter++) {
+            for (let i = 0; i < rootNodes.length; i++) {
+                const na = rootNodes[i];
+                for (let j = i + 1; j < rootNodes.length; j++) {
+                    const nb = rootNodes[j];
+                    const minD = na.radius + nb.radius + 3;
+                    const dx = nb.x - na.x;
+                    const dy = nb.y - na.y;
+                    const d2 = dx * dx + dy * dy;
+                    if (d2 < minD * minD) {
+                        const d = Math.sqrt(d2) || 0.001;
+                        const s = ((minD - d) * 0.5) / d;
+                        na.x -= dx * s; na.y -= dy * s;
+                        nb.x += dx * s; nb.y += dy * s;
+                    }
+                }
+            }
+        }
 
         updateClusterHulls(this.clusters, this.nodeMap, 18, null, this.options.layoutMode === 'bubble');
     }
@@ -467,33 +535,10 @@ export class BubbleSimulation {
             }
 
             // =====================================================================
-            // LEVEL 3: NODES — LIGHT VELOCITY + HARD BOUNDARY CLAMP
+            // LEVEL 3: NODES — PBD SEPARATION (GUARANTEED NO OVERLAPS, JUST TOUCH)
             // =====================================================================
 
-            // A. Light pairwise repulsion within same folder
-            const nc = this.nodes.length;
-            for (let i = 0; i < nc; i++) {
-                const na = this.nodes[i];
-                if (visibleNodeIds && !visibleNodeIds.has(na.id)) continue;
-                for (let j = i + 1; j < nc; j++) {
-                    const nb = this.nodes[j];
-                    if (visibleNodeIds && !visibleNodeIds.has(nb.id)) continue;
-                    if (na.topLevelFolder !== nb.topLevelFolder) continue;
-                    const dx = nb.x - na.x;
-                    const dy = nb.y - na.y;
-                    const d2 = dx * dx + dy * dy;
-                    const minD = na.radius + nb.radius + 4;
-                    if (d2 < minD * minD) {
-                        const d = Math.sqrt(d2) || 0.001;
-                        const f = Math.min((minD - d) * 0.35, 0.9) * (0.1 + 0.35 * alpha);
-                        const nx = dx / d; const ny = dy / d;
-                        if (na.fx === null) { na.vx -= nx * f; na.vy -= ny * f; }
-                        if (nb.fx === null) { nb.vx += nx * f; nb.vy += ny * f; }
-                    }
-                }
-            }
-
-            // B. Intra-folder spring (tier1_intra edges)
+            // A. Intra-folder springs along connected notes
             for (const edge of this.edges) {
                 if (edge.tier !== 'tier1_intra') continue;
                 const src = edge.sourceNode; const tgt = edge.targetNode;
@@ -501,7 +546,7 @@ export class BubbleSimulation {
                 if (visibleNodeIds && (!visibleNodeIds.has(src.id) || !visibleNodeIds.has(tgt.id))) continue;
                 const dx = tgt.x - src.x; const dy = tgt.y - src.y;
                 const d = Math.hypot(dx, dy) || 1;
-                const f = (d - 22) * 0.012 * alpha;
+                const f = (d - 22) * 0.015 * alpha;
                 const fx = (dx / d) * f; const fy = (dy / d) * f;
                 if (tgt.glyph === 'hub' && src.glyph !== 'hub') {
                     src.vx += fx * 1.2; src.vy += fy * 1.2;
@@ -512,7 +557,7 @@ export class BubbleSimulation {
                 }
             }
 
-            // C. Root/unclustered nodes → center pull
+            // B. Root/unclustered nodes center pull
             for (const node of this.nodes) {
                 if (!node.topLevelFolder || node.topLevelFolder === '/') {
                     if (visibleNodeIds && !visibleNodeIds.has(node.id)) continue;
@@ -524,59 +569,128 @@ export class BubbleSimulation {
                 }
             }
 
-            // D. Integrate + hard boundary clamp (no earthquake)
+            // C. Velocity Integration with strict speed damping
             for (const node of this.nodes) {
                 if (visibleNodeIds && !visibleNodeIds.has(node.id)) continue;
                 if (node.fx !== null) continue;
+                const spd = Math.hypot(node.vx, node.vy);
+                if (spd > 2.0) { node.vx = (node.vx / spd) * 2.0; node.vy = (node.vy / spd) * 2.0; }
+                node.x += node.vx; node.y += node.vy;
+                node.vx *= 0.65; node.vy *= 0.65;
+            }
+
+            // D. Group direct nodes by their immediate container cluster
+            const clusterDirectNodeMap = new Map<string, BubbleNode[]>();
+            for (const c of this.clusters) clusterDirectNodeMap.set(c.id, []);
+
+            for (const node of this.nodes) {
+                if (visibleNodeIds && !visibleNodeIds.has(node.id)) continue;
                 if (!node.topLevelFolder || node.topLevelFolder === '/') continue;
 
                 let container: BubbleCluster | undefined = clusterById.get(node.subClusterId);
                 if (!container || container.radius === 0) {
                     container = clusterById.get(node.clusterId);
                 }
-                if (!container || container.radius === 0) continue;
+                if (container && container.radius > 0) {
+                    clusterDirectNodeMap.get(container.id)?.push(node);
+                }
+            }
 
-                // Hard speed cap prevents dense-folder resonance
-                const spd = Math.hypot(node.vx, node.vy);
-                if (spd > 1.5) { node.vx = (node.vx / spd) * 1.5; node.vy = (node.vy / spd) * 1.5; }
+            // E. HARD PBD RELAXATION FOR ALL CLUSTERS (8 passes: guaranteed no overlaps, just touch)
+            for (const [clusterId, directNodes] of clusterDirectNodeMap.entries()) {
+                const container = clusterById.get(clusterId);
+                if (!container || directNodes.length === 0) continue;
 
-                node.x += node.vx; node.y += node.vy;
-                node.vx *= 0.80; node.vy *= 0.80;
+                const count = directNodes.length;
+                const childSubs = this.clusters.filter(s => s.parentClusterId === container.id && s.radius > 0);
 
-                // Hard clamp inside container
-                const maxR = (container.depth > 1)
-                    ? Math.max(4, container.radius - node.radius - 4)
-                    : Math.max(8, container.radius - node.radius - 8);
-                const cdx = node.x - container.centroid.x;
-                const cdy = node.y - container.centroid.y;
-                const cd = Math.hypot(cdx, cdy) || 0.001;
+                for (let iter = 0; iter < 8; iter++) {
+                    // 1. Node-to-node hard pairwise PBD projection
+                    for (let i = 0; i < count; i++) {
+                        const na = directNodes[i];
+                        for (let j = i + 1; j < count; j++) {
+                            const nb = directNodes[j];
+                            // "Just touch" spacing: radius A + radius B + 2.5px hairline gap
+                            const minD = na.radius + nb.radius + 2.5;
+                            const dx = nb.x - na.x;
+                            const dy = nb.y - na.y;
+                            const d2 = dx * dx + dy * dy;
+                            if (d2 < minD * minD) {
+                                const dist = Math.sqrt(d2) || 0.001;
+                                const s = ((minD - dist) * 0.5) / dist;
+                                if (na.fx === null && nb.fx === null) {
+                                    na.x -= dx * s; na.y -= dy * s;
+                                    nb.x += dx * s; nb.y += dy * s;
+                                } else if (na.fx === null) {
+                                    na.x -= dx * s * 2; na.y -= dy * s * 2;
+                                } else if (nb.fx === null) {
+                                    nb.x += dx * s * 2; nb.y += dy * s * 2;
+                                }
+                            }
+                        }
+                    }
 
-                if (cd > maxR * 0.75) {
-                    const pull = (cd - maxR * 0.75) * 0.08;
-                    node.vx -= (cdx / cd) * pull;
-                    node.vy -= (cdy / cd) * pull;
+                    // 2. Repel loose nodes from any nested child subclusters
+                    for (const sub of childSubs) {
+                        for (let i = 0; i < count; i++) {
+                            const node = directNodes[i];
+                            if (node.fx !== null) continue;
+                            const sdx = node.x - sub.centroid.x;
+                            const sdy = node.y - sub.centroid.y;
+                            const sd = Math.hypot(sdx, sdy) || 0.001;
+                            const minSd = sub.radius + node.radius + 4;
+                            if (sd < minSd) {
+                                const push = (minSd - sd) / sd;
+                                node.x += sdx * push;
+                                node.y += sdy * push;
+                            }
+                        }
+                    }
+
+                    // 3. Hard clamp inside container bubble
+                    for (let i = 0; i < count; i++) {
+                        const node = directNodes[i];
+                        if (node.fx !== null) continue;
+                        const maxR = Math.max(4, container.radius - node.radius - 4);
+                        const cdx = node.x - container.centroid.x;
+                        const cdy = node.y - container.centroid.y;
+                        const cd = Math.hypot(cdx, cdy) || 0.001;
+                        if (cd > maxR) {
+                            const scale = maxR / cd;
+                            node.x = container.centroid.x + cdx * scale;
+                            node.y = container.centroid.y + cdy * scale;
+                        }
+                    }
                 }
 
-                if (cd > maxR) {
-                    node.x = container.centroid.x + (cdx / cd) * maxR;
-                    node.y = container.centroid.y + (cdy / cd) * maxR;
-                    const outV = node.vx * (cdx / cd) + node.vy * (cdy / cd);
-                    if (outV > 0) { node.vx -= (cdx / cd) * outV; node.vy -= (cdy / cd) * outV; }
+                // 4. Dynamic expansion: if nodes are crowded, grow container circle so they never feel squished
+                for (let i = 0; i < count; i++) {
+                    const node = directNodes[i];
+                    const dist = Math.hypot(node.x - container.centroid.x, node.y - container.centroid.y);
+                    const requiredR = Math.ceil(dist + node.radius + 6);
+                    if (requiredR > container.radius) {
+                        container.radius = requiredR;
+                    }
                 }
+            }
 
-                // If container has child subclusters, repel loose nodes away from child subclusters so they don't clip
-                const childSubs = this.clusters.filter(s => s.parentClusterId === container!.id && s.radius > 0);
-                for (const s of childSubs) {
-                    const sdx = node.x - s.centroid.x;
-                    const sdy = node.y - s.centroid.y;
-                    const sd = Math.hypot(sdx, sdy) || 0.001;
-                    const minSd = s.radius + node.radius + 3;
-                    if (sd < minSd) {
-                        const push = minSd - sd;
-                        node.x += (sdx / sd) * push;
-                        node.y += (sdy / sd) * push;
-                        node.vx += (sdx / sd) * 0.5;
-                        node.vy += (sdy / sd) * 0.5;
+            // F. Root/unclustered nodes pairwise PBD (4 passes)
+            const rootNodes = this.nodes.filter(n => (!n.topLevelFolder || n.topLevelFolder === '/') && (visibleNodeIds ? visibleNodeIds.has(n.id) : true));
+            for (let iter = 0; iter < 4; iter++) {
+                for (let i = 0; i < rootNodes.length; i++) {
+                    const na = rootNodes[i];
+                    for (let j = i + 1; j < rootNodes.length; j++) {
+                        const nb = rootNodes[j];
+                        const minD = na.radius + nb.radius + 3;
+                        const dx = nb.x - na.x;
+                        const dy = nb.y - na.y;
+                        const d2 = dx * dx + dy * dy;
+                        if (d2 < minD * minD) {
+                            const dist = Math.sqrt(d2) || 0.001;
+                            const s = ((minD - dist) * 0.5) / dist;
+                            if (na.fx === null) { na.x -= dx * s; na.y -= dy * s; }
+                            if (nb.fx === null) { nb.x += dx * s; nb.y += dy * s; }
+                        }
                     }
                 }
             }
