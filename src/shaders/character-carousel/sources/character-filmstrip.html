@@ -317,6 +317,12 @@
           deck.append(card);
           card.addEventListener("click", () => moveTo(index));
           card.addEventListener("focus", () => moveTo(index));
+          card.addEventListener("dblclick", (e) => {
+            e.stopPropagation();
+            const imgEl = card.querySelector("img");
+            const src = imgEl ? imgEl.src : (profile.src || "");
+            window.parent.postMessage({ type: "character-carousel-card-dblclick", index, src, name: profile.name }, "*");
+          });
           return card;
         });
         count = cards.length;

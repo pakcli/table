@@ -118,6 +118,11 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [triageHistory, setTriageHistory] = React.useState<TriageResultItem[]>([]);
   const [dataUrls, setDataUrls] = React.useState<Record<string, string>>({});
+  const [isPlaying, setIsPlaying] = React.useState(true);
+  const [animSpeed, setAnimSpeed] = React.useState(1.0);
+  const [lightbox, setLightbox] = React.useState<{ src: string; name: string } | null>(null);
+  const [zoom, setZoom] = React.useState(1);
+  const [focusIndex, setFocusIndex] = React.useState<number | undefined>(undefined);
 
   React.useEffect(() => {
     let active = true;
@@ -172,6 +177,11 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
   // Keyboard navigation
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Close lightbox on Escape
+      if (e.key === 'Escape') {
+        setLightbox(null);
+        return;
+      }
       if (mode !== 'edit' || currentIndex >= total) return;
 
       if (e.key === 'ArrowLeft' || (orientation === 'vertical' && e.key === 'ArrowUp')) {
@@ -188,7 +198,7 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, currentIndex, total, orientation, handleSwipe]);
+  }, [mode, currentIndex, total, orientation, handleSwipe, lightbox]);
 
   // Pointer event handlers for touch / mouse dragging
   const onPointerDown = (e: React.PointerEvent) => {
@@ -235,7 +245,7 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
   // Check if triage finished
   const isFinished = currentIndex >= total;
 
-  return (
+  return (<>
     <div className={`triage-view-container orientation-${orientation}`}>
       {/* Header Toolbar */}
       <div className="triage-toolbar">
@@ -247,6 +257,30 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
         </div>
 
         <div className="triage-toolbar-actions">
+          {/* Play / Pause */}
+          <button
+            type="button"
+            className="triage-tool-btn"
+            title={isPlaying ? 'Pause animation' : 'Play animation'}
+            onClick={() => setIsPlaying(p => !p)}
+          >
+            {isPlaying ? '⏸' : '▶'}
+          </button>
+
+          {/* Speed dropdown */}
+          <select
+            className="triage-speed-select"
+            value={animSpeed}
+            onChange={e => setAnimSpeed(Number(e.target.value))}
+            title="Animation speed"
+          >
+            <option value={0.25}>0.25×</option>
+            <option value={0.5}>0.5×</option>
+            <option value={1}>1×</option>
+            <option value={1.5}>1.5×</option>
+            <option value={2}>2×</option>
+          </select>
+
           <button
             type="button"
             className="triage-tool-btn"
@@ -299,9 +333,13 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
             }))}
             sideCards={sideCards ?? 5}
             orientation={orientation}
-            focusIndex={mode === 'edit' ? currentIndex : undefined}
-            speed={1.0}
+            focusIndex={mode === 'edit' ? currentIndex : focusIndex}
+            speed={isPlaying ? animSpeed : 0}
             scale={1.0}
+            onCardDoubleClick={(_idx, src, name) => {
+              setLightbox({ src, name });
+              setZoom(1);
+            }}
           />
 
           {/* Interactive Drag & Triage Overlay when in Edit Mode */}
@@ -414,5 +452,80 @@ export const ImageTriageView: React.FC<ImageTriageViewProps> = ({
         </div>
       )}
     </div>
-  );
+
+    {/* Fullscreen lightbox */}
+    {lightbox && (
+      <div
+        className="carousel-lightbox-backdrop"
+        onClick={() => setLightbox(null)}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.88)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <div
+          style={{ position: 'relative', maxWidth: '96vw', maxHeight: '92vh', overflow: 'hidden' }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setLightbox(null)}
+            style={{
+              position: 'absolute', top: 8, right: 8, zIndex: 10,
+              background: 'rgba(0,0,0,0.6)', color: '#fff',
+              border: 'none', borderRadius: '50%', width: 32, height: 32,
+              fontSize: 16, cursor: 'pointer', lineHeight: '32px', textAlign: 'center',
+            }}
+          >✕</button>
+
+          {/* Zoom controls */}
+          <div style={{
+            position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 10, display: 'flex', gap: 8, alignItems: 'center',
+            background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '4px 12px',
+          }}>
+            <button
+              onClick={() => setZoom(z => Math.max(0.25, z - 0.25))}
+              style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer' }}
+            >−</button>
+            <span style={{ color: '#fff', fontSize: 13, minWidth: 36, textAlign: 'center' }}>
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              onClick={() => setZoom(z => Math.min(6, z + 0.25))}
+              style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer' }}
+            >+</button>
+            <button
+              onClick={() => setZoom(1)}
+              style={{ background: 'none', border: 'none', color: '#aaa', fontSize: 11, cursor: 'pointer', marginLeft: 4 }}
+            >Reset</button>
+          </div>
+
+          {/* Image with scroll-to-zoom */}
+          <div
+            style={{ overflow: 'auto', maxWidth: '96vw', maxHeight: '92vh', cursor: zoom > 1 ? 'grab' : 'zoom-in' }}
+            onWheel={e => {
+              e.preventDefault();
+              setZoom(z => Math.min(6, Math.max(0.25, z - e.deltaY * 0.001)));
+            }}
+          >
+            <img
+              src={lightbox.src}
+              alt={lightbox.name}
+              draggable={false}
+              style={{
+                display: 'block',
+                transform: `scale(${zoom})`,
+                transformOrigin: 'top left',
+                transition: 'transform 0.12s ease',
+                maxWidth: 'none',
+                userSelect: 'none',
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    )}
+  </>);
 };

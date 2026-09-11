@@ -27,6 +27,7 @@ export type CharacterCarouselProps = {
   brightness?: number;
   className?: string;
   style?: CSSProperties;
+  onCardDoubleClick?: (index: number, src: string, name: string) => void;
 };
 
 export const CHARACTER_CAROUSEL_DEFAULTS = {
@@ -123,6 +124,7 @@ export function CharacterCarousel({
   brightness = CHARACTER_CAROUSEL_DEFAULTS.brightness,
   className = "",
   style,
+  onCardDoubleClick,
 }: CharacterCarouselProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [hostVisible, setHostVisible] = useState(true);
@@ -130,7 +132,7 @@ export function CharacterCarousel({
   const safeSpeed = clamp(speed, 0, 2.5);
   const safeScale = clamp(scale, 0.7, 1.3);
   const safeSideCards = Math.max(0, Math.min(10, sideCards));
-  const paused = !hostVisible || !documentVisible || safeSpeed === 0;
+  const paused = !hostVisible || !documentVisible;
   const source = useMemo(() => buildFocusedDocument(variant, items, safeSideCards, orientation, cursorFollow), [variant, items, safeSideCards, orientation, cursorFollow]);
 
   const postControls = useCallback(() => {
@@ -166,6 +168,18 @@ export function CharacterCarousel({
     document.addEventListener("visibilitychange", update);
     return () => document.removeEventListener("visibilitychange", update);
   }, []);
+
+  useEffect(() => {
+    if (!onCardDoubleClick) return undefined;
+    const handler = (e: MessageEvent) => {
+      if (!e.data) return;
+      if (e.data.type === "character-carousel-card-dblclick") {
+        onCardDoubleClick(e.data.index, e.data.src, e.data.name ?? "");
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [onCardDoubleClick]);
 
   useEffect(() => {
     postControls();
