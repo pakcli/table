@@ -7,9 +7,13 @@
   <title>Character Filmstrip</title>
   <style>
     :root {
-      color-scheme: light;
+      color-scheme: light dark;
       font-family: "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
-      background: #d8c9ad;
+      --accent-color: #8b5cf6;
+      --accent-rgb: 139, 92, 246;
+      --bg-primary: #1e1e2e;
+      --bg-secondary: #252538;
+      background: var(--bg-primary);
     }
 
     * {
@@ -22,7 +26,7 @@
       height: 100%;
       margin: 0;
       overflow: hidden;
-      background: #d8c9ad;
+      background: var(--bg-primary);
     }
 
     body {
@@ -46,16 +50,17 @@
       cursor: ew-resize;
       touch-action: none;
       background:
-        linear-gradient(90deg, rgba(80, 58, 31, 0.08) 1px, transparent 1px) 50% 0 / 25% 100%,
+        linear-gradient(90deg, rgba(var(--accent-rgb), 0.08) 1px, transparent 1px) 50% 0 / 25% 100%,
         repeating-linear-gradient(
           0deg,
           transparent 0,
           transparent 109px,
-          rgba(72, 52, 30, 0.13) 110px,
+          rgba(var(--accent-rgb), 0.08) 110px,
           transparent 111px
         ),
-        radial-gradient(circle at var(--pointer-x) 48%, rgba(255, 246, 220, 0.78), transparent 34%),
-        #d8c9ad;
+        radial-gradient(circle at var(--pointer-x) 48%, rgba(var(--accent-rgb), 0.18), transparent 38%),
+        radial-gradient(circle at 50% 50%, rgba(var(--accent-rgb), 0.08), transparent 75%),
+        var(--bg-primary);
     }
 
     .stage::before {
@@ -64,11 +69,10 @@
       inset: 0;
       z-index: 5;
       pointer-events: none;
-      opacity: 0.27;
+      opacity: 0.16;
       background:
-        repeating-radial-gradient(circle at 12% 18%, rgba(71, 51, 30, 0.17) 0 0.5px, transparent 0.7px 4px),
-        repeating-radial-gradient(circle at 78% 71%, rgba(255, 255, 255, 0.35) 0 0.5px, transparent 0.8px 5px);
-      mix-blend-mode: multiply;
+        repeating-radial-gradient(circle at 12% 18%, rgba(var(--accent-rgb), 0.2) 0 0.5px, transparent 0.7px 4px),
+        repeating-radial-gradient(circle at 78% 71%, rgba(255, 255, 255, 0.4) 0 0.5px, transparent 0.8px 5px);
     }
 
     .stage::after {
@@ -79,10 +83,10 @@
       pointer-events: none;
       background: linear-gradient(
         90deg,
-        rgba(84, 58, 29, 0.19),
+        rgba(var(--accent-rgb), 0.14),
         transparent 14%,
         transparent 86%,
-        rgba(84, 58, 29, 0.19)
+        rgba(var(--accent-rgb), 0.14)
       );
     }
 
@@ -102,14 +106,15 @@
       aspect-ratio: 0.72;
       padding: 7px;
       overflow: hidden;
-      border: 1px solid rgba(47, 34, 19, 0.42);
-      border-radius: 4px;
+      border: 2px solid rgba(var(--accent-rgb), calc(0.45 + var(--focus) * 0.55));
+      border-radius: 6px;
       color: #f3e7ce;
-      background: #e7d9bd;
+      background: rgba(var(--accent-rgb), 0.15);
+      background: color-mix(in srgb, var(--accent-color) 20%, var(--bg-secondary));
       box-shadow:
         0 calc(10px + var(--focus) * 24px) calc(18px + var(--focus) * 36px)
-          rgba(57, 38, 19, calc(0.2 + var(--focus) * 0.26)),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.64);
+          rgba(var(--accent-rgb), calc(0.2 + var(--focus) * 0.28)),
+        inset 0 0 0 1.5px rgba(var(--accent-rgb), 0.45);
       appearance: none;
       outline: none;
       transform-style: preserve-3d;
@@ -122,14 +127,14 @@
       position: absolute;
       inset: 5px;
       z-index: 3;
-      border: 1px solid rgba(28, 22, 14, calc(0.12 + var(--focus) * 0.12));
+      border: 1px solid rgba(var(--accent-rgb), calc(0.3 + var(--focus) * 0.45));
       pointer-events: none;
     }
 
     .card:focus-visible {
       box-shadow:
-        0 26px 50px rgba(57, 38, 19, 0.42),
-        0 0 0 4px rgba(197, 79, 25, 0.34);
+        0 26px 50px rgba(var(--accent-rgb), 0.35),
+        0 0 0 4px rgba(var(--accent-rgb), 0.55);
     }
 
     .card:hover {
